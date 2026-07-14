@@ -144,6 +144,7 @@
             display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px;
             max-height: 250px; overflow-y: auto; margin-top: 10px; padding: 2px;
         }
+        .picker-grid.named { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); max-height: 290px; }
         .picker-grid button {
             position: relative; border: 2px solid transparent; border-radius: 10px; padding: 0;
             background: var(--bg2); cursor: pointer; aspect-ratio: 1; overflow: hidden;
@@ -156,7 +157,47 @@
             width: 16px; height: 16px; border-radius: 999px; background: var(--blue); color: #fff;
             font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center;
         }
+        .picker-grid button .cname {
+            position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 2px 1px;
+            font-size: 10px; font-weight: 800; color: #fff; text-align: center; line-height: 1.2;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            background: linear-gradient(transparent, rgba(20, 22, 26, 0.78));
+            pointer-events: none;
+        }
+        .picker-grid button .lam-badge {
+            position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px;
+            background: #9B4DFF; color: #fff; font-size: 10px; font-weight: 900;
+            display: flex; align-items: center; justify-content: center; pointer-events: none;
+        }
+        .picker-label { margin-top: 12px; }
         .comp-status { font-size: 11px; font-weight: 800; color: var(--sub2); margin-top: 8px; }
+
+        /* ===== バースト構成 (テンプレート + 枠) ===== */
+        .tmpl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+        .tmpl-chip {
+            border: 1.5px solid var(--bg2); background: var(--bg); color: var(--sub);
+            font-size: 11px; font-weight: 900; padding: 6px 11px; border-radius: 999px;
+            cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
+        }
+        .tmpl-chip.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+        .slot-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+        .slot {
+            position: relative; display: flex; flex-direction: column; align-items: center;
+            border: 2px solid var(--bg2); border-radius: 12px; padding: 0; overflow: hidden;
+            background: var(--bg); cursor: pointer; font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .slot .slot-b {
+            width: 100%; font-size: 10px; font-weight: 900; text-align: center;
+            padding: 2px 0; color: #fff; background: var(--sb); letter-spacing: 0.5px;
+        }
+        .slot img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+        .slot .slot-plus {
+            width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 700; color: var(--faint);
+        }
+        .slot.active { border-color: var(--sb); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sb) 25%, transparent); }
 
         /* ===== submit ===== */
         .submit-btn {

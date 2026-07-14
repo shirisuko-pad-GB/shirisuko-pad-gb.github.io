@@ -53,13 +53,25 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | パス | 役割 |
 |---|---|
 | `index.html` | UI (ClaudeDesign・スマホファースト) |
-| `js/calc.js` | クライアント側ユーティリティ (計算式本体はサーバー側のみ) |
-| `js/app.js` | UIロジック (3凸入力・分布ゲート)・シェアカード生成 (Canvas) |
+| `js/calc.js` | クライアント側ユーティリティ (計算式本体はサーバー側のみ)・バースト枠ロジック |
+| `js/app.js` | UIロジック (3凸入力・分布ゲート・バースト枠ピッカー)・シェアカード生成 (Canvas) |
 | `js/backend.js` | 専用 Supabase への REST 送信 (返事で score 受領) / RPC分布取得 |
 | `data/base.json` | 基準値 (基準者ふるり の属性別ダメージ @ 基準SLv) — 手動メンテ |
 | `data/presets.json` | 属性別キャラ使用率 + 使用率TOP編成 (生成物) |
+| `data/burst-map.json` | キャラ名 → バースト区分 (B1/B2/B3/BΛ) — 手動メンテ |
+| `data/characters.json` | キャラ画像 → {名前, バースト} (生成物) |
 | `scripts/build-data.mjs` | presets.json 再生成 + キャラ画像コピー |
+| `scripts/build-characters.mjs` | characters.json 再生成 (PADの nikke_characters × burst-map.json) |
 | `scripts/gen-02-sql.mjs` | 実行用 02_stats.local.sql をローカル生成 (シードは非コミット) |
+
+### 編成ピッカーのバースト枠
+
+編成入力はバースト構成テンプレート (`B1・B2・B3×3` / `B1・B2×2・B3×2` / 自由) の
+枠タップ式。枠を選ぶと、その枠に入るバーストのキャラだけが候補に出る。
+**BΛ (レッドフードのみ) はどの枠にも入れる特殊仕様**。バースト未分類のキャラも
+弾かず全枠の候補に出す (「？」表示)。同一キャラのアイコン違いは名前で1つにまとめ、
+二重編成も名前単位で防ぐ。バースト区分は `data/burst-map.json` が唯一のソース
+(出典: game8 のバースト別キャラ一覧 + 個別評価ページ)。
 | `supabase/01_schema.sql` | measurements テーブル + RLS (anon は INSERT/SELECT のみ) |
 | `supabase/02_stats.sql` | 統計基盤テンプレート: 参照テーブル(非公開)・スコア再計算トリガ・分布RPC |
 
@@ -78,6 +90,9 @@ push (main) で GitHub Actions がテスト → Pages デプロイ。
 
 1. shirisu-pad 側で月次JSON配置が終わったら:
    `node scripts/build-data.mjs ../shirisu-pad` (presets.json とキャラ画像を更新)
+   続けて `node scripts/build-characters.mjs ../shirisu-pad` (characters.json を更新)。
+   「⚠ バースト未分類」の警告が出た新キャラは、攻略サイトでバーストを調べて
+   `data/burst-map.json` に追記 → 再実行
 2. `data/base.json` を手動更新:
    - 基準者ふるりの `syncLevel` と各属性の実凸ダメージ → 最新月JSON (`../shirisu-pad/data/YYYY-MM.json`)
    - 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → PAD の Supabase

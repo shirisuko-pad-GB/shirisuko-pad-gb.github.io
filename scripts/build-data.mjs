@@ -48,7 +48,9 @@ for (const file of monthFiles) {
         for (const a of p.attacks || []) {
             const attr = BOSS_TO_ATTR[a.bossCode];
             if (!attr) continue;
-            const chars = (a.characters || []).map(imgName).filter(Boolean);
+            // 元リポジトリに実在する画像だけ採用 (欠けた画像は 404 の灰色タイルになるため)
+            const chars = (a.characters || []).map(imgName)
+                .filter(c => c && existsSync(join(padDir, 'character-images', c)));
             chars.forEach(c => {
                 usedImages.add(c);
                 charCount[attr].set(c, (charCount[attr].get(c) || 0) + 1);
