@@ -60,9 +60,18 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `data/presets.json` | 属性別キャラ使用率 + 使用率TOP編成 (生成物) |
 | `data/burst-map.json` | キャラ名 → バースト区分 (B1/B2/B3/BΛ) — 手動メンテ |
 | `data/characters.json` | キャラ画像 → {名前, バースト} (生成物) |
+| `data/name-overrides.json` | PADに名前がない画像 → キャラ名 (手動メンテ・注釈ツールで生成) |
+| `data/raid.json` | **レイド毎に更新**: raidKey とボス名 (送信に刻印・画面に表示) |
+| `data/annotate-queue.json` | 注釈ツール用の作業キュー (生成物) |
+| `stats.html` + `js/stats.js` | みんなのデータページ (分布・キャラ採用率・編成ランキング) |
+| `tools/annotate.html` | 運営用の注釈ツール (名前なし画像に名前+バーストを付ける。閲覧専用) |
+| `scripts/update-roster.mjs` | **新キャラ取り込みの1コマンド** (build-data → build-characters) |
 | `scripts/build-data.mjs` | presets.json 再生成 + キャラ画像コピー |
-| `scripts/build-characters.mjs` | characters.json 再生成 (PADの nikke_characters × burst-map.json) |
+| `scripts/build-characters.mjs` | characters.json 再生成 (PADの nikke_characters + name-overrides × burst-map) |
 | `scripts/gen-02-sql.mjs` | 実行用 02_stats.local.sql をローカル生成 (シードは非コミット) |
+| `supabase/01_schema.sql` | measurements テーブル + RLS (anon は INSERT/SELECT のみ) |
+| `supabase/02_stats.sql` | 統計基盤テンプレート: 参照テーブル(非公開)・スコア再計算トリガ・分布RPC |
+| `supabase/03_analytics.sql` | raid_key 列 + みんなのデータ集計RPC (シードなし・コミット可) |
 
 ### 編成ピッカーのバースト枠
 
@@ -72,8 +81,13 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 弾かず全枠の候補に出す (「？」表示)。同一キャラのアイコン違いは名前で1つにまとめ、
 二重編成も名前単位で防ぐ。バースト区分は `data/burst-map.json` が唯一のソース
 (出典: game8 のバースト別キャラ一覧 + 個別評価ページ)。
-| `supabase/01_schema.sql` | measurements テーブル + RLS (anon は INSERT/SELECT のみ) |
-| `supabase/02_stats.sql` | 統計基盤テンプレート: 参照テーブル(非公開)・スコア再計算トリガ・分布RPC |
+`_unverified` に載っている名前は Claude の推定 — game8 で確認したら消すこと。
+
+### 設定の書き換えは Git 経由のみ (管理画面を作らない)
+
+raid.json・burst-map.json などの運用設定は**リポジトリのファイル**。書けるのは
+組織メンバーだけで、スマホでも GitHub のWeb/アプリから編集→コミットで反映できる。
+サイト内に管理UIは置かない (誰でも触れてしまうため)。
 
 ## テスト
 
@@ -83,16 +97,44 @@ node tests/run-tests.mjs
 
 push (main) で GitHub Actions がテスト → Pages デプロイ。
 
+## 3凸総合指標の補正設計 (Stage 4 の方針メモ)
+
+ボスには属性ごとに「ダメージの通りやすさ/通りにくさ」の差があるため、3凸の生合計では公平に比べられない。
+
+- **現在の「平均ふるり値」は既に補正済み**: 各凸を基準者ふるりの**同じボスへの**ダメージで
+  割っているので、通りやすいボスは分母も大きくなり相殺される。
+  弱点は「基準者自身のボスごとの得意不得意」が混入すること
+- **データが貯まったら (レイド内・属性ごと n≥100 目安)**: 各凸のスコアを
+  「そのボスへの**みんなの中央値** (同じ raid_key 内)」で割って平均する。
+  集団の中央値が通りやすさをそのまま吸収するので、補正係数を人手で決める必要がない。
+  例: 総合 1.05 = 「平均的なプレイヤーの1.05倍のダメージを3凸で出した」
+- 前提工事は済んでいる: 送信には raid_key が刻印され (data/raid.json)、
+  norm_damage は基準者に依存しないため月をまたいでも比較可能
+
+## レイド毎の更新 (レイド開始時)
+
+`data/raid.json` の `raidKey` (YYYY-MM) と `bosses` (属性→ボス名) を編集して push するだけ。
+GitHub のWeb/アプリからでも編集できる。ボス名は属性選択の下に表示され、送信に刻印される。
+
+## 新キャラの取り込み (実装されたら / 月次)
+
+```sh
+node scripts/update-roster.mjs        # ../shirisu-pad を読む (パス指定も可)
+```
+
+- 「⚠ バースト未分類」 → game8 でバーストを調べて `data/burst-map.json` に追記 → 再実行
+- 「⚠ 名前なし画像」 → `python -m http.server` でリポジトリを配信し
+  `/tools/annotate.html` を開く → 画像を見ながら名前+バーストを入力 →
+  出力を `data/name-overrides.json` と `data/burst-map.json` に貼る → 再実行
+- 警告が消えたら commit → push
+
 ## 月次メンテ (レイド終了ごと)
 
 新しい基準値でスコアの版を更新する。**旧版の提出と分布が混ざらないよう `version` の更新を忘れない**こと
 (分布集計は norm_damage ベースなので月をまたいで継続する。version はふるり値表示の基準切替)。
 
-1. shirisu-pad 側で月次JSON配置が終わったら:
-   `node scripts/build-data.mjs ../shirisu-pad` (presets.json とキャラ画像を更新)
-   続けて `node scripts/build-characters.mjs ../shirisu-pad` (characters.json を更新)。
-   「⚠ バースト未分類」の警告が出た新キャラは、攻略サイトでバーストを調べて
-   `data/burst-map.json` に追記 → 再実行
+1. shirisu-pad 側で月次JSON配置が終わったら: `node scripts/update-roster.mjs`
+   (presets・キャラ画像・characters.json をまとめて更新。警告が出たら上記「新キャラの取り込み」)
 2. `data/base.json` を手動更新:
    - 基準者ふるりの `syncLevel` と各属性の実凸ダメージ → 最新月JSON (`../shirisu-pad/data/YYYY-MM.json`)
    - 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → PAD の Supabase
@@ -108,4 +150,5 @@ push (main) で GitHub Actions がテスト → Pages デプロイ。
 2. SQL Editor で `supabase/01_schema.sql` を実行
 3. `node scripts/gen-02-sql.mjs` (shirisu-pad が隣にある環境で) → 生成された
    `supabase/02_stats.local.sql` を SQL Editor で実行
-4. Project Settings → API の URL と publishable key を `js/backend.js` の定数に設定
+4. SQL Editor で `supabase/03_analytics.sql` を実行 (raid_key 列 + 集計RPC)
+5. Project Settings → API の URL と publishable key を `js/backend.js` の定数に設定

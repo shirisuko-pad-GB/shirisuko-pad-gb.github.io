@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>キャラ注釈ツール (運営用)</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans JP', system-ui, sans-serif; background: #F7F8F9; color: #14161A; padding: 16px; max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 18px; font-weight: 900; margin-bottom: 4px; }
+    p.note { font-size: 12px; color: #6B7178; margin-bottom: 14px; }
+    .item { background: #fff; border-radius: 13px; border: 1px solid rgba(20,22,26,0.05); padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; align-items: center; }
+    .item img { width: 84px; height: 84px; border-radius: 10px; flex-shrink: 0; }
+    .item .fields { flex: 1; min-width: 0; }
+    .item input[type="text"] { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #F1F2F4; font-size: 14px; font-family: inherit; margin-bottom: 6px; }
+    .bursts { display: flex; gap: 5px; }
+    .bursts button { flex: 1; padding: 7px 0; border-radius: 8px; border: 1.5px solid #F1F2F4; background: #fff; font-weight: 900; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .bursts button.sel { color: #fff; border-color: transparent; }
+    .b-B1.sel { background: #1E78F0; } .b-B2.sel { background: #F59E0B; } .b-B3.sel { background: #FF3D44; } .b-BΛ.sel { background: #9B4DFF; }
+    .fname { font-size: 10px; color: #A4AAB0; word-break: break-all; }
+    .ok-btn { padding: 7px 12px; border-radius: 8px; border: 1.5px solid #18C26B; background: #fff; color: #18C26B; font-weight: 900; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .ok-btn.sel { background: #18C26B; color: #fff; }
+    h2 { font-size: 14px; font-weight: 900; margin: 18px 0 8px; }
+    textarea { width: 100%; height: 240px; font-family: Consolas, monospace; font-size: 11px; border-radius: 10px; border: 1.5px solid #F1F2F4; padding: 10px; }
+    .copy { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #14161A; color: #fff; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin: 8px 0 24px; }
+</style>
+</head>
+<body>
+<h1>キャラ注釈ツール</h1>
+<p class="note">運営用・ローカル/閲覧専用 (どこにも書き込みません)。リポジトリ直下で <code>python -m http.server</code> →
+<code>/tools/annotate.html</code> を開く。埋めたら下の出力をコピーして、指示どおりファイルに貼って
+<code>node scripts/update-roster.mjs</code> を再実行。</p>
+
+<h2>① 名前なし画像 — 名前とバーストを入力</h2>
+<div id="nameless"></div>
+
+<h2>② 推定の確認 — 合っていれば ✓、違えば直す</h2>
+<div id="review"></div>
+
+<h2>③ 出力</h2>
+<textarea id="out" readonly></textarea>
+<button class="copy" onclick="navigator.clipboard.writeText(document.getElementById('out').value).then(() => this.textContent = 'コピーしました!')">📋 コピー</button>
+<datalist id="names"></datalist>
+
+<script>
+const BURSTS = ['B1', 'B2', 'B3', 'BΛ'];
+const state = { nameless: [], review: [] };
+
+async function init() {
+    const q = await fetch('../data/annotate-queue.json').then(r => r.json());
+    document.getElementById('names').innerHTML = (q.knownNames || []).map(n => `<option value="${n}">`).join('');
+    state.nameless = (q.nameless || []).map(img => ({ img, name: '', burst: null }));
+    state.review = (q.review || []).map(r => ({ ...r, ok: false, origName: r.name, origBurst: r.burst }));
+    render('nameless', state.nameless, false);
+    render('review', state.review, true);
+    update();
+}
+
+function render(id, list, withOk) {
+    document.getElementById(id).innerHTML = list.map((it, i) => `
+    <div class="item">
+        <img src="../character-images/${it.img}" alt="">
+        <div class="fields">
+            <input type="text" list="names" placeholder="キャラ名 (PADの正式表記・コロンは半角)" value="${it.name || ''}"
+                   oninput="state.${id}[${i}].name = this.value; state.${id}[${i}].ok = false; update()">
+            <div class="bursts">${BURSTS.map(b => `
+                <button type="button" class="b-${b}${it.burst === b ? ' sel' : ''}"
+                        onclick="state.${id}[${i}].burst = '${b}'; state.${id}[${i}].ok = false; rerender()">${b}</button>`).join('')}
+                ${withOk ? `<button type="button" class="ok-btn${it.ok ? ' sel' : ''}"
+                        onclick="state.${id}[${i}].ok = !state.${id}[${i}].ok; rerender()">✓ OK</button>` : ''}
+            </div>
+            <div class="fname">${it.img}</div>
+        </div>
+    </div>`).join('');
+}
+
+function rerender() {
+    render('nameless', state.nameless, false);
+    render('review', state.review, true);
+    update();
+}
+
+function update() {
+    const overrides = {};
+    state.nameless.filter(it => it.name.trim()).forEach(it => { overrides[it.img] = it.name.trim(); });
+    // 推定を修正した分もオーバーライドへ (名前が変わった場合)
+    state.review.filter(it => !it.ok && it.name.trim() && it.name.trim() !== it.origName)
+        .forEach(it => { overrides[it.img] = it.name.trim(); });
+
+    const burstAdd = { B1: [], B2: [], B3: [], 'BΛ': [] };
+    [...state.nameless, ...state.review.filter(it => !it.ok)].forEach(it => {
+        const n = it.name.trim();
+        if (n && it.burst && (it.burst !== it.origBurst || it.name.trim() !== it.origName)) burstAdd[it.burst].push(n);
+    });
+    const verified = state.review.filter(it => it.ok).map(it => it.origName);
+
+    document.getElementById('out').value = [
+        '=== ① data/name-overrides.json に追記 (既存の行とマージ) ===',
+        JSON.stringify(overrides, null, 1),
+        '',
+        '=== ② data/burst-map.json の各配列に追記 (旧区分に同名があれば移動) ===',
+        JSON.stringify(Object.fromEntries(Object.entries(burstAdd).filter(([, v]) => v.length)), null, 1),
+        '',
+        '=== ③ 確認OKだった名前 → burst-map.json の _unverified から削除 ===',
+        JSON.stringify(verified),
+    ].join('\n');
+}
+
+init();
+</script>
+</body>
+</html>

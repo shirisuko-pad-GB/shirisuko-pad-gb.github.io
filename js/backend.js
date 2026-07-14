@@ -38,7 +38,7 @@ export function compKeyOf(characters) {
 // 凸セット (1〜3件) を一括登録し、サーバーが計算したふるり値を受け取る。
 // attacks = [{attribute, slv, damage, characters}]
 // 戻り値: 送信順の [{score, compKey}]
-export async function submitSet(attacks, baseVersion) {
+export async function submitSet(attacks, baseVersion, raidKey = null) {
     if (!backendConfigured()) throw new Error('backend not configured');
     const setId = attacks.length > 1 ? crypto.randomUUID() : null;
     const clientId = getClientId();
@@ -47,6 +47,7 @@ export async function submitSet(attacks, baseVersion) {
         slv: a.slv,
         damage: a.damage,
         base_version: baseVersion,
+        raid_key: raidKey,
         characters: a.characters && a.characters.length === 5 ? a.characters : null,
         comp_key: compKeyOf(a.characters),
         client_id: clientId,
@@ -80,5 +81,22 @@ export async function fetchDistribution({ attribute, score, baseVersion, compKey
         }),
     });
     if (!res.ok) throw new Error(`distribution failed: ${res.status} ${await res.text()}`);
+    return res.json();
+}
+
+// みんなのデータ: キャラ採用率 + 編成ランキング (1端末1票ベスト・編成つき提出のみ)。
+// 戻り値: {n, chars: [{img, count}], comps: [{chars, n, best, median}]} / 0件なら {n: 0}
+export async function fetchCompInsights({ attribute, baseVersion, raidKey = null }) {
+    if (!backendConfigured()) return null;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_comp_insights`, {
+        method: 'POST',
+        headers: HEADERS,
+        body: JSON.stringify({
+            p_attribute: attribute,
+            p_base_version: baseVersion,
+            p_raid_key: raidKey,
+        }),
+    });
+    if (!res.ok) throw new Error(`insights failed: ${res.status} ${await res.text()}`);
     return res.json();
 }

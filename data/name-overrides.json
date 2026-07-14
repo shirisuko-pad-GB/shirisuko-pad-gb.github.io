@@ -1,0 +1,22 @@
+{
+  "_readme": [
+    "PAD の nikke_characters に名前が無い画像 → キャラ名 の手動対応表。",
+    "build-characters.mjs が PAD 由来の名前より優先してマージする。",
+    "tools/annotate.html で画像を見ながら埋めて、出力をここに貼る。",
+    "※ 2026-07-15 の初期分は Claude が顔画像から推定 (要確認マーク付きで投入)"
+  ],
+  "1675c806cc8f0bb7244a0d19b136d7e5.webp": "ペッパー",
+  "1ab318713febb51ec0a59ecdf74d5961.webp": "ロザンナ",
+  "29e8ef4e2d542947f8220ddf46aa38ef.webp": "メアリー:ベイゴッデス",
+  "310676eef79617f285bc8b7455406cc1.webp": "ルドミラ:ウィンターオーナー",
+  "42d9a7d53ad7c3871087d0f972f12ff9.webp": "アスカ",
+  "48e2d0b41848d524f651eee9e81b44da.webp": "グレイブ",
+  "75cd454109aa4e98bba1ce0c26354234.webp": "マクスウェル",
+  "8ce431b15458c35f7382e7d7d9d213b7.webp": "ギロチン",
+  "a7454375ef26de7ab36031151ab2fe35.webp": "ミハラ",
+  "af2657ff5ffb44f70ed2db8d5de8985a.webp": "エクシア",
+  "d96d3a6d5c55ef7dd76f83181da11869.webp": "メアリー",
+  "e4bc33b9c6f01f42e9b1ee8ddbabacb5.webp": "錦木千束",
+  "ea134d0cd6c02ed9d3a02cec91d87dbd.webp": "ボリューム",
+  "f4d49f875b1e112f42c2daf410aa7aac.webp": "イサベル"
+}

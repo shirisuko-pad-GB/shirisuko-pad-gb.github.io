@@ -24,7 +24,7 @@ const MAX_ATTACKS = 3;
 
 const $ = (id) => document.getElementById(id);
 
-let base = null, presets = null, characters = null;
+let base = null, presets = null, characters = null, raid = null;
 let attacks = [newAttack()];
 let results = null;        // シェア用の測定結果
 let shareBlob = null;
@@ -46,12 +46,13 @@ const charKeyOf = (img) => nameOf(img) || img;
 
 // ---------- 初期化 ----------
 async function init() {
-    const [b, p, c] = await Promise.all([
+    const [b, p, c, rd] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         fetch('./data/presets.json').then(x => x.json()).catch(() => null),
         fetch('./data/characters.json').then(x => x.json()).catch(() => null),
+        fetch('./data/raid.json').then(x => x.json()).catch(() => null),
     ]);
-    base = b; presets = p; characters = c;
+    base = b; presets = p; characters = c; raid = rd;
     $('baseVersionLabel').textContent = `${base.version} (基準者${base.basePlayer} SLv ${base.baseSlv})`;
     $('thresholdAllLabel').textContent = MIN_N_ALL;
     $('thresholdCompLabel').textContent = MIN_N_COMP;
@@ -114,6 +115,8 @@ function attackCardHTML(a, i) {
         <h2><span class="step-num">2</span>${title}${delBtn}</h2>
         <p class="hint" style="margin-bottom:8px;">PT属性を選択。⚔ の後ろは<strong>そのPTで殴る相手ボス</strong>です</p>
         <div class="attr-grid">${attrBtns}</div>
+        ${info && raid?.bosses?.[a.attribute] ? `
+        <p class="hint" style="margin-top:8px;">⚔ 相手は ${info.enemyJp}属性ボス「<strong style="color:${info.color};">${raid.bosses[a.attribute]}</strong>」 (${raid.raidKey} レイド)</p>` : ''}
         <div style="margin-top:12px;">
             <p class="hint" style="margin-bottom:6px;">与えたダメージを <strong>B (10億) 単位</strong>で (例: 13.18)。フル桁の貼り付けもOK</p>
             <div class="dmg-field">
@@ -342,7 +345,7 @@ async function onSubmit() {
     // 計算はサーバー側 — 送信が通らないとスコアも出ない
     let returned = null;
     try {
-        returned = await submitSet(items, base.version);
+        returned = await submitSet(items, base.version, raid?.raidKey ?? null);
         if (returned.some(r => !Number.isFinite(r.score))) throw new Error('score missing in response');
     } catch (e) {
         console.warn('送信失敗:', e);
