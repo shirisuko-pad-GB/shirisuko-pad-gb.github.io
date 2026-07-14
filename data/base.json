@@ -1,0 +1,13 @@
+{
+  "version": "2026-07",
+  "description": "ふるり値の基準データ。基準者(ふるり)の属性別ダメージ @ 基準SLv。模擬登録がある属性は模擬値を採用 (shirisu-pad の buildFururiBaseMap と同じ運用ルール)",
+  "basePlayer": "ふるり",
+  "baseSlv": 544,
+  "bases": {
+    "FIRE":     { "bossCode": "A.N.M.I.", "damage": 13181319006, "source": "actual" },
+    "WATER":    { "bossCode": "H.S.T.A.", "damage": 15520000000, "source": "simulation" },
+    "ELECTRIC": { "bossCode": "P.S.I.D.", "damage": 18990000000, "source": "simulation" },
+    "IRON":     { "bossCode": "Z.E.U.S.", "damage": 16740000000, "source": "simulation" },
+    "WIND":     { "bossCode": "D.M.T.R.", "damage": 14730000000, "source": "simulation" }
+  }
+}

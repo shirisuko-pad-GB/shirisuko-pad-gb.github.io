@@ -1,0 +1,3 @@
+# 未公開の検証データ (めいでる+ふるり) — 絶対にコミットしない
+data/slv-ratio.json
+supabase/02_stats.local.sql
