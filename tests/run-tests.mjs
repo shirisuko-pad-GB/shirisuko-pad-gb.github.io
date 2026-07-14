@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate } from '../js/calc.js';
+import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from '../js/calc.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -66,6 +66,34 @@ console.log('ATTRS:');
 test('5属性が定義されている', () => {
     assertEq(ATTRS.length, 5);
     assertEq(new Set(ATTRS).size, 5);
+});
+
+console.log('parseDamageInput (B単位のダメージ入力):');
+
+test('B単位の少数入力 → 生ダメージ', () => {
+    assertEq(parseDamageInput('13.18'), 13.18e9);
+    assertEq(parseDamageInput('18.99'), 18.99e9);
+    assertEq(parseDamageInput('0.5'), 0.5e9);
+    assertEq(parseDamageInput('.5'), 0.5e9);
+});
+
+test('フル桁の貼り付け → そのまま生ダメージ (カンマ・空白許容)', () => {
+    assertEq(parseDamageInput('33333109055'), 33333109055);
+    assertEq(parseDamageInput('33,333,109,055'), 33333109055);
+    assertEq(parseDamageInput(' 13 180 000 000 '), 13180000000);
+});
+
+test('末尾のB表記は明示的にB単位', () => {
+    assertEq(parseDamageInput('13.18B'), 13.18e9);
+    assertEq(parseDamageInput('99b'), 99e9);
+});
+
+test('不正入力・0以下は null', () => {
+    assertEq(parseDamageInput(''), null);
+    assertEq(parseDamageInput('abc'), null);
+    assertEq(parseDamageInput('0'), null);
+    assertEq(parseDamageInput('13.18.5'), null);
+    assertEq(parseDamageInput('-5'), null);
 });
 
 console.log('バースト編成 (B1/B2/B3/BΛ):');

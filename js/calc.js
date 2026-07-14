@@ -14,6 +14,20 @@ export function topPercentFromCounts(above, n) {
     return Math.max(1, Math.round(((above + 1) / n) * 100));
 }
 
+// ダメージ入力のパース → 生ダメージ (実数) or null。
+// 基本は B (10億) 単位の少数入力 (例 "13.18" → 13,180,000,000)。
+// フル桁の貼り付け (1,000,000 以上) は生の数字として扱う。カンマ・空白・末尾のBは許容。
+export function parseDamageInput(str) {
+    if (typeof str !== 'string') str = String(str ?? '');
+    const trimmed = str.replace(/[,\s，、]/g, '');
+    const hasB = /[bB]$/.test(trimmed);
+    const s = trimmed.replace(/[bB]$/, '');
+    if (!/^\d*\.?\d+$/.test(s)) return null;
+    const v = parseFloat(s);
+    if (!(v > 0)) return null;
+    return (hasB || v < 1e6) ? v * 1e9 : v;
+}
+
 // ---------- バースト編成 (B1/B2/B3/BΛ) ----------
 // BΛ はレッドフードのみの特殊仕様: どのバースト枠にも入れる。
 // バースト不明 (データ未整備) のキャラも弾かず、どの枠でも選べる扱いにする。

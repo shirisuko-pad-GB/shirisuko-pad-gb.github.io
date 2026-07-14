@@ -1,7 +1,7 @@
 // しりすこPAD GB — ふるり値チェッカー UIロジック
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate } from './calc.js';
+import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution, compKeyOf } from './backend.js';
 
 // PT属性の表示情報。enemy = そのPTで殴る相手ボスの属性
@@ -81,7 +81,7 @@ function stepSlv(d) {
 function updateSubmitState() {
     const slv = parseInt($('slv').value);
     const ok = slv >= 1 && slv <= 1000 &&
-        attacks.every(a => a.attribute && parseFloat(a.damage) > 0);
+        attacks.every(a => a.attribute && parseDamageInput(a.damage) > 0);
     $('submitBtn').disabled = !ok;
     $('addAtkBtn').disabled = attacks.length >= MAX_ATTACKS;
 }
@@ -115,8 +115,11 @@ function attackCardHTML(a, i) {
         <p class="hint" style="margin-bottom:8px;">PT属性を選択。⚔ の後ろは<strong>そのPTで殴る相手ボス</strong>です</p>
         <div class="attr-grid">${attrBtns}</div>
         <div style="margin-top:12px;">
-            <p class="hint" style="margin-bottom:6px;">与えたダメージ (凸結果画面の TOTAL DAMAGE をそのまま。カンマ不要)</p>
-            <input class="atk-damage" type="number" min="0" inputmode="numeric" placeholder="例: 30000000000"${dmg}>
+            <p class="hint" style="margin-bottom:6px;">与えたダメージを <strong>B (10億) 単位</strong>で (例: 13.18)。フル桁の貼り付けもOK</p>
+            <div class="dmg-field">
+                <input class="atk-damage" type="text" inputmode="decimal" placeholder="例: 13.18"${dmg}>
+                <span class="dmg-unit">B</span>
+            </div>
             <p class="preview">${damagePreviewText(a.damage)}</p>
         </div>
         <details class="comp"${a.compOpen ? ' open' : ''}>
@@ -215,8 +218,10 @@ function compStatusText(a) {
 }
 
 function damagePreviewText(v) {
-    const n = parseFloat(v);
-    return (n > 0) ? `≈ ${(n / 1e9).toFixed(3)} B (${n.toLocaleString('ja-JP')})` : ' ';
+    if (!String(v ?? '').trim()) return ' ';
+    const raw = parseDamageInput(v);
+    if (!(raw > 0)) return '数値を確認してください';
+    return `${(raw / 1e9).toFixed(2)} B = ${Math.round(raw).toLocaleString('ja-JP')}`;
 }
 
 function bindAttackCard(card) {
@@ -322,7 +327,7 @@ async function onSubmit() {
     const slv = parseInt($('slv').value);
     const items = attacks.map(a => ({
         attribute: a.attribute, slv,
-        damage: parseFloat(a.damage),
+        damage: parseDamageInput(a.damage),
         characters: selChars(a).length === 5 ? selChars(a).sort() : null,
     }));
     if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !(slv >= 1 && slv <= 1000)) {
