@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from '../js/calc.js';
-import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE } from '../js/shared.js';
+import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -179,6 +179,18 @@ test('null/undefined/数値も安全に文字列化', () => {
 test('属性値の脱出を防ぐ (ダメージ入力の自己XSS)', () => {
     // value="${escapeHtml(a.damage)}" に埋めても属性を破れない
     assertEq(escapeHtml('12" onfocus="alert(1)'), '12&quot; onfocus=&quot;alert(1)');
+});
+
+console.log('shared: THRESHOLDS (しきい値の一元管理):');
+
+test('しきい値が3種そろっていて正の整数', () => {
+    for (const k of ['dist', 'comp', 'insights']) {
+        assert(Number.isInteger(THRESHOLDS[k]) && THRESHOLDS[k] > 0, `THRESHOLDS.${k} が不正`);
+    }
+    // クライアントの説明文はこの値を使う (サーバーの need と一致させること)
+    assertEq(THRESHOLDS.dist, 100);
+    assertEq(THRESHOLDS.comp, 30);
+    assertEq(THRESHOLDS.insights, 10);
 });
 
 console.log('shared: sanitizeCharacters (編成の入口検証):');

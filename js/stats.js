@@ -1,6 +1,6 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, backendConfigured } from './backend.js';
-import { escapeHtml, CHAR_IMG_RE } from './shared.js';
+import { escapeHtml, CHAR_IMG_RE, THRESHOLDS } from './shared.js';
 
 // DB由来の画像名を描画する共通タグ。CHECK済みだが二重防御で形式を再検証し、
 // 不正なら描画しない (XSS遮断)。名前は characters.json 由来だがエスケープする。
@@ -18,10 +18,6 @@ const ATTR_INFO = {
     WIND:     { jp: '風圧', color: '#18C26B', icon: './assets/attr/wind.png' },
 };
 const ATTRS = Object.keys(ATTR_INFO);
-
-// 解禁しきい値 (app.js と同じ思想。分布は厳しめ、採用率/編成は参考値として早めに見せる)
-const MIN_N_DIST = 100;
-const MIN_N_INSIGHTS = 10;
 
 const $ = (id) => document.getElementById(id);
 let base = null, characters = null, current = 'FIRE';
@@ -82,7 +78,7 @@ function gateHTML(n, min, what) {
 function renderDist(d, info) {
     // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
     if (!d || d.gated || !Array.isArray(d.bins)) {
-        $('distArea').innerHTML = gateHTML(d?.n ?? 0, MIN_N_DIST, `${info.jp}PT の分布`);
+        $('distArea').innerHTML = gateHTML(d?.n ?? 0, d?.need ?? THRESHOLDS.dist, `${info.jp}PT の分布`);
         return;
     }
     const maxBin = Math.max(...d.bins, 1);
@@ -95,8 +91,8 @@ function renderDist(d, info) {
 
 function renderInsights(ins, info) {
     const n = ins?.n ?? 0;
-    if (!ins || ins.gated || !ins.chars) {   // サーバー閾値 (編成データ=10) 未満は本体なし
-        $('charsArea').innerHTML = gateHTML(n, MIN_N_INSIGHTS, `${info.jp}PT の編成データ`);
+    if (!ins || ins.gated || !ins.chars) {   // サーバー閾値未満は本体なし
+        $('charsArea').innerHTML = gateHTML(n, ins?.need ?? THRESHOLDS.insights, `${info.jp}PT の編成データ`);
         $('compsArea').innerHTML = `<p class="hint">編成を登録した提出が増えると表示されます</p>`;
         return;
     }

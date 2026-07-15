@@ -1,0 +1,7 @@
+# 改行コードを LF に正規化 (Windows/Mac 混在でも警告を出さない)
+* text=auto eol=lf
+
+# バイナリは変換しない
+*.png binary
+*.webp binary
+*.ico binary

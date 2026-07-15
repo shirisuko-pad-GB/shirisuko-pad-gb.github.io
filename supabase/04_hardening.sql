@@ -181,7 +181,7 @@ begin
         return json_build_object('n', 0);
     end if;
     if v_n < v_thresh then
-        return json_build_object('n', v_n, 'gated', true);   -- 分布本体は出さない
+        return json_build_object('n', v_n, 'gated', true, 'need', v_thresh);   -- 分布本体は出さない
     end if;
 
     select count(*) filter (where x > p_score),
@@ -234,10 +234,11 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-    v_k     numeric;
-    v_chars json;
-    v_comps json;
-    v_n     int;
+    v_k      numeric;
+    v_chars  json;
+    v_comps  json;
+    v_n      int;
+    v_thresh int := 10;   -- 編成データの解禁しきい値
 begin
     p_days       := least(greatest(p_days, 1), 400);
     p_top_chars  := least(greatest(p_top_chars, 1), 60);
@@ -267,7 +268,7 @@ begin
     counted as (select count(*)::int as n from rows)
     select
         (select n from counted),
-        case when (select n from counted) < 10 then null else
+        case when (select n from counted) < v_thresh then null else
             (select json_agg(json_build_object('img', img, 'count', cnt) order by cnt desc, img)
              from (
                  select img, count(*)::int as cnt
@@ -276,7 +277,7 @@ begin
                  order by cnt desc
                  limit p_top_chars
              ) c) end,
-        case when (select n from counted) < 10 then null else
+        case when (select n from counted) < v_thresh then null else
             (select json_agg(json_build_object(
                         'chars', chars, 'n', n_votes,
                         'best', round((best * v_k)::numeric, 4),
@@ -298,8 +299,8 @@ begin
     if v_n = 0 then
         return json_build_object('n', 0);
     end if;
-    if v_n < 10 then
-        return json_build_object('n', v_n, 'gated', true);   -- 採用率・編成は出さない
+    if v_n < v_thresh then
+        return json_build_object('n', v_n, 'gated', true, 'need', v_thresh);   -- 採用率・編成は出さない
     end if;
     return json_build_object('n', v_n, 'chars', v_chars, 'comps', v_comps);
 end;

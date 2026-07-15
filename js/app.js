@@ -3,7 +3,7 @@
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution } from './backend.js';
-import { escapeHtml } from './shared.js';
+import { escapeHtml, THRESHOLDS } from './shared.js';
 
 // PT属性の表示情報。enemy = そのPTで殴る相手ボスの属性
 const ATTR_INFO = {
@@ -18,10 +18,9 @@ const SITE_URL = 'https://shirisuko-pad-gb.github.io/';
 // バースト区分の表示色 (枠ラベル・バッジ)
 const BURST_COLORS = { B1: '#1E78F0', B2: '#F59E0B', B3: '#FF3D44', 'BΛ': '#9B4DFF' };
 
-// 分布の解禁しきい値 (信頼性重視)。変えるときはここだけ
-const MIN_N_ALL = 100;   // 属性別分布
-const MIN_N_COMP = 30;   // 同一編成分布
+// 解禁しきい値は shared.js の THRESHOLDS に一元化 (実ゲートはサーバーが強制)
 const MAX_ATTACKS = 3;
+const LAST_KEY = 'spg_last_result';   // 前回の測定 (localStorage) — 再訪時に分布だけ見直せる
 
 const $ = (id) => document.getElementById(id);
 
@@ -55,8 +54,8 @@ async function init() {
     ]);
     base = b; presets = p; characters = c; raid = rd;
     $('baseVersionLabel').textContent = `${base.version} (基準者${base.basePlayer} SLv ${base.baseSlv})`;
-    $('thresholdAllLabel').textContent = MIN_N_ALL;
-    $('thresholdCompLabel').textContent = MIN_N_COMP;
+    $('thresholdAllLabel').textContent = THRESHOLDS.dist;
+    $('thresholdCompLabel').textContent = THRESHOLDS.comp;
     $('slvMinus').addEventListener('click', () => stepSlv(-1));
     $('slvPlus').addEventListener('click', () => stepSlv(1));
     $('slv').addEventListener('input', updateSubmitState);
@@ -71,6 +70,77 @@ async function init() {
     $('saveBtn').addEventListener('click', onSave);
     renderAttacks();
     updateSubmitState();
+    renderRecallBanner();   // 前回測定があれば「最新の分布を見る」を出す
+}
+
+// ---------- 前回結果の記憶・再確認 ----------
+// 送信ごとに測定内容を localStorage に保存 → 再訪時に、新しい行を挿入せず
+// 保存済みスコアで分布だけ取り直して確認できる (解禁後に見に来た人向け・重複投稿を防ぐ)
+function saveLastResult(items) {
+    try {
+        localStorage.setItem(LAST_KEY, JSON.stringify({
+            savedAt: base.version,
+            items: items.map(it => ({ attribute: it.attribute, slv: it.slv, damage: it.damage, score: it.score, characters: it.characters })),
+        }));
+    } catch { /* localStorage 不可でも致命ではない */ }
+}
+
+function loadLastResult() {
+    try {
+        const raw = localStorage.getItem(LAST_KEY);
+        if (!raw) return null;
+        const v = JSON.parse(raw);
+        // 基準版が変わった (月次更新) 前回結果は比較できないので出さない
+        if (!v || v.savedAt !== base.version || !Array.isArray(v.items) || v.items.length === 0) return null;
+        return v;
+    } catch { return null; }
+}
+
+function renderRecallBanner() {
+    const host = $('recallBanner');
+    if (!host) return;
+    const last = loadLastResult();
+    if (!last || !backendConfigured()) { host.style.display = 'none'; return; }
+    const label = last.items.map(it => `${ATTR_INFO[it.attribute].jp} ${Number(it.score).toFixed(2)}`).join(' / ');
+    host.innerHTML = `
+        <div class="recall">
+            <div class="recall-txt">前回の測定: <strong>${escapeHtml(label)}</strong></div>
+            <button type="button" id="recallBtn" class="recall-btn">最新の分布を見る</button>
+        </div>`;
+    host.style.display = 'block';
+    $('recallBtn').addEventListener('click', () => showRecalledDistribution(last));
+}
+
+// 保存済みスコアで分布だけ取り直す (送信=INSERT はしない)
+async function showRecalledDistribution(last) {
+    const btn = $('recallBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '確認中…'; }
+    const items = last.items.map(it => ({
+        attribute: it.attribute, slv: it.slv, damage: it.damage,
+        characters: it.characters ?? null, score: Number(it.score),
+    }));
+    const dists = await Promise.all(items.map(async (it) => {
+        try {
+            const compKey = it.characters ? [...it.characters].sort().join('|') : null;
+            const [dist, compDist] = await Promise.all([
+                fetchDistribution({ attribute: it.attribute, score: it.score, baseVersion: base.version }),
+                compKey
+                    ? fetchDistribution({ attribute: it.attribute, score: it.score, baseVersion: base.version, compKey })
+                    : Promise.resolve(null),
+            ]);
+            return { dist, compDist, fetchError: false };
+        } catch (e) {
+            console.warn('分布取得失敗:', e);
+            return { dist: null, compDist: null, fetchError: true };
+        }
+    }));
+    results = items.map((it, i) => ({ ...it, ...dists[i] }));
+    renderResults();
+    shareBlob = null;
+    $('cardPreview').style.display = 'none';
+    $('shareCard').style.display = 'block';
+    $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (btn) { btn.disabled = false; btn.textContent = '最新の分布を見る'; }
 }
 
 function stepSlv(d) {
@@ -382,6 +452,8 @@ async function onSubmit() {
 
     results = items.map((it, i) => ({ ...it, score: returned[i].score, ...dists[i] }));
     renderResults();
+    saveLastResult(results);   // 再訪時に分布だけ見直せるよう保存
+    renderRecallBanner();
 
     shareBlob = null;
     $('cardPreview').style.display = 'none';
@@ -444,12 +516,13 @@ function distSectionHTML(r, info) {
     let html = '';
     const distReady = !d.gated && Array.isArray(d.bins);
     if (!distReady) {
-        // 解禁前: 進捗を見せて送信を促す (n は返るが分布本体は返らない)
-        const pctBar = Math.min(100, Math.round((d.n / MIN_N_ALL) * 100));
+        // 解禁前: 進捗を見せて送信を促す (必要人数はサーバーの need を優先)
+        const need = d.need ?? THRESHOLDS.dist;
+        const pctBar = Math.min(100, Math.round((d.n / need) * 100));
         html += `
         <div class="gate-note">
             <span>🔒</span>
-            <span>みんなの分布は <strong>${MIN_N_ALL}人</strong> で解禁 — 現在 <strong>${d.n}人</strong>。シェアして仲間を増やそう!</span>
+            <span>みんなの分布は <strong>${need}人</strong> で解禁 — 現在 <strong>${d.n}人</strong>。シェアして仲間を増やそう!</span>
             <span class="gate-bar"><span style="width:${pctBar}%"></span></span>
         </div>`;
     } else {
@@ -462,14 +535,14 @@ function distSectionHTML(r, info) {
         <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・直近120日) の分布。色付きがあなた。
             真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
-    // 同一編成 (サーバー閾値 30 未満は gated)
+    // 同一編成 (サーバー閾値未満は gated)
     if (r.characters && r.compDist) {
         const cd = r.compDist;
         if (!cd.gated && Number.isFinite(cd.above)) {
             const cp = topPercentFromCounts(cd.above, cd.n);
             html += `<p class="dist-note">🧩 同じ編成 ${cd.n}人の中では <strong>上位 ${cp}%</strong> です。</p>`;
         } else {
-            html += `<p class="dist-note">🧩 同じ編成の提出は ${cd.n}人 (${MIN_N_COMP}人で編成内比較が解禁)</p>`;
+            html += `<p class="dist-note">🧩 同じ編成の提出は ${cd.n}人 (${cd.need ?? THRESHOLDS.comp}人で編成内比較が解禁)</p>`;
         }
     }
     return html;
@@ -544,7 +617,7 @@ async function buildShareCard() {
         ctx.fillStyle = '#A4AAB0';
         ctx.font = `700 32px ${F}`;
         ctx.fillText(`SLv ${r.slv} / ${(r.damage / 1e9).toFixed(2)} B`, 340, 484);
-        const pct = (r.dist && r.dist.n >= MIN_N_ALL) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
+        const pct = (r.dist && !r.dist.gated && Array.isArray(r.dist.bins)) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
         if (pct != null) {
             ctx.fillStyle = mainColor;
             ctx.font = `900 46px ${F}`;
