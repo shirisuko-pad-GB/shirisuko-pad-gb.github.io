@@ -3,17 +3,8 @@
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution } from './backend.js';
-import { escapeHtml, THRESHOLDS } from './shared.js';
-
-// PT属性の表示情報。enemy = そのPTで殴る相手ボスの属性
-const ATTR_INFO = {
-    FIRE:     { jp: '灼熱', color: '#FF3D44', icon: './assets/attr/fire.png',     enemyJp: '風圧', enemyIcon: './assets/attr/wind.png' },
-    WATER:    { jp: '水冷', color: '#2E8BFF', icon: './assets/attr/water.png',    enemyJp: '灼熱', enemyIcon: './assets/attr/fire.png' },
-    ELECTRIC: { jp: '電撃', color: '#9B4DFF', icon: './assets/attr/electric.png', enemyJp: '水冷', enemyIcon: './assets/attr/water.png' },
-    IRON:     { jp: '鉄甲', color: '#FF8A2B', icon: './assets/attr/iron.png',     enemyJp: '電撃', enemyIcon: './assets/attr/electric.png' },
-    WIND:     { jp: '風圧', color: '#18C26B', icon: './assets/attr/wind.png',     enemyJp: '鉄甲', enemyIcon: './assets/attr/iron.png' },
-};
-const SITE_URL = 'https://shirisuko-pad-gb.github.io/';
+import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL } from './shared.js';
+import { buildShareCard } from './sharecard.js';
 
 // バースト区分の表示色 (枠ラベル・バッジ)
 const BURST_COLORS = { B1: '#1E78F0', B2: '#F59E0B', B3: '#FF3D44', 'BΛ': '#9B4DFF' };
@@ -549,104 +540,11 @@ function distSectionHTML(r, info) {
 }
 
 // ---------- シェアカード ----------
-async function buildShareCard() {
-    if (!results || results.length === 0) return null;
+// 描画は sharecard.js。ここは結果ごとに1度だけ生成してキャッシュする薄いラッパ
+async function getShareCard() {
     if (shareBlob) return shareBlob;
-    const cv = $('shareCanvas');
-    const ctx = cv.getContext('2d');
-    const W = cv.width, H = cv.height;
-    const multi = results.length > 1;
-    const mainInfo = ATTR_INFO[results[0].attribute];
-    const mainColor = multi ? '#46A0FF' : mainInfo.color;
-    const mainScore = multi
-        ? results.reduce((s, r) => s + r.score, 0) / results.length
-        : results[0].score;
-
-    // 背景
-    ctx.fillStyle = '#14161A';
-    ctx.fillRect(0, 0, W, H);
-    const grad = ctx.createLinearGradient(0, 0, W, 0);
-    grad.addColorStop(0, mainColor);
-    grad.addColorStop(1, mainColor + '55');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, 14);
-    const rg = ctx.createRadialGradient(W - 140, 130, 0, W - 140, 130, 320);
-    rg.addColorStop(0, mainColor + '40');
-    rg.addColorStop(1, mainColor + '00');
-    ctx.fillStyle = rg;
-    ctx.fillRect(0, 0, W, H);
-
-    const F = "'Noto Sans JP', sans-serif";
-    ctx.fillStyle = '#8A9097';
-    ctx.font = `900 30px ${F}`;
-    ctx.fillText('SHIRISUKO PAD GB', 70, 92);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = `900 56px ${F}`;
-    ctx.fillText(multi ? `ふるり値 (${results.length}凸平均)` : 'ふるり値', 70, 210);
-    ctx.fillStyle = mainColor;
-    ctx.font = `900 190px ${F}`;
-    ctx.fillText(mainScore.toFixed(2), 70, 400);
-
-    if (multi) {
-        // 凸ごとの内訳
-        let x = 74;
-        for (const r of results) {
-            const inf = ATTR_INFO[r.attribute];
-            try {
-                const icon = await loadImage(inf.icon);
-                ctx.drawImage(icon, x, 440, 48, 48);
-            } catch { /* アイコンなしでも続行 */ }
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `900 40px ${F}`;
-            const t = ` ${r.score.toFixed(2)}`;
-            ctx.fillText(t, x + 50, 478);
-            x += 50 + ctx.measureText(t).width + 40;
-        }
-        ctx.fillStyle = '#A4AAB0';
-        ctx.font = `700 30px ${F}`;
-        ctx.fillText(`SLv ${results[0].slv}`, 70, 570);
-    } else {
-        const r = results[0];
-        try {
-            const icon = await loadImage(mainInfo.icon);
-            ctx.drawImage(icon, 74, 440, 56, 56);
-        } catch { /* アイコンなしでも続行 */ }
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = `900 44px ${F}`;
-        ctx.fillText(`${mainInfo.jp}PT`, 146, 484);
-        ctx.fillStyle = '#A4AAB0';
-        ctx.font = `700 32px ${F}`;
-        ctx.fillText(`SLv ${r.slv} / ${(r.damage / 1e9).toFixed(2)} B`, 340, 484);
-        const pct = (r.dist && !r.dist.gated && Array.isArray(r.dist.bins)) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
-        if (pct != null) {
-            ctx.fillStyle = mainColor;
-            ctx.font = `900 46px ${F}`;
-            const pctText = `上位 ${pct}%`;
-            const pctW = ctx.measureText(pctText).width;
-            ctx.fillText(pctText, 70, 580);
-            ctx.fillStyle = '#8A9097';
-            ctx.font = `700 30px ${F}`;
-            ctx.fillText(`(${r.dist.n}人中)`, 70 + pctW + 24, 578);
-        }
-    }
-
-    ctx.fillStyle = '#6B7178';
-    ctx.font = `700 28px ${F}`;
-    ctx.textAlign = 'right';
-    ctx.fillText(SITE_URL.replace('https://', '').replace(/\/$/, ''), W - 60, H - 44);
-    ctx.textAlign = 'left';
-
-    shareBlob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    shareBlob = await buildShareCard(results, $('shareCanvas'));
     return shareBlob;
-}
-
-async function loadImage(src) {
-    return new Promise((res, rej) => {
-        const img = new Image();
-        img.onload = () => res(img);
-        img.onerror = rej;
-        img.src = src;
-    });
 }
 
 function shareText() {
@@ -656,7 +554,7 @@ function shareText() {
         return `ふるり値 平均${avg.toFixed(2)} (${parts}) #ふるり値チェッカー #NIKKE`;
     }
     const r = results[0];
-    const pct = (r.dist && r.dist.n >= MIN_N_ALL) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
+    const pct = (r.dist && !r.dist.gated && Array.isArray(r.dist.bins)) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
     return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT)${pct != null ? ` — 上位${pct}%!` : ''} #ふるり値チェッカー #NIKKE`;
 }
 
@@ -664,7 +562,7 @@ async function onShare() {
     if (!results) return;
     try {
         await document.fonts.ready;   // Canvas に Noto Sans JP を確実に効かせる
-        const blob = await buildShareCard();
+        const blob = await getShareCard();
         const file = new File([blob], 'fururi-score.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file], text: `${shareText()}\n${SITE_URL}` });
@@ -683,7 +581,7 @@ async function onShare() {
 async function onSave() {
     if (!results) return;
     await document.fonts.ready;
-    const blob = await buildShareCard();
+    const blob = await getShareCard();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `fururi-score.png`;
@@ -693,7 +591,7 @@ async function onSave() {
 }
 
 async function previewCard() {
-    const blob = await buildShareCard();
+    const blob = await getShareCard();
     const img = $('cardPreview');
     img.src = URL.createObjectURL(blob);
     img.style.display = 'block';

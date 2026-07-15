@@ -74,8 +74,10 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 |---|---|
 | `index.html` | UI (ClaudeDesign・スマホファースト) |
 | `js/calc.js` | クライアント側ユーティリティ (計算式本体はサーバー側のみ)・バースト枠ロジック |
-| `js/app.js` | UIロジック (3凸入力・分布ゲート・バースト枠ピッカー)・シェアカード生成 (Canvas) |
-| `js/backend.js` | 専用 Supabase への REST 送信 (返事で score 受領) / RPC分布取得 |
+| `js/shared.js` | 全モジュール共通: escapeHtml・sanitizeCharacters・ATTR_INFO・THRESHOLDS・SITE_URL |
+| `js/app.js` | UIロジック (3凸入力・分布ゲート・バースト枠ピッカー・前回結果の再確認) |
+| `js/sharecard.js` | シェアカードの Canvas 描画 (自己完結・状態を持たない純処理) |
+| `js/backend.js` | 専用 Supabase への RPC 送信 (submit で score 受領) / 分布・集計取得 |
 | `data/base.json` | 基準値 (基準者ふるり の属性別ダメージ @ 基準SLv) — 手動メンテ |
 | `data/presets.json` | 属性別キャラ使用率 + 使用率TOP編成 (生成物) |
 | `data/burst-map.json` | キャラ名 → バースト区分 (B1/B2/B3/BΛ) — 手動メンテ |
@@ -114,10 +116,15 @@ raid.json・burst-map.json などの運用設定は**リポジトリのファイ
 ## テスト
 
 ```sh
-node tests/run-tests.mjs
+node tests/run-tests.mjs   # 純関数・XSS/入力検証・しきい値の単体テスト
+node tests/e2e.mjs         # 常設E2E: headless Chrome で index.html を 375px iframe で駆動
+                           #   (実 Supabase に接続して 送信→スコア→分布ゲート→前回結果の再確認 を通す。
+                           #    Chrome の場所は自動探索、CHROME_PATH で上書き可)
 ```
 
-push (main) で GitHub Actions がテスト → Pages デプロイ。
+push (main) で GitHub Actions が run-tests → Pages デプロイ。
+UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認する
+(Windows headless は viewport 最小 500px のため、狭幅検証は iframe 375px で行う)。
 
 ## 3凸総合指標の補正設計 (Stage 4 の方針メモ)
 

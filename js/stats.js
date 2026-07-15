@@ -1,6 +1,6 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, backendConfigured } from './backend.js';
-import { escapeHtml, CHAR_IMG_RE, THRESHOLDS } from './shared.js';
+import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO } from './shared.js';
 
 // DB由来の画像名を描画する共通タグ。CHECK済みだが二重防御で形式を再検証し、
 // 不正なら描画しない (XSS遮断)。名前は characters.json 由来だがエスケープする。
@@ -10,13 +10,6 @@ function charImgTag(img, { lazy = true } = {}) {
     return `<img ${lazy ? 'loading="lazy" ' : ''}src="./character-images/${img}" alt="${name}" title="${name}">`;
 }
 
-const ATTR_INFO = {
-    FIRE:     { jp: '灼熱', color: '#FF3D44', icon: './assets/attr/fire.png' },
-    WATER:    { jp: '水冷', color: '#2E8BFF', icon: './assets/attr/water.png' },
-    ELECTRIC: { jp: '電撃', color: '#9B4DFF', icon: './assets/attr/electric.png' },
-    IRON:     { jp: '鉄甲', color: '#FF8A2B', icon: './assets/attr/iron.png' },
-    WIND:     { jp: '風圧', color: '#18C26B', icon: './assets/attr/wind.png' },
-};
 const ATTRS = Object.keys(ATTR_INFO);
 
 const $ = (id) => document.getElementById(id);
