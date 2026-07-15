@@ -36,38 +36,50 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
   try {
     await wait(1800);
     // 冪等化: 前回実行の保存結果を消す (client_id は残す → 本番の集計票を増やさない)。
-    // 消したうえで再読込し、まっさらな初期状態から検証する。
     f.contentWindow.localStorage.removeItem('spg_last_result');
     await reload(); await wait(2000);
     let fw = f.contentWindow, fd = fw.document;
-    check('初回バナー非表示', fd.getElementById('recallBanner').style.display === 'none');
-    check('属性ボタン5個', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
     check('横オーバーフローなし (375px)', fd.documentElement.scrollWidth <= 375);
-    const set = (el, v) => { el.value = v; el.dispatchEvent(new fw.Event('input', { bubbles: true })); };
-    set(fd.getElementById('slv'), 544);
-    fd.querySelectorAll('.atk-card')[0].querySelector('[data-attr="FIRE"]').click();
-    await wait(250);
-    set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), '13.18');
-    await wait(150);
-    check('送信ボタン有効化', fd.getElementById('submitBtn').disabled === false);
-    fd.getElementById('submitBtn').click();
-    await wait(6000);
-    const scoreEl = fd.querySelector('.result-card .score-big');
-    const errored = [...fd.querySelectorAll('.card h2')].some(h => h.textContent.includes('測定できません'));
-    R.backendUp = !errored && !!scoreEl;
-    if (R.backendUp) {
-      check('スコア 1.00 (基準ダメージ入力)', scoreEl.textContent === '1.00');
-      check('分布ゲート表示', /で解禁/.test(fd.querySelector('.result-card')?.textContent || ''));
-      check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));
-      await reload(); await wait(2200);
-      fw = f.contentWindow; fd = fw.document;
-      check('再訪でバナー表示', fd.getElementById('recallBanner').style.display === 'block');
-      const rbtn = fd.getElementById('recallBtn');
-      check('再確認ボタンあり', !!rbtn);
-      if (rbtn) { rbtn.click(); await wait(4500);
-        check('再確認で結果を再表示 (新規送信なし)', fd.querySelector('.result-card .score-big')?.textContent === '1.00'); }
+
+    // 運用モードを検出 (site_state=open 以外は測定UIが隠れて告知が出る)
+    const measureHidden = fd.getElementById('measureArea')?.style.display === 'none';
+    const notice = fd.getElementById('siteNotice');
+    R.mode = measureHidden ? 'closed' : 'open';
+
+    if (measureHidden) {
+      // between / maintenance: 告知が出て測定UIが隠れていることだけ確認
+      check('運用モード告知が表示される', notice?.style.display === 'block' && /準備中|工事中/.test(notice.textContent));
+      check('測定UIが隠れている', !fd.querySelector('.atk-card'));
+      R.steps.push({ name: '(closed mode: 測定・分布系は skip)', skip: true });
     } else {
-      R.steps.push({ name: '(バックエンド未接続: 送信系 skip)', skip: true });
+      check('初回バナー非表示', fd.getElementById('recallBanner').style.display === 'none');
+      check('属性ボタン5個', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
+      const set = (el, v) => { el.value = v; el.dispatchEvent(new fw.Event('input', { bubbles: true })); };
+      set(fd.getElementById('slv'), 544);
+      fd.querySelectorAll('.atk-card')[0].querySelector('[data-attr="FIRE"]').click();
+      await wait(250);
+      set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), '13.18');
+      await wait(150);
+      check('送信ボタン有効化', fd.getElementById('submitBtn').disabled === false);
+      fd.getElementById('submitBtn').click();
+      await wait(6000);
+      const scoreEl = fd.querySelector('.result-card .score-big');
+      const errored = [...fd.querySelectorAll('.card h2')].some(h => h.textContent.includes('測定できません'));
+      R.backendUp = !errored && !!scoreEl;   // シーズンが open で基準投入済みなら成功
+      if (R.backendUp) {
+        check('スコア 1.00 (基準ダメージ入力)', scoreEl.textContent === '1.00');
+        check('分布ゲート表示', /で解禁/.test(fd.querySelector('.result-card')?.textContent || ''));
+        check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));
+        await reload(); await wait(2200);
+        fw = f.contentWindow; fd = fw.document;
+        check('再訪でバナー表示', fd.getElementById('recallBanner').style.display === 'block');
+        const rbtn = fd.getElementById('recallBtn');
+        check('再確認ボタンあり', !!rbtn);
+        if (rbtn) { rbtn.click(); await wait(4500);
+          check('再確認で結果を再表示 (新規送信なし)', fd.querySelector('.result-card .score-big')?.textContent === '1.00'); }
+      } else {
+        R.steps.push({ name: '(送信不可 = シーズン未 open/基準未投入: 送信系 skip)', skip: true });
+      }
     }
     check('DOMに onerror 属性なし (XSS)', !/onerror\\s*=/i.test(fd.body.innerHTML));
   } catch (e) { R.error = String((e && e.stack) || e); }

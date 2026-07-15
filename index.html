@@ -252,6 +252,16 @@
         #shareCanvas { display: none; }
         #cardPreview { width: 100%; border-radius: 11px; margin-top: 12px; border: 1px solid var(--line); display: none; }
 
+        /* ===== 運用モード告知 (between/maintenance) ===== */
+        .notice {
+            background: #fff; border-radius: 15px; border: 1px solid var(--line);
+            box-shadow: 0 1px 4px rgba(20, 22, 26, 0.04); padding: 22px 18px; margin-bottom: 14px;
+            text-align: center;
+        }
+        .notice h2 { font-size: 17px; font-weight: 900; margin-bottom: 6px; }
+        .notice p { font-size: 13px; color: var(--sub); line-height: 1.7; }
+        .notice a { color: var(--blue); font-weight: 900; text-decoration: none; }
+
         /* ===== 前回結果の再確認バナー ===== */
         .recall {
             display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -292,9 +302,14 @@
         <p style="margin-top:8px;"><a href="./stats.html" style="font-size:12px;font-weight:900;color:var(--blue);text-decoration:none;">📊 みんなのデータ (分布・採用率・編成ランキング) →</a></p>
     </header>
 
+    <!-- シーズン運用モードの告知 (between/maintenance 時に app.js が出す) -->
+    <div id="siteNotice" style="display:none;"></div>
+
     <!-- 前回の測定があれば「最新の分布を見る」(app.js が出し入れ) -->
     <div id="recallBanner" style="display:none;"></div>
 
+    <!-- 測定UI (工事中/準備中は app.js が丸ごと隠す) -->
+    <div id="measureArea">
     <!-- STEP 1: SLv (全凸共通) -->
     <section class="card">
         <h2><span class="step-num">1</span>シンクロレベル (SLv)</h2>
@@ -311,6 +326,7 @@
 
     <button class="submit-btn" id="submitBtn" disabled>送信して測定する</button>
     <p class="privacy">測定には送信が必要です。送信されるのは属性・SLv・ダメージ・編成 (任意) のみで、<br>個人を特定する情報は収集しません。データは分布の表示にだけ使われます。</p>
+    </div><!-- /#measureArea -->
 
     <!-- 結果 (app.js が生成) -->
     <div id="resultsArea"></div>
@@ -330,8 +346,8 @@
         <p>ユニオンレイドのダメージは SLv (シンクロレベル) が上がるほど伸びるため、ダメージの絶対値だけでは「育成の上手さ」は比べられません。<strong>ふるり値</strong>は、基準プレイヤー「ふるり」の同属性ダメージを自分の SLv 相当に換算した値との比率。<strong>1.00 = 基準者と同等の地力</strong>です。</p>
         <h3>計算式</h3>
         <p>ふるり値 = あなたのダメージ ÷ (基準ダメージ × SLv補正[あなた] ÷ SLv補正[基準])</p>
-        <h3>📊 みんなの分布</h3>
-        <p>送信されたデータは匿名で蓄積され、属性ごとに提出が<strong id="thresholdAllLabel"></strong>件を超えると「みんなの中での位置 (上位◯%)」が見られるようになります。集計は1端末につきベスト1件・直近120日のデータで行い、極端な値の影響を受けにくい方法 (中央値・パーセンタイル) を使っています。編成を登録した提出が同一編成で<strong id="thresholdCompLabel"></strong>件を超えると「同じ編成の中での位置」も開放されます。</p>
+        <h3>📊 みんなの分布 (シーズンごと)</h3>
+        <p>送信されたデータは匿名で蓄積され、<strong>今シーズン</strong>の提出が属性ごとに<strong id="thresholdAllLabel"></strong>人を超えると「みんなの中での位置 (上位◯%)」が見られるようになります。集計は1端末につきベスト1件で行い、極端な値の影響を受けにくい方法 (中央値・パーセンタイル) を使っています。編成を登録した提出が同一編成で<strong id="thresholdCompLabel"></strong>人を超えると「同じ編成の中での位置」も開放されます。<strong>シーズンが変わると分布はリセット</strong>されます (新キャラ・ボスの違いを公平に扱うため)。</p>
         <h3>⚠️ 注意</h3>
         <p>ふるり値は育成効率を可視化する<strong>参考指標</strong>です。ボスのギミック相性・締め凸・戦闘時間などの条件差は考慮されません。基準データ: <span id="baseVersionLabel"></span></p>
     </section>

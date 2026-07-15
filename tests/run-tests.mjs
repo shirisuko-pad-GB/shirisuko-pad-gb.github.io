@@ -187,9 +187,10 @@ test('しきい値が3種そろっていて正の整数', () => {
     for (const k of ['dist', 'comp', 'insights']) {
         assert(Number.isInteger(THRESHOLDS[k]) && THRESHOLDS[k] > 0, `THRESHOLDS.${k} が不正`);
     }
-    // クライアントの説明文はこの値を使う (サーバーの need と一致させること)
-    assertEq(THRESHOLDS.dist, 100);
-    assertEq(THRESHOLDS.comp, 30);
+    // per-season 向けに引き下げた値。SQL (05_seasons.sql) の get_distribution=50/15・
+    // get_comp_insights=10 と一致させること。
+    assertEq(THRESHOLDS.dist, 50);
+    assertEq(THRESHOLDS.comp, 15);
     assertEq(THRESHOLDS.insights, 10);
 });
 
@@ -219,6 +220,29 @@ test('不正な編成は null (XSSペイロード/要素数違い/型違い)', (
     assertEq(sanitizeCharacters('not-an-array'), null);
     assertEq(sanitizeCharacters(null), null);
     assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg, '"><script>']), null);
+});
+
+console.log('シーズン設定の整合性:');
+
+test('raid.json: order は5属性・重複なし / bosses が order を網羅 / season は YYYY-MM で base.version と一致', () => {
+    const raid = JSON.parse(readFileSync(join(ROOT, 'data', 'raid.json'), 'utf8'));
+    const base = JSON.parse(readFileSync(join(ROOT, 'data', 'base.json'), 'utf8'));
+    assertEq(raid.order.length, 5, 'order 5個');
+    assertEq(new Set(raid.order).size, 5, 'order 重複なし');
+    assert(raid.order.every(a => ATTRS.includes(a)), 'order は正規の属性のみ');
+    assert(raid.order.every(a => typeof raid.bosses[a] === 'string' && raid.bosses[a].length > 0), 'bosses が order を網羅');
+    assert(/^\d{4}-\d{2}$/.test(raid.season), 'season は YYYY-MM');
+    assertEq(raid.season, base.version, 'raid.season は base.version と一致させる');
+});
+
+test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 05_seasons.sql)', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '05_seasons.sql'), 'utf8');
+    // get_distribution: case when p_comp_key is null then 50 else 15
+    assert(new RegExp(`then\\s+${THRESHOLDS.dist}\\s+else\\s+${THRESHOLDS.comp}`).test(sql),
+        `05_seasons.sql の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
+    // get_comp_insights: v_thresh int := 10
+    assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(sql),
+        `05_seasons.sql の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

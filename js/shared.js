@@ -13,11 +13,11 @@ export const ATTR_INFO = {
 
 export const SITE_URL = 'https://shirisuko-pad-gb.github.io/';
 
-// 分布・集計の解禁しきい値 (表示用)。
-// ⚠ 実際のゲート判定はサーバー (04_hardening.sql) が強制する。ここは進捗表示・説明文用で、
+// 分布・集計の解禁しきい値 (表示用)。シーズンごとに 0 から積む前提の値。
+// ⚠ 実際のゲート判定はサーバー (05_seasons.sql) が強制する。ここは進捗表示・説明文用で、
 //    ゲート表示はサーバーが返す need を優先する (ここがズレても実害は説明文の数字のみ)。
-//    SQL 側の閾値を変えたら合わせて更新すること。
-export const THRESHOLDS = { dist: 100, comp: 30, insights: 10 };
+//    SQL 側の閾値 (get_distribution=50/15, get_comp_insights=10) を変えたら合わせて更新。
+export const THRESHOLDS = { dist: 50, comp: 15, insights: 10 };
 
 // HTML エスケープ: 文字列を innerHTML テンプレートに埋める前に必ず通す。
 // DB由来・ユーザー入力由来の文字列を DOM に入れる箇所は全てこれを使う (XSS対策)。

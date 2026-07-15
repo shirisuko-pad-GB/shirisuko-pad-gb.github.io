@@ -42,10 +42,19 @@ export function getClientId() {
     return id;
 }
 
+// 運用状態 (シーズン制) を取得。{status, active_season, display_season, message} / null
+export async function fetchSiteState() {
+    if (!backendConfigured()) return null;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/site_state?select=status,active_season,display_season,message&limit=1`, { headers: HEADERS });
+    if (!res.ok) throw new Error(`site_state failed: ${res.status}`);
+    const rows = await res.json();
+    return rows[0] ?? null;
+}
+
 // 凸セット (1〜3件) を一括登録し、サーバー計算の score と server由来の comp_key を受け取る。
-// attacks = [{attribute, slv, damage, characters}]
-// 戻り値: 送信順の [{score, compKey}]
-export async function submitSet(attacks, baseVersion, raidKey = null) {
+// attacks = [{attribute, slv, damage, characters}]、season = 現在のシーズンキー
+// 戻り値: 送信順の [{score, compKey}]。閉じたシーズンはサーバーが拒否する。
+export async function submitSet(attacks, season) {
     if (!backendConfigured()) throw new Error('backend not configured');
     const setId = attacks.length > 1 ? crypto.randomUUID() : null;
     const clientId = getClientId();
@@ -53,8 +62,7 @@ export async function submitSet(attacks, baseVersion, raidKey = null) {
         attribute: a.attribute,
         slv: a.slv,
         damage: a.damage,
-        base_version: baseVersion,
-        raid_key: raidKey,
+        season,
         characters: sanitizeCharacters(a.characters),   // 5×正規画像名でなければ null
         client_id: clientId,
         set_id: setId,
@@ -68,28 +76,28 @@ export async function submitSet(attacks, baseVersion, raidKey = null) {
     }));
 }
 
-// 分布を取得 (サーバー側で 1端末1票ベスト・直近120日・p1〜p99トリム)。
+// 分布を取得 (サーバー側で シーズン絞り・1端末1票ベスト・p1〜p99トリム)。
 // score = 送信の返事で得た自分のふるり値。返り値もすべてふるり値単位:
 //   閾値以上: {n, above, median, lo, hi, bins[], my_bin}
-//   閾値未満: {n, gated:true} (分布本体なし) / データ0件: {n: 0}
-export async function fetchDistribution({ attribute, score, baseVersion, compKey = null }) {
+//   閾値未満: {n, gated:true, need} (分布本体なし) / データ0件: {n: 0}
+export async function fetchDistribution({ attribute, season, score, compKey = null }) {
     if (!backendConfigured()) return null;
     return callRpc('get_distribution', {
         p_attribute: attribute,
+        p_season: season,
         p_score: score,
-        p_base_version: baseVersion,
         p_comp_key: compKey,
     });
 }
 
-// みんなのデータ: キャラ採用率 + 編成ランキング (1端末1票ベスト・編成つき提出のみ)。
+// みんなのデータ: キャラ採用率 + 編成ランキング (シーズン絞り・1端末1票ベスト・編成つき提出のみ)。
 //   閾値以上: {n, chars: [{img, count}], comps: [{chars, n, best, median}]}
-//   閾値未満: {n, gated:true} / 0件: {n: 0}
-export async function fetchCompInsights({ attribute, baseVersion, raidKey = null }) {
+//     ※ best/median は採用5人未満の編成では null (プライバシー下限)
+//   閾値未満: {n, gated:true, need} / 0件: {n: 0}
+export async function fetchCompInsights({ attribute, season }) {
     if (!backendConfigured()) return null;
     return callRpc('get_comp_insights', {
         p_attribute: attribute,
-        p_base_version: baseVersion,
-        p_raid_key: raidKey,
+        p_season: season,
     });
 }

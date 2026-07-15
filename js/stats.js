@@ -1,5 +1,5 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
-import { fetchDistribution, fetchCompInsights, backendConfigured } from './backend.js';
+import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured } from './backend.js';
 import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO } from './shared.js';
 
 // DB由来の画像名を描画する共通タグ。CHECK済みだが二重防御で形式を再検証し、
@@ -13,19 +13,42 @@ function charImgTag(img, { lazy = true } = {}) {
 const ATTRS = Object.keys(ATTR_INFO);
 
 const $ = (id) => document.getElementById(id);
-let base = null, characters = null, current = 'FIRE';
+let base = null, characters = null, raid = null, site = null;
+let viewSeason = null, current = null;
 
 async function init() {
-    [base, characters] = await Promise.all([
+    [base, characters, raid, site] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         fetch('./data/characters.json').then(x => x.json()).catch(() => null),
+        fetch('./data/raid.json').then(x => x.json()).catch(() => null),
+        fetchSiteState().catch(() => null),
     ]);
+    // 表示するシーズン: open なら現行 (base.version)、between/maintenance なら display_season
+    const status = site?.status ?? 'open';
+    viewSeason = (status === 'open') ? base.version : (site?.display_season ?? null);
+    if (status !== 'open' && viewSeason) {
+        const el = document.querySelector('header');
+        if (el) el.insertAdjacentHTML('beforeend',
+            `<p class="hint" style="margin-top:6px;color:var(--sub2);">${status === 'between' ? '⏳ 次シーズン準備中' : '🚧 工事中'} — 表示中: ${escapeHtml(viewSeason)} シーズン (確定分)</p>`);
+    }
+    current = orderedAttrs()[0];
     renderTabs();
+    if (!viewSeason) {
+        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = '<p class="err">表示できるシーズンがありません。</p>';
+        return;
+    }
     load();
 }
 
+// 属性タブの順 (raid.order があればそれ)
+function orderedAttrs() {
+    const o = raid?.order;
+    if (Array.isArray(o) && o.length === 5 && new Set(o).size === 5 && o.every(a => ATTRS.includes(a))) return o;
+    return ATTRS;
+}
+
 function renderTabs() {
-    $('attrTabs').innerHTML = ATTRS.map(a => {
+    $('attrTabs').innerHTML = orderedAttrs().map(a => {
         const i = ATTR_INFO[a];
         return `
         <button type="button" class="attr-tab${a === current ? ' active' : ''}" data-attr="${a}"
@@ -47,8 +70,8 @@ async function load() {
     try {
         const [dist, ins] = await Promise.all([
             // p_score=0 で呼ぶ (自分の位置は不要・分布だけ使う)
-            fetchDistribution({ attribute: current, score: 0, baseVersion: base.version }),
-            fetchCompInsights({ attribute: current, baseVersion: base.version }),
+            fetchDistribution({ attribute: current, season: viewSeason, score: 0 }),
+            fetchCompInsights({ attribute: current, season: viewSeason }),
         ]);
         renderDist(dist, info);
         renderInsights(ins, info);
@@ -96,16 +119,22 @@ function renderInsights(ins, info) {
             <div class="pct">${Math.round((c.count / n) * 100)}%</div>
         </div>`).join('')}</div>
     <p class="dist-note">対象: 編成つき提出 ${n}人</p>`;
-    // 編成ランキング
-    $('compsArea').innerHTML = (ins.comps || []).map((cp, i) => `
+    // 編成ランキング (best/median は採用5人未満だと null で返る = プライバシー下限)
+    $('compsArea').innerHTML = (ins.comps || []).map((cp, i) => {
+        const hasStats = Number.isFinite(cp.median) && Number.isFinite(cp.best);
+        const stats = hasStats
+            ? `中央値 <strong>${Number(cp.median).toFixed(2)}</strong> / 最高 <strong>${Number(cp.best).toFixed(2)}</strong>`
+            : `<span style="color:var(--faint);">スコアは5人以上で表示</span>`;
+        return `
     <div class="comp-row">
         <span style="font-size:12px;font-weight:900;color:${info.color};min-width:20px;">${i + 1}</span>
         <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charImgTag(img)).join('')}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
-            <span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong> / 最高 <strong>${Number(cp.best).toFixed(2)}</strong></span>
+            <span>${stats}</span>
         </span>
-    </div>`).join('') || '<p class="hint">まだ編成つきの提出がありません</p>';
+    </div>`;
+    }).join('') || '<p class="hint">まだ編成つきの提出がありません</p>';
 }
 
 init().catch(e => {
