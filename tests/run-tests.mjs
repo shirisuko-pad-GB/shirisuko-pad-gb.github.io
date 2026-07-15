@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from '../js/calc.js';
+import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE } from '../js/shared.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -159,6 +160,53 @@ test('BΛ はレッドフードのみ (1キャラ限定の特殊仕様)', () => 
     const lambdaNames = new Set(Object.values(c).filter(v => v.burst === 'BΛ').map(v => v.name));
     assertEq(lambdaNames.size, 1, `BΛ キャラが複数います: ${[...lambdaNames].join(', ')}`);
     assert([...lambdaNames][0].includes('レッドフード'), `BΛ がレッドフードではありません: ${[...lambdaNames][0]}`);
+});
+
+console.log('shared: escapeHtml (XSS対策):');
+
+test('HTML特殊文字を全てエスケープ', () => {
+    assertEq(escapeHtml('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
+    assertEq(escapeHtml('a"b\'c&d<e>f'), 'a&quot;b&#39;c&amp;d&lt;e&gt;f');
+    assertEq(escapeHtml('"><script>'), '&quot;&gt;&lt;script&gt;');
+});
+
+test('null/undefined/数値も安全に文字列化', () => {
+    assertEq(escapeHtml(null), '');
+    assertEq(escapeHtml(undefined), '');
+    assertEq(escapeHtml(42), '42');
+});
+
+test('属性値の脱出を防ぐ (ダメージ入力の自己XSS)', () => {
+    // value="${escapeHtml(a.damage)}" に埋めても属性を破れない
+    assertEq(escapeHtml('12" onfocus="alert(1)'), '12&quot; onfocus=&quot;alert(1)');
+});
+
+console.log('shared: sanitizeCharacters (編成の入口検証):');
+
+const validImg = 'a'.repeat(32) + '.webp';
+const valid5 = Array.from({ length: 5 }, (_, i) => (i.toString(16).repeat(32)).slice(0, 32) + '.webp');
+
+test('正規の5要素配列はそのまま通す', () => {
+    const out = sanitizeCharacters(valid5);
+    assertEq(Array.isArray(out), true);
+    assertEq(out.length, 5);
+});
+
+test('CHAR_IMG_RE は 32桁hex.webp のみ一致', () => {
+    assert(CHAR_IMG_RE.test(validImg), '正規名が弾かれた');
+    assert(!CHAR_IMG_RE.test('AAAA'.repeat(8) + '.webp'), '大文字hexを通した');
+    assert(!CHAR_IMG_RE.test('../secret.webp'), 'パストラバーサルを通した');
+    assert(!CHAR_IMG_RE.test(validImg + '"'), '末尾の引用符を通した');
+});
+
+test('不正な編成は null (XSSペイロード/要素数違い/型違い)', () => {
+    assertEq(sanitizeCharacters(['<img onerror=alert(1)>']), null);
+    assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg]), null);   // 4要素
+    assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg, validImg, validImg]), null); // 6要素
+    assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg, 123]), null); // 非文字列混入
+    assertEq(sanitizeCharacters('not-an-array'), null);
+    assertEq(sanitizeCharacters(null), null);
+    assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg, '"><script>']), null);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

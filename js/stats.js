@@ -1,5 +1,14 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, backendConfigured } from './backend.js';
+import { escapeHtml, CHAR_IMG_RE } from './shared.js';
+
+// DB由来の画像名を描画する共通タグ。CHECK済みだが二重防御で形式を再検証し、
+// 不正なら描画しない (XSS遮断)。名前は characters.json 由来だがエスケープする。
+function charImgTag(img, { lazy = true } = {}) {
+    if (typeof img !== 'string' || !CHAR_IMG_RE.test(img)) return '';
+    const name = escapeHtml(characters?.[img]?.name ?? '');
+    return `<img ${lazy ? 'loading="lazy" ' : ''}src="./character-images/${img}" alt="${name}" title="${name}">`;
+}
 
 const ATTR_INFO = {
     FIRE:     { jp: '灼熱', color: '#FF3D44', icon: './assets/attr/fire.png' },
@@ -71,7 +80,8 @@ function gateHTML(n, min, what) {
 }
 
 function renderDist(d, info) {
-    if (!d || d.n < MIN_N_DIST) {
+    // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
+    if (!d || d.gated || !Array.isArray(d.bins)) {
         $('distArea').innerHTML = gateHTML(d?.n ?? 0, MIN_N_DIST, `${info.jp}PT の分布`);
         return;
     }
@@ -85,16 +95,15 @@ function renderDist(d, info) {
 
 function renderInsights(ins, info) {
     const n = ins?.n ?? 0;
-    if (n < MIN_N_INSIGHTS) {
-        const gate = gateHTML(n, MIN_N_INSIGHTS, `${info.jp}PT の編成データ`);
-        $('charsArea').innerHTML = gate;
+    if (!ins || ins.gated || !ins.chars) {   // サーバー閾値 (編成データ=10) 未満は本体なし
+        $('charsArea').innerHTML = gateHTML(n, MIN_N_INSIGHTS, `${info.jp}PT の編成データ`);
         $('compsArea').innerHTML = `<p class="hint">編成を登録した提出が増えると表示されます</p>`;
         return;
     }
-    // キャラ採用率
+    // キャラ採用率 (img は charImgTag が形式検証 + 名前エスケープ)
     $('charsArea').innerHTML = `<div class="char-grid">${(ins.chars || []).slice(0, 18).map(c => `
-        <div class="char-cell" title="${characters?.[c.img]?.name ?? ''}">
-            <img loading="lazy" src="./character-images/${c.img}" alt="${characters?.[c.img]?.name ?? ''}">
+        <div class="char-cell">
+            ${charImgTag(c.img)}
             <div class="pct">${Math.round((c.count / n) * 100)}%</div>
         </div>`).join('')}</div>
     <p class="dist-note">対象: 編成つき提出 ${n}人</p>`;
@@ -102,8 +111,7 @@ function renderInsights(ins, info) {
     $('compsArea').innerHTML = (ins.comps || []).map((cp, i) => `
     <div class="comp-row">
         <span style="font-size:12px;font-weight:900;color:${info.color};min-width:20px;">${i + 1}</span>
-        <span class="comp-faces">${(cp.chars || []).map(img =>
-            `<img loading="lazy" src="./character-images/${img}" alt="${characters?.[img]?.name ?? ''}" title="${characters?.[img]?.name ?? ''}">`).join('')}</span>
+        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charImgTag(img)).join('')}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
             <span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong> / 最高 <strong>${Number(cp.best).toFixed(2)}</strong></span>

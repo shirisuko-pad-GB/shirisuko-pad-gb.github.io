@@ -2,7 +2,8 @@
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
-import { backendConfigured, submitSet, fetchDistribution, compKeyOf } from './backend.js';
+import { backendConfigured, submitSet, fetchDistribution } from './backend.js';
+import { escapeHtml } from './shared.js';
 
 // PT属性の表示情報。enemy = そのPTで殴る相手ボスの属性
 const ATTR_INFO = {
@@ -109,7 +110,7 @@ function attackCardHTML(a, i) {
             <span class="vs">⚔ <img src="${ai.enemyIcon}" alt="">${ai.enemyJp}ボス</span>
         </button>`;
     }).join('');
-    const dmg = a.damage ? ` value="${a.damage}"` : '';
+    const dmg = a.damage ? ` value="${escapeHtml(a.damage)}"` : '';
     return `
     <section class="card atk-card" data-i="${i}" style="${info ? `--ac:${info.color};` : ''}">
         <h2><span class="step-num">2</span>${title}${delBtn}</h2>
@@ -168,7 +169,7 @@ function compBodyHTML(a) {
             return `
             <button type="button" class="slot${si === a.activeSlot ? ' active' : ''}" data-slot="${si}" style="--sb:${color};">
                 <span class="slot-b">${sb || '自由'}</span>
-                ${img ? `<img src="./character-images/${img}" alt="${nameOf(img)}">` : `<span class="slot-plus">＋</span>`}
+                ${img ? `<img src="./character-images/${img}" alt="${escapeHtml(nameOf(img))}">` : `<span class="slot-plus">＋</span>`}
             </button>`;
         }).join('')}</div>
         <div class="comp-status">${compStatusText(a)}</div>
@@ -202,9 +203,9 @@ function pickerGridHTML(a, ap) {
         const si = a.slots.indexOf(img);
         return `
         <button type="button" data-img="${img}"${si >= 0 ? ` class="sel" data-n="${si + 1}"` : ''}>
-            <img loading="lazy" src="./character-images/${img}" alt="${nameOf(img)}">
+            <img loading="lazy" src="./character-images/${img}" alt="${escapeHtml(nameOf(img))}">
             ${b === 'BΛ' ? `<span class="lam-badge">Λ</span>` : ''}
-            <span class="cname">${nameOf(img) || '？'}</span>
+            <span class="cname">${escapeHtml(nameOf(img) || '？')}</span>
         </button>`;
     }).join('');
     const label = slotBurst
@@ -419,7 +420,9 @@ function resultCardHTML(r, i, multi) {
         distHtml = distSectionHTML(r, info);
     }
 
-    const pct = (r.dist && r.dist.n >= MIN_N_ALL) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
+    // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
+    const distReady = r.dist && !r.dist.gated && Array.isArray(r.dist.bins);
+    const pct = distReady ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
     const pill = pct != null
         ? `<span class="rank-pill" style="--ra:${info.color};">上位 ${pct}% / ${r.dist.n}人</span>` : '';
 
@@ -439,8 +442,9 @@ function resultCardHTML(r, i, multi) {
 function distSectionHTML(r, info) {
     const d = r.dist;
     let html = '';
-    if (d.n < MIN_N_ALL) {
-        // 解禁前: 進捗を見せて送信を促す
+    const distReady = !d.gated && Array.isArray(d.bins);
+    if (!distReady) {
+        // 解禁前: 進捗を見せて送信を促す (n は返るが分布本体は返らない)
         const pctBar = Math.min(100, Math.round((d.n / MIN_N_ALL) * 100));
         html += `
         <div class="gate-note">
@@ -458,10 +462,10 @@ function distSectionHTML(r, info) {
         <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・直近120日) の分布。色付きがあなた。
             真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
-    // 同一編成
+    // 同一編成 (サーバー閾値 30 未満は gated)
     if (r.characters && r.compDist) {
         const cd = r.compDist;
-        if (cd.n >= MIN_N_COMP) {
+        if (!cd.gated && Number.isFinite(cd.above)) {
             const cp = topPercentFromCounts(cd.above, cd.n);
             html += `<p class="dist-note">🧩 同じ編成 ${cd.n}人の中では <strong>上位 ${cp}%</strong> です。</p>`;
         } else {
