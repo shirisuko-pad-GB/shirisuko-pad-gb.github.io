@@ -15,19 +15,29 @@
 -- 1-1 / 2-3) 入口のフォーマット制約 (全INSERT経路に効く)
 --   characters: null か「32桁hex.webp が ちょうど5要素」の配列のみ
 --   raid_key  : null か 'YYYY-MM' 形式のみ
+--   ※ CHECK 制約内でサブクエリは使えない (0A000) ため、配列検証は
+--     IMMUTABLE 関数に切り出して CHECK から呼ぶ
 -- ============================================================
-alter table public.measurements drop constraint if exists characters_format;
-alter table public.measurements add constraint characters_format check (
-    characters is null or (
-        jsonb_typeof(characters) = 'array'
-        and jsonb_array_length(characters) = 5
+create or replace function public.is_valid_characters(p jsonb)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+    select p is null or (
+        jsonb_typeof(p) = 'array'
+        and jsonb_array_length(p) = 5
         and not exists (
-            select 1 from jsonb_array_elements(characters) e
+            select 1 from jsonb_array_elements(p) e
             where jsonb_typeof(e) <> 'string'
                or (e #>> '{}') !~ '^[0-9a-f]{32}\.webp$'
         )
-    )
-);
+    );
+$$;
+
+alter table public.measurements drop constraint if exists characters_format;
+alter table public.measurements add constraint characters_format
+    check (public.is_valid_characters(characters));
 
 alter table public.measurements drop constraint if exists raid_key_format;
 alter table public.measurements add constraint raid_key_format check (
