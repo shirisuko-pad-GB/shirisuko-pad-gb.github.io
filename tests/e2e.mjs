@@ -136,11 +136,16 @@ async function probeErrorLeak() {
             headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ p_rows: [{ attribute: 'FIRE', slv: 544, damage: 5e12, season,
                 characters: null, client_id: '00000000-0000-4000-8000-0000000e2e01', set_id: null, set_slot: null }] }),
+            signal: AbortSignal.timeout(15000),
         });
         const text = await res.text();
+        if (!res.ok && /submissions are closed|season not open/.test(text)) {
+            // closed 中は damage_bounds まで到達しない = 漏洩経路そのものを検証できていない
+            return { name: `${name} — closed中のため制約経路は未検証`, skip: true };
+        }
         return { name, pass: !res.ok && !/Failing row contains/i.test(text) };
     } catch {
-        return { name, skip: true };   // ネットワーク不通は skip (backend未接続と同じ扱い)
+        return { name, skip: true };   // ネットワーク不通/タイムアウトは skip (backend未接続と同じ扱い)
     }
 }
 

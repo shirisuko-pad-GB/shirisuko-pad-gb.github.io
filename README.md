@@ -111,7 +111,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `supabase/02_stats.sql` | 参照テーブル(非公開)・スコア再計算トリガ・分布RPC の初期形 (05が最終定義) |
 | `supabase/03_analytics.sql` | 集計RPC の初期形 (05が最終定義) |
 | `supabase/04_hardening.sql` | セキュリティ堅牢化: characters CHECK・submit RPC一本化・サーバー側ゲート |
-| `supabase/05_seasons.sql` | **シーズン制への移行 (最終定義)**: season統合・site_state・active-seasonガード・p_season RPC |
+| `supabase/05_seasons.sql` | **シーズン制への移行 (集計RPCの最終定義)**: season統合・site_state・p_season RPC (submit の最終は 07) |
 | `supabase/06_input_bounds.sql` | damage のサニティ上限CHECK (REVIEW-aggregation.md 対処2) |
 | `supabase/07_sanitize_errors.sql` | **submit_measurements の最終定義**: エラーDETAILの行内容漏洩 (norm_damage→slv_ratio逆算) を遮断 |
 | `supabase/99_check_applied.sql` | マイグレーション適用状況チェッカー (新環境で必須・読み取り専用) |

@@ -2,8 +2,8 @@
 // 月次の baseline 投入用に「データのみ」の SQL を生成する: supabase/seed.local.sql
 //   - slv_ratio (秘匿の検証データ) の upsert
 //   - fururi_bases (このシーズンの基準) の upsert  ← season キー
-// ※ 関数 (トリガ/RPC) は一切含めない。関数の定義は 05_seasons.sql が唯一の正。
-//    これにより「月次 seed を流すと 04/05 の強化が上書きされる」バグを回避する。
+// ※ 関数 (トリガ/RPC) は一切含めない。集計RPCの正は 05_seasons.sql、submit_measurements の
+//    正は 07_sanitize_errors.sql。これにより「月次 seed を流すと 04/05/07 の強化が上書きされる」バグを回避する。
 //
 // ⚠ slv-ratio は未公開の検証データ。生成物 seed.local.sql は gitignore 済み・コミット禁止。
 //
