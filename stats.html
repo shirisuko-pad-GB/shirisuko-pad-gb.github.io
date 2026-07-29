@@ -82,8 +82,9 @@
         .comp-row .rank { width:24px; height:24px; border-radius:999px; background:var(--cream); color:var(--cream-ink); font-size:11.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
         .comp-faces { display:flex; gap:3px; flex-shrink:0; }
         .comp-faces .gb-tile { width:32px; }
-        .comp-meta { display:flex; flex-direction:column; min-width:0; font-size:10.5px; color:var(--sub); font-weight:700; }
-        .comp-meta span { white-space:nowrap; }
+        /* nowrap だと大きい値ではみ出すため、語単位 (keep-all) で折り返す —
+           「採用 9人」「中央値 1.05」の途中では割れず、収まらないときだけ行が増える */
+        .comp-meta { display:flex; flex-direction:column; min-width:0; font-size:10.5px; color:var(--sub); font-weight:700; word-break:keep-all; overflow-wrap:normal; }
         .comp-meta strong { color:var(--ink); font-variant-numeric:tabular-nums; }
         footer { text-align:center; padding:20px 0 8px; font-size:10.5px; color:var(--faint); line-height:1.7; }
         .contact-x a { color:var(--sub); font-weight:800; }
