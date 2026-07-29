@@ -160,6 +160,16 @@ test('reslotChars: サブバースト持ちは主の枠を優先し、あぶれ�
     assertEq(b.dropped.length, 0);
 });
 
+test('reslotChars: 貪欲法では落ちる成立配置もバックトラックで見つける (Codex反例)', () => {
+    // [B1,B3] [B2,B1] [B2,B1] [B3,B1] [B1,B2] は double2 (B1,B2,B2,B3,B3) に完全配置できる
+    const imgs = ['B1B3a', 'B2B1a', 'B2B1b', 'B3B1a', 'B1B2a'];
+    const { slots, dropped } = reslotChars(imgs, burstsOfImg, templateById('double2').slots);
+    assertEq(dropped.length, 0, `完全配置できるはずが dropped: ${dropped.join(',')}`);
+    assertEq(slots.filter(Boolean).length, 5);
+    // standard (B2枠1つ) には B2系3体は収まらない → detectTemplate は double2 を選ぶ
+    assertEq(detectTemplate(imgs, burstsOfImg), 'double2');
+});
+
 test('detectTemplate: 構成からテンプレを自動判定', () => {
     assertEq(detectTemplate(['B1a', 'B2a', 'B3a', 'B3b', 'B3c'], burstsOfImg), 'standard');
     assertEq(detectTemplate(['B1a', 'B2a', 'B2b', 'B3a', 'B3b'], burstsOfImg), 'double2');

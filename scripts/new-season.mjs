@@ -21,15 +21,16 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+// 逐次パーサー: フラグは値のインデックスごと消費する (値と同名の位置引数を巻き込まない)
 const args = process.argv.slice(2);
-function flagValue(name) {
-    const i = args.indexOf(name);
-    return i >= 0 ? args[i + 1] : null;
+let padDirArg = null, slvOverride = null, seasonIdOverride = null;
+for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--slv') slvOverride = parseInt(args[++i]);
+    else if (args[i] === '--season-id') seasonIdOverride = parseInt(args[++i]);
+    else if (args[i].startsWith('--')) { console.error(`不明なオプション: ${args[i]}`); process.exit(1); }
+    else if (padDirArg === null) padDirArg = args[i];
 }
-const slvOverride = flagValue('--slv') ? parseInt(flagValue('--slv')) : null;
-const seasonIdOverride = flagValue('--season-id') ? parseInt(flagValue('--season-id')) : null;
-const flagValues = new Set([flagValue('--slv'), flagValue('--season-id')].filter(Boolean));
-const padDir = args.find(a => !a.startsWith('--') && !flagValues.has(a)) || join(ROOT, '..', 'shirisu-pad');
+const padDir = padDirArg ?? join(ROOT, '..', 'shirisu-pad');
 
 if (!existsSync(join(padDir, 'js', 'supabase-client.js'))) {
     console.error(`shirisu-pad が見つかりません: ${padDir}`);
@@ -138,19 +139,28 @@ const bossCatalog = {
     bosses: Object.fromEntries(Object.keys(catalog).sort().map(n => [n, [...catalog[n]].sort()])),
 };
 
-// ---- 5) 書き出し + 後続スクリプト ----
-writeFileSync(join(ROOT, 'data', 'raid.json'), JSON.stringify(raid, null, 2) + '\n', 'utf8');
-writeFileSync(join(ROOT, 'data', 'base.json'), JSON.stringify(base, null, 2) + '\n', 'utf8');
-writeFileSync(join(ROOT, 'data', 'boss-catalog.json'), JSON.stringify(bossCatalog, null, 1) + '\n', 'utf8');
-console.log(`raid.json:  ${order.map(a => `${a}→${raid.bosses[a]}`).join(' / ')}`);
-console.log(`base.json:  SLv ${baseSlv} / ` +
-    Object.entries(bases).map(([a, v]) => `${a}=${(v.damage / 1e9).toFixed(2)}B(${v.source === 'simulation' ? '模擬' : '実凸'})`).join(' '));
-console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
+// ---- 5) 書き出し + 後続スクリプト (途中失敗時は書いた3ファイルを元に戻す) ----
+const outFiles = ['raid.json', 'base.json', 'boss-catalog.json'].map(f => join(ROOT, 'data', f));
+const backups = outFiles.map(p => existsSync(p) ? readFileSync(p) : null);
+try {
+    writeFileSync(outFiles[0], JSON.stringify(raid, null, 2) + '\n', 'utf8');
+    writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
+    writeFileSync(outFiles[2], JSON.stringify(bossCatalog, null, 1) + '\n', 'utf8');
+    console.log(`raid.json:  ${order.map(a => `${a}→${raid.bosses[a]}`).join(' / ')}`);
+    console.log(`base.json:  SLv ${baseSlv} / ` +
+        Object.entries(bases).map(([a, v]) => `${a}=${(v.damage / 1e9).toFixed(2)}B(${v.source === 'simulation' ? '模擬' : '実凸'})`).join(' '));
+    console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
 
-console.log('--- gen-seed (seed.local.sql 生成) ---');
-execFileSync(process.execPath, [join(ROOT, 'scripts', 'gen-seed.mjs')], { stdio: 'inherit' });
-console.log('--- update-roster (キャラ・使用率の更新) ---');
-execFileSync(process.execPath, [join(ROOT, 'scripts', 'update-roster.mjs'), padDir], { stdio: 'inherit' });
+    console.log('--- gen-seed (seed.local.sql 生成) ---');
+    execFileSync(process.execPath, [join(ROOT, 'scripts', 'gen-seed.mjs')], { stdio: 'inherit' });
+    console.log('--- update-roster (キャラ・使用率の更新) ---');
+    execFileSync(process.execPath, [join(ROOT, 'scripts', 'update-roster.mjs'), padDir], { stdio: 'inherit' });
+} catch (e) {
+    outFiles.forEach((p, i) => { if (backups[i] !== null) writeFileSync(p, backups[i]); });
+    console.error('❌ 後続処理が失敗したため raid.json / base.json / boss-catalog.json を元に戻しました。');
+    console.error('   (characters.json / presets.json は update-roster を再実行すれば再生成されます)');
+    throw e;
+}
 
 console.log(`
 ========= 残りの手順 (README ランブック) =========

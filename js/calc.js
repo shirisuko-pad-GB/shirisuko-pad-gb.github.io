@@ -52,12 +52,12 @@ export function burstMatchesSlot(bursts, slotBurst) {
 }
 
 // 選択済みキャラ列をテンプレートの枠に詰め直す (テンプレ切替・プリセット適用時)。
-// 枠の選択肢が狭いキャラから貪欲に置く: 主バーストの枠を優先し、
-// 埋まっていればサブバースト可の枠 → 自由枠。Λ・未分類は最後に残り枠へ。
+// サブバースト持ちが絡むと貪欲法は成立配置を取り逃すため、バックトラックで
+// 「配置できる数が最大」の割当を探す (キャラ・枠とも最大5なので全探索でも極小)。
+// 各キャラは 主バーストの枠 → サブの枠 → 自由枠 の順に試す = 主枠優先。
+// Λ・未分類 (bursts=null) はどの枠にも入るので最後に残り枠へ。
 // 収まらないキャラは dropped に返す。
 export function reslotChars(imgs, burstsOf, slotBursts) {
-    const slots = slotBursts.map(() => null);
-    const dropped = [];
     const wildcards = [];
     const fixed = [];
     for (const img of imgs) {
@@ -65,12 +65,31 @@ export function reslotChars(imgs, burstsOf, slotBursts) {
         const bs = burstsOf(img);
         if (!bs) wildcards.push(img); else fixed.push([img, bs]);
     }
-    fixed.sort((a, b) => a[1].length - b[1].length);   // 選択肢が狭い順
-    for (const [img, bs] of fixed) {
-        let i = slotBursts.findIndex((s, k) => slots[k] === null && s === bs[0]);
-        if (i < 0) i = slotBursts.findIndex((s, k) => slots[k] === null && (s === null || bs.includes(s)));
-        if (i >= 0) slots[i] = img; else dropped.push(img);
-    }
+    fixed.sort((a, b) => a[1].length - b[1].length);   // 選択肢が狭い順に決める
+    let best = null;   // {count, slots, dropped}
+    const cur = slotBursts.map(() => null);
+    const curDropped = [];
+    (function dfs(i, placed) {
+        if (best && placed + (fixed.length - i) < best.count) return;   // 枝刈り
+        if (i >= fixed.length) {
+            if (!best || placed > best.count) best = { count: placed, slots: [...cur], dropped: [...curDropped] };
+            return;
+        }
+        const [img, bs] = fixed[i];
+        const cand = [];
+        for (const b of bs) slotBursts.forEach((s, k) => { if (s === b && cur[k] === null) cand.push(k); });
+        slotBursts.forEach((s, k) => { if (s === null && cur[k] === null) cand.push(k); });
+        for (const k of cand) {
+            cur[k] = img;
+            dfs(i + 1, placed + 1);
+            cur[k] = null;
+        }
+        curDropped.push(img);   // このキャラを諦める分岐 (後のキャラを活かす)
+        dfs(i + 1, placed);
+        curDropped.pop();
+    })(0, 0);
+    const slots = best.slots;
+    const dropped = best.dropped;
     for (const img of wildcards) {
         const i = slots.findIndex(s => s === null);
         if (i >= 0) slots[i] = img; else dropped.push(img);
