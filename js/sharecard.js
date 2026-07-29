@@ -6,7 +6,7 @@ import { ATTR_INFO, SITE_URL } from './shared.js';
 import { topPercentFromCounts } from './calc.js';
 import { drawTileCanvas } from './tiles.js';
 
-const F = "'Noto Sans JP', sans-serif";
+const F = "'Poppins', 'Noto Sans JP', sans-serif";
 
 // 分布が解禁済みか (サーバーが bins を返しているか)
 const distReady = (d) => d && !d.gated && Array.isArray(d.bins);
@@ -18,7 +18,7 @@ export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
     const W = canvas.width, H = canvas.height;
     const multi = results.length > 1;
     const mainInfo = ATTR_INFO[results[0].attribute];
-    const mainColor = multi ? '#46A0FF' : mainInfo.color;
+    const mainColor = multi ? '#EFDD3C' : mainInfo.color;   // 複数凸はスキンのアクセント黄
     const mainScore = multi
         ? results.reduce((s, r) => s + r.score, 0) / results.length
         : results[0].score;

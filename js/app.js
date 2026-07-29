@@ -228,20 +228,19 @@ function attackCardHTML(a, i) {
         const ai = ATTR_INFO[attr];
         return `
         <button type="button" class="attr-btn${a.attribute === attr ? ' active' : ''}" data-attr="${attr}"
-                style="--fa:${ai.color};--fa-soft:${ai.color}14;">
+                style="--ac:${ai.color};">
             <span class="ico">${ai.emoji}</span>
             <span class="name">${ai.jp}PT</span>
-            <span class="vs">⚔ ${ai.enemyEmoji}${ai.enemyJp}ボス</span>
         </button>`;
     }).join('');
     const dmg = a.damage ? ` value="${escapeHtml(a.damage)}"` : '';
     return `
-    <section class="card atk-card" data-i="${i}" style="${info ? `--ac:${info.color};` : ''}">
+    <section class="card atk-card" data-i="${i}">
         <h2><span class="step-num">2</span>${title}${delBtn}</h2>
-        <p class="hint" style="margin-bottom:8px;">PT属性を選択。⚔ の後ろは<strong>そのPTで殴る相手ボス</strong>です</p>
         <div class="attr-grid">${attrBtns}</div>
-        ${info && raid?.bosses?.[a.attribute] ? `
-        <p class="hint" style="margin-top:8px;">⚔ 相手は ${info.enemyJp}属性ボス「<strong style="color:${info.color};">${escapeHtml(raid.bosses[a.attribute])}</strong>」 (${escapeHtml(raid.season || '')} シーズン)</p>` : ''}
+        <p class="vs-note">${info && raid?.bosses?.[a.attribute]
+            ? `⚔ 相手は ${info.enemyEmoji} ${info.enemyJp}属性ボス「<strong>${escapeHtml(raid.bosses[a.attribute])}</strong>」 (${escapeHtml(raid.season || '')} シーズン)`
+            : `PT属性を選択してください (そのPTで殴った相手ボスが表示されます)`}</p>
         <div style="margin-top:12px;">
             <p class="hint" style="margin-bottom:6px;">与えたダメージを <strong>B (10億) 単位</strong>で (例: 13.18)。フル桁の貼り付けもOK</p>
             <div class="dmg-field">
@@ -507,9 +506,10 @@ function renderResults() {
         const avg = results.reduce((s, r) => s + r.score, 0) / results.length;
         html += `
         <section class="card set-card">
-            <h2>🏅 ${results.length}凸 平均ふるり値</h2>
-            <div class="score-line"><span class="score-big" style="--ra:#14161A;">${avg.toFixed(2)}</span></div>
-            <p class="score-detail">${results.map(r => `${ATTR_INFO[r.attribute].jp} ${r.score.toFixed(2)}`).join(' / ')}</p>
+            <div class="score-label">🏅 ${results.length}凸 平均ふるり値</div>
+            <div class="score-big">${avg.toFixed(2)}</div>
+            <div class="pill-row">${results.map(r =>
+                `<span class="pill">${ATTR_INFO[r.attribute].emoji} ${r.score.toFixed(2)}</span>`).join('')}</div>
             <p class="dist-note">※ 属性間の重み付けをした総合指標は、全属性の分布が解禁されると使えるようになります</p>
         </section>`;
     }
@@ -518,7 +518,7 @@ function renderResults() {
 
 function resultCardHTML(r, i, multi) {
     const info = ATTR_INFO[r.attribute];
-    const title = multi ? `📊 凸${i + 1} の結果` : '📊 測定結果';
+    const title = multi ? `凸${i + 1} の測定結果` : 'の測定結果';
 
     let distHtml = '';
     if (r.fetchError) {
@@ -531,17 +531,17 @@ function resultCardHTML(r, i, multi) {
     const distReady = r.dist && !r.dist.gated && Array.isArray(r.dist.bins);
     const pct = distReady ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
     const pill = pct != null
-        ? `<span class="rank-pill" style="--ra:${info.color};">上位 ${pct}% / ${r.dist.n}人</span>` : '';
+        ? `<span class="rank-pill">上位 ${pct}% / ${r.dist.n}人</span>` : '';
 
     return `
-    <section class="card result-card" style="--ra:${info.color};">
-        <h2><span style="font-size:16px;">${info.emoji}</span>${title}</h2>
-        <div class="score-line">
-            <span class="score-big">${r.score.toFixed(2)}</span>
-            ${pill}
+    <section class="card result-card">
+        <div class="score-label">${info.emoji} ${multi ? `${info.jp}PT ${title}` : `${info.jp}PT ${title}`}${pill}</div>
+        <div class="score-big">${r.score.toFixed(2)}</div>
+        <div class="pill-row">
+            <span class="pill">SLv ${r.slv}</span>
+            <span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>
+            <span class="pill">基準 ${(base.bases[r.attribute].damage / 1e9).toFixed(2)} B @ SLv ${base.baseSlv}</span>
         </div>
-        <p class="score-detail">${info.jp}PT / SLv ${r.slv} / ${(r.damage / 1e9).toFixed(3)} B
-            (基準: ${(base.bases[r.attribute].damage / 1e9).toFixed(2)} B @ SLv ${base.baseSlv})</p>
         ${distHtml}
     </section>`;
 }
@@ -564,10 +564,12 @@ function distSectionHTML(r, info) {
         const maxBin = Math.max(...d.bins, 1);
         const bars = d.bins.map((v, bi) =>
             `<div class="bar${bi === d.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
+        // 自分のビンの中心位置に黒吹き出しを立てる (端に寄りすぎたらクランプ)
+        const tipPos = Math.min(92, Math.max(8, ((d.my_bin - 0.5) / d.bins.length) * 100));
         html += `
-        <div class="hist">${bars}</div>
-        <div class="hist-axis"><span>ふるり値 ${d.lo.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
-        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。色付きがあなた。
+        <div class="hist"><div class="tooltip" style="left:${tipPos}%;">あなた ${r.score.toFixed(2)}</div>${bars}</div>
+        <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
+        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。
             真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
     // 同一編成 (サーバー閾値未満は gated)
@@ -575,9 +577,9 @@ function distSectionHTML(r, info) {
         const cd = r.compDist;
         if (!cd.gated && Number.isFinite(cd.above)) {
             const cp = topPercentFromCounts(cd.above, cd.n);
-            html += `<p class="dist-note">🧩 同じ編成 ${cd.n}人の中では <strong>上位 ${cp}%</strong> です。</p>`;
+            html += `<div class="comp-pos">🧩 同じ編成 ${cd.n}人の中では <strong>上位 ${cp}%</strong> です</div>`;
         } else {
-            html += `<p class="dist-note">🧩 同じ編成の提出は ${cd.n}人 (${cd.need ?? THRESHOLDS.comp}人で編成内比較が解禁)</p>`;
+            html += `<div class="comp-pos">🧩 同じ編成の提出は ${cd.n}人 (${cd.need ?? THRESHOLDS.comp}人で編成内比較が解禁)</div>`;
         }
     }
     return html;

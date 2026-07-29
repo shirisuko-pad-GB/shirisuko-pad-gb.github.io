@@ -1,29 +1,32 @@
 /* キャラタイル (js/tiles.js が生成する .gb-tile) の共通スタイル。
    index.html / stats.html の両方から読み込む。
-   背景 = 属性色 (--tile-ac) の薄い混色、上端の帯 = バースト色。 */
+   背景 = 属性色 (--tile-ac) の薄い混色、上端の帯 = バースト色。
+   混色の土台・文字色・混合率はページ側のテーマトークン
+   (--tile-mix / --tile-ink-mix / --tile-tint / --tile-ink) が決める
+   — ダークモードでも自動で追従する (フォールバックはライト値)。 */
 
 .gb-tile {
-    --tile-ac: #8A9097;
+    --tile-ac: #8A8A84;
     position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 10px;
+    border-radius: 13px;
     overflow: hidden;
-    background: color-mix(in srgb, var(--tile-ac) 13%, #ffffff);
+    background: color-mix(in srgb, var(--tile-ac) var(--tile-tint, 16%), var(--tile-mix, #ffffff));
 }
 .gb-tile-strip {
     height: 14px;
     flex-shrink: 0;
     font-size: 9px;
-    font-weight: 900;
+    font-weight: 800;
     text-align: center;
     line-height: 14px;
     letter-spacing: 1px;
     color: #fff;
 }
-.gb-tile-strip.dark { color: rgba(20, 22, 26, 0.82); }
+.gb-tile-strip.dark { color: rgba(20, 20, 18, 0.82); }
 .gb-tile-body {
     flex: 1;
     min-height: 0;
@@ -33,11 +36,11 @@
     justify-content: center;
     gap: 1px;
     padding: 1px 3px 3px;
-    color: color-mix(in srgb, var(--tile-ac) 72%, #14161A);
+    color: color-mix(in srgb, var(--tile-ac) var(--tile-ink, 62%), var(--tile-ink-mix, #141412));
 }
 .gb-tile-base {
     font-size: 10.5px;
-    font-weight: 900;
+    font-weight: 800;
     line-height: 1.15;
     text-align: center;
     max-width: 100%;
@@ -47,7 +50,7 @@
 }
 .gb-tile-var {
     font-size: 7.5px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.15;
     text-align: center;
     max-width: 100%;
@@ -64,10 +67,10 @@
     height: 6px;
     border-radius: 999px;
 }
-.gb-tile--unknown .gb-tile-body { color: #6B7178; }
+.gb-tile--unknown .gb-tile-body { color: var(--sub, #6B7178); }
 
 /* 小サイズ (プリセット顔 38px / 編成ランキング 36px): ベース名のみ */
-.gb-tile--xs { border-radius: 8px; }
+.gb-tile--xs { border-radius: 9px; }
 .gb-tile--xs .gb-tile-strip { height: 10px; font-size: 7px; line-height: 10px; letter-spacing: 0; }
-.gb-tile--xs .gb-tile-base { font-size: 8px; font-weight: 900; }
+.gb-tile--xs .gb-tile-base { font-size: 8px; font-weight: 800; }
 .gb-tile--xs .gb-tile-dot { width: 5px; height: 5px; right: 2px; bottom: 2px; }

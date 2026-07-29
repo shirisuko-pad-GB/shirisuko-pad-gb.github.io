@@ -63,7 +63,7 @@ function renderTabs() {
         const i = ATTR_INFO[a];
         return `
         <button type="button" class="attr-tab${a === current ? ' active' : ''}" data-attr="${a}"
-                style="--fa:${i.color};--fa-soft:${i.color}14;">
+                style="--ac:${i.color};">
             <span class="ico">${i.emoji}</span><span class="name">${i.jp}PT</span>
         </button>`;
     }).join('');
@@ -110,9 +110,9 @@ function renderDist(d, info) {
     }
     const maxBin = Math.max(...d.bins, 1);
     $('distArea').innerHTML = `
-    <div class="hist" style="--ba:${info.color}55;">${d.bins.map(v =>
+    <div class="hist">${d.bins.map(v =>
         `<div class="bar" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('')}</div>
-    <div class="hist-axis"><span>ふるり値 ${d.lo.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
+    <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
     <p class="dist-note">${info.jp}PT の提出 <strong>${d.n}人</strong>。中央値はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
 }
 
@@ -134,15 +134,15 @@ function renderInsights(ins, info) {
     $('compsArea').innerHTML = (ins.comps || []).map((cp, i) => {
         const hasStats = Number.isFinite(cp.median) && Number.isFinite(cp.best);
         const stats = hasStats
-            ? `中央値 <strong>${Number(cp.median).toFixed(2)}</strong> / 最高 <strong>${Number(cp.best).toFixed(2)}</strong>`
-            : `<span style="color:var(--faint);">スコアは5人以上で表示</span>`;
+            ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span><span>最高 <strong>${Number(cp.best).toFixed(2)}</strong></span>`
+            : `<span style="color:var(--faint);">スコアは<br>5人以上で表示</span>`;
         return `
     <div class="comp-row">
-        <span style="font-size:12px;font-weight:900;color:${info.color};min-width:20px;">${i + 1}</span>
+        <span class="rank">${i + 1}</span>
         <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img, { xs: true })).join('')}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
-            <span>${stats}</span>
+            ${stats}
         </span>
     </div>`;
     }).join('') || '<p class="hint">まだ編成つきの提出がありません</p>';

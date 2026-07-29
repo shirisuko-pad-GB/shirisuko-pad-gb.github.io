@@ -63,8 +63,17 @@ Supabase の適用状況チェック: `supabase/99_check_applied.sql` を SQL Ed
 指摘対応 → **同一ターンで push まで完了**。監査を通さない push は禁止。
 (Stop フックは本家リポジトリ側の設定で動く保険。フラグは本家 `.claude/hooks/.codex-on`)
 
-## デザイン
+## デザイン: Finance系スキン (2026-07〜 / 本家のClaudeDesignとは別物)
 
-ClaudeDesign 準拠 (本家 CLAUDE.md の「デザインシステム」参照)。白カード・角丸13-15px・
-Noto Sans JP・font-weight 700+。属性カラーは `js/shared.js` の ATTR_INFO が唯一の定義。
-バースト色 (ゲーム準拠): B1=緑 `#1FA95C` / B2=黄 `#F2B705` / B3=赤 `#E5484D` / BΛ=紫 `#8B5CF6`。
+Figma の Finance ダッシュボードテンプレを基調にした GB 独自スキン。
+**モノクロ + クリーム/イエロー1アクセント / 角丸22px / 影なし極薄ボーダー / ピルはフルラウンド /
+数字主役 (Poppins + Noto Sans JP, tabular-nums) / ダークモードは端末設定追従**。
+
+- トークンは index.html / stats.html の `:root` に定義 (ライト) + `@media (prefers-color-scheme: dark)`。
+  **新しい色は必ずトークン経由・両テーマ分を定義**すること (直書きhexはダークで破綻する)
+- 主要トークン: bg `#F4F4F1/#0C0C0A`・card `#fff/#171715`・ink `#141412/#F2F2EE`・
+  cream `#F6F1CD` (選択状態)・accent `#EFDD3C` (CTA)。ink塗りの上の文字は `--onink`
+- 選択状態=クリーム面 / 主ボタン=黒(ink)ピル / CTA=黄ピル / チャート=モノクロシルエット+
+  自分だけ ink + 黒吹き出しツールチップ
+- 属性カラーは `js/shared.js` の ATTR_INFO が唯一の定義 (パステル円・タイル背景に18%混色で使う)。
+  バースト色 (ゲーム準拠): B1=緑 `#1FA95C` / B2=黄 `#F2B705` / B3=赤 `#E5484D` / BΛ=紫 `#8B5CF6`
