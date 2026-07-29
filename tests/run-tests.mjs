@@ -357,5 +357,19 @@ test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 
         `05_seasons.sql の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
 });
 
+test('07: submit の INSERT が例外ハンドラで包まれている (エラーDETAILの行内容漏洩ガード)', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '07_sanitize_errors.sql'), 'utf8');
+    // INSERT → exception ハンドラ → sqlerrm 再送出 (DETAIL を落とす) の並びがあること
+    assert(/insert into public\.measurements[\s\S]*?exception when others then[\s\S]*?raise exception '%', sqlerrm using errcode = sqlstate/.test(sql),
+        '07_sanitize_errors.sql に INSERT の例外ハンドラ (DETAIL 除去) がありません');
+    // 05 と同じガードが移植されていること (07 が最終定義なので欠けると機能退行)
+    for (const guard of ['submissions are closed', 'invalid batch size', 'client_id required', 'season not open']) {
+        assert(sql.includes(guard), `07_sanitize_errors.sql に 05 由来のガード「${guard}」がありません`);
+    }
+    // 99チェッカーに 07 の判定行があること
+    const check = readFileSync(join(ROOT, 'supabase', '99_check_applied.sql'), 'utf8');
+    assert(check.includes("'07_sanitize_errors'"), '99_check_applied.sql に 07 の判定行がありません');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

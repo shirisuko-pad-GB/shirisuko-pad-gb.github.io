@@ -56,6 +56,10 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふ
 - **個別編成のスコア開示は採用5人以上** (`get_comp_insights` が best/median を n<5 で null に)。
 - **Sybil を弱める**: `client_id` は NOT NULL 必須。完全な1端末1票保証・レート制限は将来課題。
 - RPC の可変引数 (`p_bins`/`p_top_*`) は関数内でクランプ、`season` は `YYYY-MM` 形式CHECK。
+- **エラー応答から行内容を漏らさない** (07_sanitize_errors.sql): CHECK違反の Postgres エラー DETAIL
+  ("Failing row contains ...") にはトリガ計算済みの norm_damage が入り、拒否される送信を繰り返すだけで
+  slv_ratio を1行も挿入せず逆算できてしまうため、submit の INSERT を例外ハンドラで包み
+  メッセージ+SQLSTATE だけ返す (DETAIL/HINT は落とす)
 - **限界**: SLvを1ずつ変えて送信しスコアを記録する逆算は原理的に防げない (受容済み)
 
 ### 🔒 SLv補正テーブルの秘匿 (最重要の運用ルール)
@@ -108,6 +112,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `supabase/04_hardening.sql` | セキュリティ堅牢化: characters CHECK・submit RPC一本化・サーバー側ゲート |
 | `supabase/05_seasons.sql` | **シーズン制への移行 (最終定義)**: season統合・site_state・active-seasonガード・p_season RPC |
 | `supabase/06_input_bounds.sql` | damage のサニティ上限CHECK (REVIEW-aggregation.md 対処2) |
+| `supabase/07_sanitize_errors.sql` | **submit_measurements の最終定義**: エラーDETAILの行内容漏洩 (norm_damage→slv_ratio逆算) を遮断 |
 | `supabase/99_check_applied.sql` | マイグレーション適用状況チェッカー (新環境で必須・読み取り専用) |
 
 ### 🎨 権利方針: ゲームアセットを使わない (2026-07 全面移行)

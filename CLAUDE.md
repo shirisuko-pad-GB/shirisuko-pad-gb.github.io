@@ -18,7 +18,9 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
    NIKKE 二次創作ガイドラインの「ゲーム画像の複製・転載」に当たるため全廃済み。
    キャラは自作タイル描画 (`js/tiles.js`)、属性アイコンは自作SVG。**復活させないこと**
 3. **書き込みは RPC `submit_measurements` 一本**。テーブルへの匿名直接 INSERT/SELECT を許す
-   ポリシーを追加しない。集計RPCの最終定義は `supabase/05_seasons.sql` (関数を seed で上書きしない)
+   ポリシーを追加しない。集計RPCの最終定義は `supabase/05_seasons.sql`、submit_measurements の
+   最終定義は `supabase/07_sanitize_errors.sql` (関数を seed で上書きしない)。
+   **エラーで行内容を返さない**: INSERT は例外ハンドラで包む (DETAIL に norm_damage が入り slv_ratio が漏れる)
 4. **DB由来・ユーザー入力由来の文字列は必ず `escapeHtml` を通して DOM へ**。キャラ名も本家DB由来
    なので信頼しない (tiles.js は textContent/escape 済みの経路のみ使う)
 5. **運用設定の書き換えは Git 経由のみ** (管理画面を作らない)。認証がないサイトなので、

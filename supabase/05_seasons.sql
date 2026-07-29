@@ -7,7 +7,9 @@
 --   4) submit_measurements に active-season ガード (閉じた/準備中/別シーズンへの送信を拒否)
 --   5) get_distribution / get_comp_insights を p_season 版に (シーズン絞り・120日窓撤去・
 --      閾値 50/15/10・編成開示下限 5・gated に need)
---   ※ 関数はこのファイルが最終定義。月次の baseline 投入 (seed) は関数を再定義しない
+--   ※ 集計RPC (get_distribution / get_comp_insights) はこのファイルが最終定義。
+--     submit_measurements のみ 07_sanitize_errors.sql が最終定義 (エラーDETAIL漏洩対策) —
+--     新環境は 05 の後に必ず 07 も適用する。月次の baseline 投入 (seed) は関数を再定義しない
 --     (gen-seed.mjs が生成する data-only seed を使う) → 04強化の上書きバグを回避
 --
 -- ⚠ 実行前に既存データを掃除: delete from public.measurements;

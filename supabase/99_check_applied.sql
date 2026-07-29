@@ -44,6 +44,12 @@ SELECT * FROM (
                   AND conname = 'damage_bounds'),
         'damage のサニティ上限 (0 < damage < 1000B)'
 
+    UNION ALL SELECT '07_sanitize_errors',
+        EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                WHERE n.nspname = 'public' AND p.proname = 'submit_measurements'
+                  AND p.prosrc LIKE '%sqlerrm%'),
+        'submit のエラーから行内容 (norm_damage/score) の漏洩を止める'
+
     UNION ALL SELECT '05_seasons',
         (to_regclass('public.site_state') IS NOT NULL
          AND EXISTS (SELECT 1 FROM information_schema.columns

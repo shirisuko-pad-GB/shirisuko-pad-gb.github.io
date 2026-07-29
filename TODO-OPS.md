@@ -13,13 +13,17 @@
   3. IDEAS-pad-integration.md (本家活用6案) の着手順 — 本家 ROADMAP への転記もまだ
 - **実機確認もまだ**: タイルUIの見やすさ・シェアカードの見た目 (スマホで https://shirisuko-pad-gb.github.io/ )
 
-## ⏳ 未適用: supabase/06_input_bounds.sql (2026-07-29 作成)
+## ⏳ 未適用: supabase/07_sanitize_errors.sql (2026-07-29 作成 — **公開拡散前に必須**)
 
-damage のサーバー側上限CHECK (0 < damage < 1000B)。**適用するまで動作は今まで通り** (急ぎではないが公開拡散前に推奨)。
+06 は 2026-07-29 に適用済み (自宅Mac から外部プローブで拒否動作を確認済み)。
+その検証で発覚した漏洩の対処が 07: CHECK違反エラーの DETAIL (Failing row contains ...) に
+トリガ計算済みの norm_damage が入り、拒否される送信を繰り返すだけで slv_ratio を
+1行も挿入せず逆算できてしまう。07 は submit の INSERT を例外ハンドラで包み DETAIL を落とす。
 
 手順 (どのPCでもOK — SQL Editor はブラウザ作業):
 1. https://supabase.com/dashboard → **GB のプロジェクト** (uwrtsrkeiitboksyzmtq) → SQL Editor
-2. リポジトリの `supabase/06_input_bounds.sql` の中身を貼り付けて **Run**
-3. 確認: 同じく SQL Editor で `supabase/99_check_applied.sql` を実行 → `06_input_bounds` の行が ✅ になればOK
+2. リポジトリの `supabase/07_sanitize_errors.sql` の中身を貼り付けて **Run**
+3. 確認: 同じく SQL Editor で `supabase/99_check_applied.sql` を実行 → `07_sanitize_errors` の行が true になればOK
 
 ⚠ 本家PADのプロジェクトと間違えないこと (GB は別プロジェクト)。
+適用後の外部検証 (5000B送信のエラーに行内容が出ないこと) は claude に依頼すれば実行できる。
