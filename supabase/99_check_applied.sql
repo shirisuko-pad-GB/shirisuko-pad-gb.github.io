@@ -47,6 +47,8 @@ SELECT * FROM (
     UNION ALL SELECT '07_sanitize_errors',
         EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                 WHERE n.nspname = 'public' AND p.proname = 'submit_measurements'
+                  AND pg_get_function_identity_arguments(p.oid) = 'p_rows jsonb'
+                  AND p.prosrc LIKE '%exception when others%'
                   AND p.prosrc LIKE '%sqlerrm%'),
         'submit のエラーから行内容 (norm_damage/score) の漏洩を止める'
 

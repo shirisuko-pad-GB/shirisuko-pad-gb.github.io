@@ -1,7 +1,8 @@
 # 集計方法の再精査 (2026-07-29)
 
 公開リリース前の総点検。対象 = 送信 (`submit_measurements`) → スコア計算 (`measurements_compute`)
-→ 分布 (`get_distribution`) → 編成集計 (`get_comp_insights`) の全パイプライン (最終定義: 05_seasons.sql)。
+→ 分布 (`get_distribution`) → 編成集計 (`get_comp_insights`) の全パイプライン
+(最終定義: 05_seasons.sql。ただし submit_measurements のみ 07_sanitize_errors.sql が最終)。
 
 ## 現行仕様のまとめ (検証済み・変更なし)
 

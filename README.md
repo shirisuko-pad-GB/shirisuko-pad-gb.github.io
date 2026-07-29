@@ -73,7 +73,8 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 - 秘匿データの投入は **`node scripts/gen-seed.mjs`** (shirisu-pad の slv-ratio.json を読む) が生成する
   `supabase/seed.local.sql` — **gitignore 済み。コミット禁止**。
   ※ seed は **データのみ (slv_ratio + fururi_bases)**。関数定義は含めない
-  (含めると月次再実行で 04/05 のRPC強化を上書きしてしまうため。関数の唯一の正は 05_seasons.sql)。
+  (含めると月次再実行で 04/05/07 のRPC強化を上書きしてしまうため。集計RPCの正は 05_seasons.sql、
+  submit_measurements の正は 07_sanitize_errors.sql)。
 - tests/run-tests.mjs に混入ガードあり (slv-ratio がリポジトリに現れたら CI が落ちる)
 - 限界の認識: 「SLvを1ずつ変えて送信し返ってくるスコアを記録する」方式での逆算は
   原理的に防げない (許容済み)。守っているのは「ファイルとして持ち出される」ことまで
@@ -232,13 +233,17 @@ base.json の基準ダメージの出所 (new-season.mjs が自動で解決す�
 2. SQL Editor で `supabase/01_schema.sql` を実行
 3. `node scripts/gen-seed.mjs` (shirisu-pad が隣にある環境で) → 生成された
    `supabase/seed.local.sql` を SQL Editor で実行 (slv_ratio + fururi_bases のデータ)
-4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` の順に実行
-   (04で characters CHECK・submit RPC、05で season化・site_state・最終RPC)。
+4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` → `06_input_bounds.sql` →
+   `07_sanitize_errors.sql` の**番号順に全部**実行 (04で characters CHECK・submit RPC一本化、
+   05で season化・site_state、06で damage上限、07でエラーDETAIL漏洩対策 — 07を飛ばすと
+   slv_ratio が逆算可能なままになる)。
    **04 の実行前に `delete from public.measurements;` でテストデータを掃除**しておくこと。
+   最後に `99_check_applied.sql` を実行して**全行 applied=true** を確認。
 5. Project Settings → API の URL と publishable key を `js/backend.js` の定数に設定
 6. シーズンを開く: 上の「シーズン切替ランブック」の (c) で `site_state` を open に。
 
 ### 既に 01〜04 適用済みの環境をシーズン制へ移行する場合
-`delete from public.measurements;` → `supabase/05_seasons.sql` を実行するだけ。
+`delete from public.measurements;` → `supabase/05_seasons.sql` → `06_input_bounds.sql` →
+`07_sanitize_errors.sql` を番号順に実行 (`99_check_applied.sql` で全行 true を確認)。
 05 は冪等 (base_version→season のリネーム等をガード付きで実施)。実行後は maintenance が既定なので、
 ランブック (c) でシーズンを開く。

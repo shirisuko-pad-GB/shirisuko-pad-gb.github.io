@@ -114,7 +114,34 @@ function findChrome() {
         'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
         process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, 'Google/Chrome/Application/chrome.exe'),
         'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     ].filter(Boolean).find(p => existsSync(p));
+}
+
+// 実行時プローブ (Codexレビュー指摘): 弾かれる送信のエラー応答に行内容が漏れないこと。
+// damage=5000B は damage_bounds (06) で必ず拒否される。07 適用後は DETAIL
+// "Failing row contains (... norm_damage ...)" が落ちているはず — 出たら slv_ratio 逆算可能な状態。
+// (closed 時は 'submissions are closed' で同様に失敗するだけ。どの経路でも行は挿入されない)
+async function probeErrorLeak() {
+    const name = 'エラー応答に行内容が漏れない (07: Failing row なし)';
+    try {
+        const src = await readFile(join(ROOT, 'js', 'backend.js'), 'utf8');
+        const url = src.match(/https:\/\/[a-z]+\.supabase\.co/)?.[0];
+        const key = src.match(/sb_publishable_[A-Za-z0-9_-]+/)?.[0];
+        if (!url || !key) return { name, skip: true };
+        const season = JSON.parse(await readFile(join(ROOT, 'data', 'raid.json'), 'utf8')).season;
+        const res = await fetch(`${url}/rest/v1/rpc/submit_measurements`, {
+            method: 'POST',
+            headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_rows: [{ attribute: 'FIRE', slv: 544, damage: 5e12, season,
+                characters: null, client_id: '00000000-0000-4000-8000-0000000e2e01', set_id: null, set_slot: null }] }),
+        });
+        const text = await res.text();
+        return { name, pass: !res.ok && !/Failing row contains/i.test(text) };
+    } catch {
+        return { name, skip: true };   // ネットワーク不通は skip (backend未接続と同じ扱い)
+    }
 }
 
 await new Promise(r => server.listen(PORT, r));
@@ -136,6 +163,8 @@ if (result === '__timeout__' || !result) {
     console.error('E2E: タイムアウト/結果回収失敗 (Chrome・ネットワークを確認)');
     process.exit(1);
 }
+
+if (result.backendUp !== false) result.steps.push(await probeErrorLeak());
 
 let pass = 0, fail = 0;
 for (const s of result.steps) {
