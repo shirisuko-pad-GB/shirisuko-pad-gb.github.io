@@ -1,0 +1,13 @@
+{
+  "_readme": [
+    "サイト運用設定 (ユニオン募集・連絡先X)。変更は Git 経由のみ — サイト内に管理UIは作らない。",
+    "tools/ops.html を開くとフォームでこのファイルを編集→コピー→GitHubで commit できる。",
+    "xAccount は @ なしの ID。recruit.enabled を false にすると募集カードが消える。"
+  ],
+  "xAccount": "FururiNIKKE",
+  "recruit": {
+    "enabled": true,
+    "title": "ユニオン「しりすこ」メンバー募集中",
+    "note": "しりすこPADを作ったユニオンです。ユニオンレイドを本気でゆるく楽しむ仲間を募集しています。詳しくは X へ!"
+  }
+}

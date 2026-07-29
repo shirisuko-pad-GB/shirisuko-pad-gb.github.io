@@ -1,16 +1,24 @@
 #!/usr/bin/env node
-// PAD の Supabase nikke_characters (画像 → キャラ名) + data/name-overrides.json (手動の画像 → 名前)
-// と data/burst-map.json (名前 → バースト) を突き合わせて
-// data/characters.json (画像 → {name, burst}) を生成する。
+// PAD の Supabase nikke_characters (名前・バースト・サブバースト・旧アイコンID) と
+// data/element-map.json (名前 → 属性) を突き合わせて data/characters.json を生成する。
+//
+// v2 (2026-07): サイトからゲーム画像を全廃したため、キャラは「ID + 名前 + バースト + 属性」の
+// データだけを持ち、画面は js/tiles.js が自作タイルとして描画する。
+//   - ID は 32桁hex + .webp 形式を維持 (サーバーの characters CHECK 制約と互換):
+//       画像があった時代のキャラ → 旧アイコンファイル名の md5 を継承 (過去シーズンの編成と連続)
+//       画像が無かったキャラ     → md5(canonical_name) の合成ID
+//   - 同一キャラの旧アイコン違いは aliases (別ID → 代表ID) として全部残す
+//     (過去に送信された編成・localStorage の前回結果を名前解決できるように)
 //
 // 使い方:  node scripts/build-characters.mjs ../shirisu-pad
 //   (引数 = shirisu-pad リポジトリのパス。js/supabase-client.js から PAD の接続情報を読む)
 //
 // 月次メンテ:
-//   「⚠ バースト未分類」 → data/burst-map.json に追記 (出典: game8)
-//   「⚠ 名前なし画像」   → tools/annotate.html で名前を付けて data/name-overrides.json に貼る
+//   「⚠ 属性未分類」  → game8 の属性別キャラ一覧で調べて data/element-map.json に追記
+//   「⚠ バースト未分類」→ 本家PADの設定タブ → キャラ管理で登録 (こちらが唯一の正)
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,17 +38,26 @@ if (!url || !key) {
     process.exit(1);
 }
 
-// コロンの全角/半角ゆれを吸収して照合する
-const norm = (s) => s.replace(/：/g, ':').trim();
+// コロン等の表記ゆれを吸収して照合する
+const norm = (s) => String(s).replace(/：/g, ':').replace(/\s+/g, '').trim();
+const md5 = (s) => createHash('md5').update(s, 'utf8').digest('hex');
 
+// 属性表 (名前 → FIRE/WATER/ELECTRIC/IRON/WIND)
+const elementMap = JSON.parse(readFileSync(join(ROOT, 'data', 'element-map.json'), 'utf8'));
+const elementOfName = new Map();
+for (const el of ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND']) {
+    for (const name of elementMap[el] || []) elementOfName.set(norm(name), el);
+}
+
+// 非常用バーストのフォールバック (本家DBが未設定のときだけ使う)
 const burstMap = JSON.parse(readFileSync(join(ROOT, 'data', 'burst-map.json'), 'utf8'));
-const burstOfName = new Map();
-for (const burst of ['B1', 'B2', 'B3', 'BΛ']) {
-    for (const name of burstMap[burst] || []) burstOfName.set(norm(name), burst);
+const fallbackBurst = new Map();
+for (const b of ['B1', 'B2', 'B3', 'BΛ']) {
+    for (const name of burstMap[b] || []) fallbackBurst.set(norm(name), b);
 }
 
 const res = await fetch(
-    `${url}/rest/v1/nikke_characters?select=canonical_name,icon_paths,sighting_count&order=sighting_count.asc`,
+    `${url}/rest/v1/nikke_characters?select=canonical_name,burst,burst_alt,icon_paths&order=canonical_name.asc`,
     { headers: { apikey: key, Authorization: `Bearer ${key}` } });
 if (!res.ok) {
     console.error(`nikke_characters の取得に失敗: ${res.status} ${await res.text()}`);
@@ -48,59 +65,59 @@ if (!res.ok) {
 }
 const rows = await res.json();
 
-// sighting_count 昇順で処理 → 同じ画像を複数名が持つ場合は観測数の多い名前が勝つ
-const characters = {};
-const unmapped = new Set();
+const characters = {};          // 代表ID → {name, burst, burstAlt, element}
+const aliases = {};             // 旧アイコンID → 代表ID
+const noElement = [];
+const noBurst = [];
+const seenName = new Map();     // norm(name) → 代表ID (名前重複の検出)
+
 for (const row of rows) {
-    const burst = burstOfName.get(norm(row.canonical_name)) ?? null;
+    const name = row.canonical_name;
     const icons = (row.icon_paths || [])
-        .map(p => p.match(/character-images\/([\w-]+\.webp)$/)?.[1])
-        .filter(Boolean);
-    if (!burst && icons.length > 0 && row.sighting_count > 0) unmapped.add(row.canonical_name);
-    for (const img of icons) characters[img] = { name: row.canonical_name, burst };
+        .map(p => String(p).match(/character-images\/([0-9a-f]{32}\.webp)$/)?.[1])
+        .filter(Boolean)
+        .sort();
+    const id = icons[0] ?? `${md5(name)}.webp`;
+    if (seenName.has(norm(name))) {
+        console.warn(`⚠ 名前重複 (本家DBの整理推奨): ${name} — 後勝ちで上書きせずスキップ`);
+        continue;
+    }
+    seenName.set(norm(name), id);
+    const burst = row.burst ?? fallbackBurst.get(norm(name)) ?? null;
+    const element = elementOfName.get(norm(name)) ?? null;
+    characters[id] = { name, burst, burstAlt: row.burst_alt ?? null, element };
+    for (const icon of icons.slice(1)) aliases[icon] = id;
+    if (!element) noElement.push(name);
+    if (!burst) noBurst.push(name);
 }
 
-// 手動オーバーライド (PAD に名前がない画像) — PAD 由来より優先
+// 手動オーバーライド (本家DBに紐付かない旧画像ID → 名前)。既知キャラの別IDなら alias に。
 const overridePath = join(ROOT, 'data', 'name-overrides.json');
 if (existsSync(overridePath)) {
     const overrides = JSON.parse(readFileSync(overridePath, 'utf8'));
     for (const [img, name] of Object.entries(overrides)) {
-        if (img.startsWith('_') || !name) continue;
-        const burst = burstOfName.get(norm(name)) ?? null;
-        characters[img] = { name, burst };
-        if (!burst) unmapped.add(name);
+        if (img.startsWith('_') || !name || characters[img] || aliases[img]) continue;
+        const canonId = seenName.get(norm(name));
+        if (canonId) aliases[img] = canonId;
+        else console.warn(`⚠ name-overrides の「${name}」は本家DBに存在しません (削除推奨)`);
     }
 }
 
-writeFileSync(join(ROOT, 'data', 'characters.json'), JSON.stringify(characters, null, 1), 'utf8');
+writeFileSync(join(ROOT, 'data', 'characters.json'), JSON.stringify({
+    _format: 2,
+    _readme: 'build-characters.mjs の生成物。chars: 代表ID→キャラ情報 / aliases: 旧アイコンID→代表ID',
+    chars: characters,
+    aliases,
+}, null, 1), 'utf8');
 
 const stats = { B1: 0, B2: 0, B3: 0, 'BΛ': 0, null: 0 };
 Object.values(characters).forEach(c => stats[c.burst ?? 'null']++);
-console.log(`characters.json: 画像${Object.keys(characters).length}件 ` +
-    `(B1=${stats.B1} B2=${stats.B2} B3=${stats.B3} Λ=${stats['BΛ']} 未分類=${stats.null})`);
-for (const name of unmapped) {
-    console.warn(`⚠ バースト未分類: ${name} — data/burst-map.json に追記してください`);
+console.log(`characters.json: ${Object.keys(characters).length}キャラ ` +
+    `(B1=${stats.B1} B2=${stats.B2} B3=${stats.B3} Λ=${stats['BΛ']} バースト未分類=${stats.null}) ` +
+    `別名ID=${Object.keys(aliases).length}件`);
+for (const name of noBurst) {
+    console.warn(`⚠ バースト未分類: ${name} — 本家PADのキャラ管理で登録してください`);
 }
-
-// 同梱している画像のうち名前が付いていないもの → 注釈ツールへ誘導
-const nameless = readdirSync(join(ROOT, 'character-images'))
-    .filter(f => f.endsWith('.webp') && !characters[f]);
-if (nameless.length > 0) {
-    console.warn(`⚠ 名前なし画像 ${nameless.length}件 — tools/annotate.html で名前を付けて data/name-overrides.json に貼ってください`);
+for (const name of noElement) {
+    console.warn(`⚠ 属性未分類: ${name} — data/element-map.json に追記してください (グレー表示になります)`);
 }
-const unverified = burstMap._unverified || [];
-if (unverified.length > 0) {
-    console.warn(`ℹ 推定のまま未確認: ${unverified.join(', ')} (game8で確認したら burst-map.json の _unverified から除去)`);
-}
-
-// 注釈ツール (tools/annotate.html) 用の作業キュー
-const unverifiedSet = new Set(unverified.map(norm));
-const review = Object.entries(characters)
-    .filter(([, c]) => unverifiedSet.has(norm(c.name)))
-    .map(([img, c]) => ({ img, name: c.name, burst: c.burst }));
-writeFileSync(join(ROOT, 'data', 'annotate-queue.json'), JSON.stringify({
-    generatedNote: 'build-characters.mjs の生成物。nameless=名前なし画像 / review=推定未確認',
-    nameless,
-    review,
-    knownNames: [...new Set(Object.values(characters).map(c => c.name))].sort(),
-}, null, 1), 'utf8');

@@ -1,23 +1,18 @@
 // シェアカードの Canvas 描画 (自己完結・状態を持たない純処理)。
 // results (測定結果の配列) を受け取り、canvas に描いて PNG Blob を返す。
+// SNS に流れる画像なので、ゲームアセットは一切使わない (絵文字 + 自作タイルのみ) —
+// 権利表記 (非公式ファンコンテンツ / © SHIFT UP CORP.) を必ず焼き込む。
 import { ATTR_INFO, SITE_URL } from './shared.js';
 import { topPercentFromCounts } from './calc.js';
+import { drawTileCanvas } from './tiles.js';
 
 const F = "'Noto Sans JP', sans-serif";
-
-function loadImage(src) {
-    return new Promise((res, rej) => {
-        const img = new Image();
-        img.onload = () => res(img);
-        img.onerror = rej;
-        img.src = src;
-    });
-}
 
 // 分布が解禁済みか (サーバーが bins を返しているか)
 const distReady = (d) => d && !d.gated && Array.isArray(d.bins);
 
-export async function buildShareCard(results, canvas) {
+// opts.infoOf: キャラID → キャラ情報 (未指定なら編成タイルは描かない)
+export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
     if (!Array.isArray(results) || results.length === 0) return null;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
@@ -56,22 +51,20 @@ export async function buildShareCard(results, canvas) {
         let x = 74;
         for (const r of results) {
             const inf = ATTR_INFO[r.attribute];
-            try { ctx.drawImage(await loadImage(inf.icon), x, 440, 48, 48); } catch { /* アイコンなしでも続行 */ }
-            ctx.fillStyle = '#FFFFFF';
             ctx.font = `900 40px ${F}`;
-            const t = ` ${r.score.toFixed(2)}`;
-            ctx.fillText(t, x + 50, 478);
-            x += 50 + ctx.measureText(t).width + 40;
+            ctx.fillStyle = '#FFFFFF';
+            const t = `${inf.emoji} ${r.score.toFixed(2)}`;
+            ctx.fillText(t, x, 478);
+            x += ctx.measureText(t).width + 44;
         }
         ctx.fillStyle = '#A4AAB0';
         ctx.font = `700 30px ${F}`;
-        ctx.fillText(`SLv ${results[0].slv}`, 70, 570);
+        ctx.fillText(`SLv ${results[0].slv}`, 70, 550);
     } else {
         const r = results[0];
-        try { ctx.drawImage(await loadImage(mainInfo.icon), 74, 440, 56, 56); } catch { /* アイコンなしでも続行 */ }
         ctx.fillStyle = '#FFFFFF';
         ctx.font = `900 44px ${F}`;
-        ctx.fillText(`${mainInfo.jp}PT`, 146, 484);
+        ctx.fillText(`${mainInfo.emoji} ${mainInfo.jp}PT`, 74, 484);
         ctx.fillStyle = '#A4AAB0';
         ctx.font = `700 32px ${F}`;
         ctx.fillText(`SLv ${r.slv} / ${(r.damage / 1e9).toFixed(2)} B`, 340, 484);
@@ -86,9 +79,20 @@ export async function buildShareCard(results, canvas) {
             ctx.font = `700 30px ${F}`;
             ctx.fillText(`(${r.dist.n}人中)`, 70 + pctW + 24, 578);
         }
+        // 編成タイル (登録があるときだけ・右側に5枚)
+        if (infoOf && Array.isArray(r.characters) && r.characters.length === 5) {
+            const size = 96, gap = 10;
+            const x0 = W - 60 - (size * 5 + gap * 4);
+            for (let i = 0; i < 5; i++) {
+                drawTileCanvas(ctx, infoOf(r.characters[i]), x0 + i * (size + gap), 470, size, F);
+            }
+        }
     }
 
+    // 権利表記 + URL (SNS拡散面の必須表記)
     ctx.fillStyle = '#6B7178';
+    ctx.font = `700 22px ${F}`;
+    ctx.fillText('非公式ファンコンテンツ | 勝利の女神：NIKKE © SHIFT UP CORP.', 70, H - 44);
     ctx.font = `700 28px ${F}`;
     ctx.textAlign = 'right';
     ctx.fillText(SITE_URL.replace('https://', '').replace(/\/$/, ''), W - 60, H - 44);

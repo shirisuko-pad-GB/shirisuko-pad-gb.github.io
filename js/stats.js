@@ -1,13 +1,16 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured } from './backend.js';
 import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO } from './shared.js';
+import { makeCharResolver, tileHTML } from './tiles.js';
 
-// DB由来の画像名を描画する共通タグ。CHECK済みだが二重防御で形式を再検証し、
-// 不正なら描画しない (XSS遮断)。名前は characters.json 由来だがエスケープする。
-function charImgTag(img, { lazy = true } = {}) {
+let infoOf = () => null;
+
+// DB由来のキャラID → 自作タイル。CHECK済みだが二重防御で形式を再検証し、
+// 不正なら描画しない (XSS遮断)。名前・属性は tiles.js がエスケープして描画する。
+// 未知のID (旧シーズンの未登録キャラ等) はグレーの「？」タイルになる。
+function charTileTag(img, { xs = false } = {}) {
     if (typeof img !== 'string' || !CHAR_IMG_RE.test(img)) return '';
-    const name = escapeHtml(characters?.[img]?.name ?? '');
-    return `<img ${lazy ? 'loading="lazy" ' : ''}src="./character-images/${img}" alt="${name}" title="${name}">`;
+    return tileHTML(infoOf(img), { xs });
 }
 
 const ATTRS = Object.keys(ATTR_INFO);
@@ -23,6 +26,14 @@ async function init() {
         fetch('./data/raid.json').then(x => x.json()).catch(() => null),
         fetchSiteState().catch(() => null),
     ]);
+    infoOf = makeCharResolver(characters);
+    // 連絡先X (data/site.json — 失敗しても致命ではない)
+    fetch('./data/site.json').then(x => x.json()).then(sc => {
+        const xid = /^[A-Za-z0-9_]{1,15}$/.test(sc?.xAccount ?? '') ? sc.xAccount : null;
+        if (xid) document.querySelectorAll('.contact-x').forEach(el => {
+            el.innerHTML = `<a href="https://x.com/${xid}" target="_blank" rel="noopener">X @${xid}</a>`;
+        });
+    }).catch(() => {});
     // 表示するシーズン: open なら現行 (base.version)、between/maintenance なら display_season
     const status = site?.status ?? 'open';
     viewSeason = (status === 'open') ? base.version : (site?.display_season ?? null);
@@ -53,7 +64,7 @@ function renderTabs() {
         return `
         <button type="button" class="attr-tab${a === current ? ' active' : ''}" data-attr="${a}"
                 style="--fa:${i.color};--fa-soft:${i.color}14;">
-            <img src="${i.icon}" alt=""><span class="name">${i.jp}PT</span>
+            <span class="ico">${i.emoji}</span><span class="name">${i.jp}PT</span>
         </button>`;
     }).join('');
     $('attrTabs').querySelectorAll('.attr-tab').forEach(b =>
@@ -112,10 +123,10 @@ function renderInsights(ins, info) {
         $('compsArea').innerHTML = `<p class="hint">編成を登録した提出が増えると表示されます</p>`;
         return;
     }
-    // キャラ採用率 (img は charImgTag が形式検証 + 名前エスケープ)
+    // キャラ採用率 (img は charTileTag が形式検証 + 名前エスケープ)
     $('charsArea').innerHTML = `<div class="char-grid">${(ins.chars || []).slice(0, 18).map(c => `
         <div class="char-cell">
-            ${charImgTag(c.img)}
+            ${charTileTag(c.img)}
             <div class="pct">${Math.round((c.count / n) * 100)}%</div>
         </div>`).join('')}</div>
     <p class="dist-note">対象: 編成つき提出 ${n}人</p>`;
@@ -128,7 +139,7 @@ function renderInsights(ins, info) {
         return `
     <div class="comp-row">
         <span style="font-size:12px;font-weight:900;color:${info.color};min-width:20px;">${i + 1}</span>
-        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charImgTag(img)).join('')}</span>
+        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img, { xs: true })).join('')}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
             <span>${stats}</span>

@@ -7,6 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
+import { makeCharResolver, burstsOf, tileHTML, splitName } from '../js/tiles.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -42,7 +43,7 @@ test('.gitignore が秘匿ファイルを除外している', () => {
 });
 
 test('クライアントJSが slv-ratio を参照していない', () => {
-    for (const f of ['app.js', 'backend.js', 'calc.js']) {
+    for (const f of ['app.js', 'backend.js', 'calc.js', 'shared.js', 'stats.js', 'sharecard.js', 'tiles.js']) {
         const src = readFileSync(join(ROOT, 'js', f), 'utf8');
         assert(!src.includes('slv-ratio'), `js/${f} が slv-ratio を参照しています`);
     }
@@ -97,10 +98,14 @@ test('不正入力・0以下は null', () => {
     assertEq(parseDamageInput('-5'), null);
 });
 
-console.log('バースト編成 (B1/B2/B3/BΛ):');
+console.log('バースト編成 (B1/B2/B3/BΛ・サブバースト対応):');
 
-// テスト用: img名の先頭2文字をバーストとして返す ("B1a" → "B1", "??" → null)
-const burstOf = (img) => ['B1', 'B2', 'B3', 'BΛ'].find(b => img.startsWith(b)) ?? null;
+// テスト用: img名から入れる枠の配列を返す ("B1a"→['B1'], "B3B1a"→['B3','B1'], "BΛa"/"??"→null)
+const burstsOfImg = (img) => {
+    if (img.startsWith('BΛ')) return null;
+    const bs = img.match(/B[123]/g);
+    return bs && bs.length > 0 ? bs : null;
+};
 
 test('テンプレートは全て5枠で、枠は B1/B2/B3/自由(null) のみ', () => {
     assert(BURST_TEMPLATES.length >= 2, 'テンプレートが足りません');
@@ -112,17 +117,25 @@ test('テンプレートは全て5枠で、枠は B1/B2/B3/自由(null) のみ',
     assertEq(templateById('存在しないID').id, BURST_TEMPLATES[0].id, 'フォールバック');
 });
 
-test('burstMatchesSlot: Λと未分類は全枠OK、確定バーストは一致枠のみ', () => {
-    assertEq(burstMatchesSlot('B1', 'B1'), true);
-    assertEq(burstMatchesSlot('B1', 'B3'), false);
-    assertEq(burstMatchesSlot('BΛ', 'B1'), true);
-    assertEq(burstMatchesSlot('BΛ', 'B3'), true);
-    assertEq(burstMatchesSlot(null, 'B2'), true);   // 未分類は弾かない
-    assertEq(burstMatchesSlot('B2', null), true);   // 自由枠は何でもOK
+test('burstMatchesSlot: Λ・未分類 (null) は全枠OK、確定バーストは一致枠のみ', () => {
+    assertEq(burstMatchesSlot(['B1'], 'B1'), true);
+    assertEq(burstMatchesSlot(['B1'], 'B3'), false);
+    assertEq(burstMatchesSlot(null, 'B1'), true);         // Λ・未分類は弾かない
+    assertEq(burstMatchesSlot(['B3', 'B1'], 'B1'), true); // サブバーストの枠もOK
+    assertEq(burstMatchesSlot(['B3', 'B1'], 'B2'), false);
+    assertEq(burstMatchesSlot(['B2'], null), true);       // 自由枠は何でもOK
+});
+
+test('burstsOf (tiles.js): 主+サブの配列 / Λ・未分類は null', () => {
+    assertEq(JSON.stringify(burstsOf({ burst: 'B3', burstAlt: 'B1' })), '["B3","B1"]');
+    assertEq(JSON.stringify(burstsOf({ burst: 'B2', burstAlt: null })), '["B2"]');
+    assertEq(burstsOf({ burst: 'BΛ', burstAlt: null }), null);
+    assertEq(burstsOf({ burst: null, burstAlt: null }), null);
+    assertEq(burstsOf(null), null);
 });
 
 test('reslotChars: B1B2B3B3B3 テンプレに正しく配置される', () => {
-    const { slots, dropped } = reslotChars(['B3a', 'B1a', 'B3b', 'B2a', 'B3c'], burstOf, templateById('standard').slots);
+    const { slots, dropped } = reslotChars(['B3a', 'B1a', 'B3b', 'B2a', 'B3c'], burstsOfImg, templateById('standard').slots);
     assertEq(slots[0], 'B1a');
     assertEq(slots[1], 'B2a');
     assertEq(slots.slice(2).join(','), 'B3a,B3b,B3c');
@@ -130,36 +143,103 @@ test('reslotChars: B1B2B3B3B3 テンプレに正しく配置される', () => {
 });
 
 test('reslotChars: 枠に収まらないキャラは dropped、Λは空き枠に入る', () => {
-    const { slots, dropped } = reslotChars(['B2a', 'B2b', 'BΛa'], burstOf, templateById('standard').slots);
+    const { slots, dropped } = reslotChars(['B2a', 'B2b', 'BΛa'], burstsOfImg, templateById('standard').slots);
     assertEq(slots[1], 'B2a');
     assert(dropped.includes('B2b'), 'B2 2体目は standard に入らない');
     assert(slots.includes('BΛa'), 'Λ はどこかの枠に入る');
 });
 
-test('detectTemplate: 構成からテンプレを自動判定', () => {
-    assertEq(detectTemplate(['B1a', 'B2a', 'B3a', 'B3b', 'B3c'], burstOf), 'standard');
-    assertEq(detectTemplate(['B1a', 'B2a', 'B2b', 'B3a', 'B3b'], burstOf), 'double2');
-    assertEq(detectTemplate(['B1a', 'B1b', 'B1c', 'B1d', 'B1e'], burstOf), 'free');
+test('reslotChars: サブバースト持ちは主の枠を優先し、あぶれたらサブの枠へ', () => {
+    // 主B3が空いていれば B3 枠へ (B1枠に吸われない)
+    const a = reslotChars(['B3B1a', 'B2a'], burstsOfImg, templateById('standard').slots);
+    assertEq(a.slots[2], 'B3B1a', '主バーストの枠を優先する');
+    assertEq(a.slots[0], null, 'B1枠は空いたまま');
+    // B3枠が全て埋まっていれば B1 枠に落ちる
+    const b = reslotChars(['B3a', 'B3b', 'B3c', 'B3B1a', 'B2a'], burstsOfImg, templateById('standard').slots);
+    assertEq(b.slots[0], 'B3B1a', 'サブバーストの枠に退避する');
+    assertEq(b.dropped.length, 0);
 });
 
-console.log('characters.json (編成ピッカーのバーストデータ):');
+test('detectTemplate: 構成からテンプレを自動判定', () => {
+    assertEq(detectTemplate(['B1a', 'B2a', 'B3a', 'B3b', 'B3c'], burstsOfImg), 'standard');
+    assertEq(detectTemplate(['B1a', 'B2a', 'B2b', 'B3a', 'B3b'], burstsOfImg), 'double2');
+    assertEq(detectTemplate(['B1a', 'B1b', 'B1c', 'B1d', 'B1e'], burstsOfImg), 'free');
+});
 
-test('characters.json が存在し、burst 値が正当', () => {
-    const c = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
-    const entries = Object.entries(c);
-    assert(entries.length > 0, 'characters.json が空です');
-    for (const [img, v] of entries) {
-        assert(/^[\w-]+\.webp$/.test(img), `不正な画像キー: ${img}`);
-        assert(typeof v.name === 'string' && v.name.length > 0, `${img} に name がありません`);
-        assert(v.burst === null || ['B1', 'B2', 'B3', 'BΛ'].includes(v.burst), `${img} の burst が不正: ${v.burst}`);
+console.log('characters.json v2 (キャラデータ):');
+
+const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
+
+test('v2形式: chars のID・name・burst・burstAlt・element が正当', () => {
+    assertEq(charData._format, 2, '_format が 2 ではありません');
+    const entries = Object.entries(charData.chars);
+    assert(entries.length >= 190, `キャラ数が少なすぎます (${entries.length})`);
+    for (const [id, v] of entries) {
+        assert(CHAR_IMG_RE.test(id), `不正なIDキー: ${id}`);
+        assert(typeof v.name === 'string' && v.name.length > 0, `${id} に name がありません`);
+        assert(v.burst === null || ['B1', 'B2', 'B3', 'BΛ'].includes(v.burst), `${v.name} の burst が不正: ${v.burst}`);
+        assert(v.burstAlt === null || ['B1', 'B2', 'B3', 'BΛ'].includes(v.burstAlt), `${v.name} の burstAlt が不正`);
+        assert(v.burstAlt === null || v.burstAlt !== v.burst, `${v.name} の burstAlt が主バーストと同じ`);
+        assert(v.element === null || ATTRS.includes(v.element), `${v.name} の element が不正: ${v.element}`);
     }
 });
 
+test('aliases は全て chars の代表IDを指す', () => {
+    for (const [alias, canon] of Object.entries(charData.aliases)) {
+        assert(CHAR_IMG_RE.test(alias), `不正な別名ID: ${alias}`);
+        assert(charData.chars[canon], `別名 ${alias} の参照先 ${canon} が存在しません`);
+    }
+});
+
+test('makeCharResolver: 代表ID/別名IDを解決し、未知IDは null', () => {
+    const infoOf = makeCharResolver(charData);
+    const [canonId, v] = Object.entries(charData.chars)[0];
+    assertEq(infoOf(canonId)?.name, v.name);
+    const aliasEntry = Object.entries(charData.aliases)[0];
+    if (aliasEntry) assertEq(infoOf(aliasEntry[0])?.id, aliasEntry[1], '別名IDが代表IDに解決される');
+    assertEq(infoOf('f'.repeat(32) + '.webp'), null);
+});
+
 test('BΛ はレッドフードのみ (1キャラ限定の特殊仕様)', () => {
-    const c = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
-    const lambdaNames = new Set(Object.values(c).filter(v => v.burst === 'BΛ').map(v => v.name));
+    const lambdaNames = new Set(Object.values(charData.chars).filter(v => v.burst === 'BΛ').map(v => v.name));
     assertEq(lambdaNames.size, 1, `BΛ キャラが複数います: ${[...lambdaNames].join(', ')}`);
     assert([...lambdaNames][0].includes('レッドフード'), `BΛ がレッドフードではありません: ${[...lambdaNames][0]}`);
+});
+
+test('element-map.json: 属性キーが正当で、同じ名前が複数属性に居ない', () => {
+    const em = JSON.parse(readFileSync(join(ROOT, 'data', 'element-map.json'), 'utf8'));
+    const seen = new Map();
+    for (const attr of ATTRS) {
+        assert(Array.isArray(em[attr]), `element-map に ${attr} がありません`);
+        for (const name of em[attr]) {
+            assert(!seen.has(name), `「${name}」が ${seen.get(name)} と ${attr} の両方にいます`);
+            seen.set(name, attr);
+        }
+    }
+    assert(seen.size >= 190, `属性表の件数が少なすぎます (${seen.size})`);
+});
+
+console.log('tiles.js (自作キャラタイル):');
+
+test('tileHTML: キャラ名のXSSペイロードが無害化される', () => {
+    const evil = { id: 'a'.repeat(32) + '.webp', name: '<img src=x onerror=alert(1)>：<script>', burst: 'B3', burstAlt: null, element: 'FIRE' };
+    const html = tileHTML(evil);
+    assert(!html.includes('<img'), 'imgタグが素通りしています');
+    assert(!html.includes('<script'), 'scriptタグが素通りしています');
+    assert(html.includes('&lt;'), 'エスケープされていません');
+});
+
+test('tileHTML: 未知キャラ・属性未分類はグレーの安全表示', () => {
+    assert(tileHTML(null).includes('gb-tile--unknown'), '未知IDがunknown表示にならない');
+    const noEl = tileHTML({ name: 'テスト', burst: 'B1', burstAlt: null, element: null });
+    assert(noEl.includes('gb-tile--unknown') && noEl.includes('属性？'), '属性未分類の表示がない');
+});
+
+test('splitName: 全角/半角コロンで衣装違いを分離', () => {
+    assertEq(splitName('ヘルム：アクアマリン').base, 'ヘルム');
+    assertEq(splitName('ヘルム：アクアマリン').variant, 'アクアマリン');
+    assertEq(splitName('ラピ:レッドフード').variant, 'レッドフード');
+    assertEq(splitName('アリス').variant, null);
 });
 
 console.log('shared: escapeHtml (XSS対策):');
@@ -233,6 +313,28 @@ test('raid.json: order は5属性・重複なし / bosses が order を網羅 / 
     assert(raid.order.every(a => typeof raid.bosses[a] === 'string' && raid.bosses[a].length > 0), 'bosses が order を網羅');
     assert(/^\d{4}-\d{2}$/.test(raid.season), 'season は YYYY-MM');
     assertEq(raid.season, base.version, 'raid.season は base.version と一致させる');
+});
+
+test('raid.json のボス名が本家の登場履歴 (boss-catalog) に実在する', () => {
+    const raid = JSON.parse(readFileSync(join(ROOT, 'data', 'raid.json'), 'utf8'));
+    const catalog = JSON.parse(readFileSync(join(ROOT, 'data', 'boss-catalog.json'), 'utf8'));
+    for (const [attr, name] of Object.entries(raid.bosses)) {
+        assert(catalog.bosses[name], `${attr} のボス「${name}」が boss-catalog にありません (typoの可能性。新ボスなら new-season.mjs を再実行)`);
+    }
+});
+
+test('site.json: xAccount の形式と recruit の構造', () => {
+    const site = JSON.parse(readFileSync(join(ROOT, 'data', 'site.json'), 'utf8'));
+    assert(site.xAccount === '' || /^[A-Za-z0-9_]{1,15}$/.test(site.xAccount),
+        `xAccount が不正です (英数字と_のみ・@なし): ${site.xAccount}`);
+    assert(typeof site.recruit?.enabled === 'boolean', 'recruit.enabled が boolean ではありません');
+    assert(typeof site.recruit?.title === 'string', 'recruit.title がありません');
+    assert(typeof site.recruit?.note === 'string', 'recruit.note がありません');
+});
+
+test('ゲームアセットを同梱していない (権利方針の回帰ガード)', () => {
+    assert(!existsSync(join(ROOT, 'character-images')), 'character-images/ が復活しています (ゲーム画像は同梱禁止)');
+    assert(!existsSync(join(ROOT, 'assets', 'attr')), 'assets/attr/ が復活しています (ゲーム内アイコンは同梱禁止)');
 });
 
 test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 05_seasons.sql)', () => {

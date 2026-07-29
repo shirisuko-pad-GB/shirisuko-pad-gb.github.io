@@ -5,9 +5,7 @@ import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatche
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL } from './shared.js';
 import { buildShareCard } from './sharecard.js';
-
-// バースト区分の表示色 (枠ラベル・バッジ)
-const BURST_COLORS = { B1: '#1E78F0', B2: '#F59E0B', B3: '#FF3D44', 'BΛ': '#9B4DFF' };
+import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML } from './tiles.js';
 
 // 解禁しきい値は shared.js の THRESHOLDS に一元化 (実ゲートはサーバーが強制)
 const MAX_ATTACKS = 3;
@@ -15,7 +13,7 @@ const LAST_KEY = 'spg_last_result';   // 前回の測定 (localStorage) — 再�
 
 const $ = (id) => document.getElementById(id);
 
-let base = null, presets = null, characters = null, raid = null, site = null;
+let base = null, presets = null, characters = null, raid = null, site = null, siteConf = null;
 let season = null;       // 送信・open時表示のシーズン (= base.version)
 let viewSeason = null;   // 分布を見るシーズン (open→season / between・maintenance→display_season)
 let mode = 'open';       // 'open' | 'between' | 'maintenance'
@@ -40,21 +38,27 @@ function newAttack() {
 }
 
 const selChars = (a) => a.slots.filter(Boolean);
-const burstOf = (img) => characters?.[img]?.burst ?? null;
-const nameOf = (img) => characters?.[img]?.name ?? '';
-// 同一キャラ判定キー (アイコン違いを同じキャラとして扱う。名前不明なら画像単位)
-const charKeyOf = (img) => nameOf(img) || img;
+// ID → キャラ情報 (characters.json 読み込み後に差し替わる)
+let infoOf = () => null;
+const nameOf = (id) => infoOf(id)?.name ?? '';
+const burstsOfId = (id) => burstsOf(infoOf(id));
+// 同一キャラ判定キー (旧アイコン違いのIDも代表IDに解決される)
+const charKeyOf = (id) => infoOf(id)?.id ?? id;
+// 編成機能が使えるか (characters.json v2 が読めていること)
+const compReady = () => characters?._format === 2;
 
 // ---------- 初期化 ----------
 async function init() {
-    const [b, p, c, rd, st] = await Promise.all([
+    const [b, p, c, rd, st, sc] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         fetch('./data/presets.json').then(x => x.json()).catch(() => null),
         fetch('./data/characters.json').then(x => x.json()).catch(() => null),
         fetch('./data/raid.json').then(x => x.json()).catch(() => null),
         fetchSiteState().catch(() => null),
+        fetch('./data/site.json').then(x => x.json()).catch(() => null),
     ]);
-    base = b; presets = p; characters = c; raid = rd; site = st;
+    base = b; presets = p; characters = c; raid = rd; site = st; siteConf = sc;
+    infoOf = makeCharResolver(characters);
     season = base.version;
     mode = site?.status ?? 'open';   // site_state が読めない (05未適用/未設定) 時は open 扱い
     viewSeason = (mode === 'open') ? season : (site?.display_season ?? null);
@@ -77,6 +81,28 @@ async function init() {
     updateSubmitState();
     applyMode();            // open 以外は測定UIを隠して告知を出す
     renderRecallBanner();   // 前回測定があれば「最新の分布を見る」を出す
+    applySiteConf();        // ユニオン募集カード + 連絡先X (data/site.json)
+}
+
+// data/site.json (運用設定): 募集カードの出し入れと連絡先Xの埋め込み。
+// X の ID は英数字とアンダースコアのみ許可 (リンク先の安全確保)。
+function applySiteConf() {
+    const xid = /^[A-Za-z0-9_]{1,15}$/.test(siteConf?.xAccount ?? '') ? siteConf.xAccount : null;
+    if (xid) {
+        document.querySelectorAll('.contact-x').forEach(el => {
+            el.innerHTML = `<a href="https://x.com/${xid}" target="_blank" rel="noopener">X @${xid}</a>`;
+        });
+    }
+    const r = siteConf?.recruit;
+    const host = $('recruitArea');
+    if (!host || !r?.enabled || !xid) return;
+    host.innerHTML = `
+    <section class="card recruit-card">
+        <h2>📣 ${escapeHtml(r.title || 'メンバー募集中')}</h2>
+        <p class="recruit-note">${escapeHtml(r.note || '')}</p>
+        <a class="x-btn" href="https://x.com/${xid}" target="_blank" rel="noopener">𝕏 @${xid} を見る →</a>
+    </section>`;
+    host.style.display = 'block';
 }
 
 // 運用モードで測定UIを出し分け (between/maintenance は送信不可)
@@ -203,9 +229,9 @@ function attackCardHTML(a, i) {
         return `
         <button type="button" class="attr-btn${a.attribute === attr ? ' active' : ''}" data-attr="${attr}"
                 style="--fa:${ai.color};--fa-soft:${ai.color}14;">
-            <img class="ico" src="${ai.icon}" alt="${ai.jp}">
+            <span class="ico">${ai.emoji}</span>
             <span class="name">${ai.jp}PT</span>
-            <span class="vs">⚔ <img src="${ai.enemyIcon}" alt="">${ai.enemyJp}ボス</span>
+            <span class="vs">⚔ ${ai.enemyEmoji}${ai.enemyJp}ボス</span>
         </button>`;
     }).join('');
     const dmg = a.damage ? ` value="${escapeHtml(a.damage)}"` : '';
@@ -233,28 +259,17 @@ function attackCardHTML(a, i) {
 
 function compBodyHTML(a) {
     if (!a.attribute) return `<p class="hint" style="margin-top:8px;">先にPT属性を選ぶと編成を選択できます</p>`;
-    const ap = presets?.attributes?.[a.attribute];
-    if (!ap) return `<p class="hint" style="margin-top:8px;">編成データを読み込めませんでした</p>`;
+    if (!compReady()) return `<p class="hint" style="margin-top:8px;">キャラデータを読み込めなかったため、今回は編成なしで送信できます</p>`;
+    const ap = presets?.attributes?.[a.attribute] ?? { topChars: [], topComps: [] };
     const sel = selChars(a);
     const presetRows = (ap.topComps || []).map((c, pi) => `
         <button type="button" class="preset-row${sel.length === 5 && c.chars.every(x => sel.includes(x)) ? ' active' : ''}" data-preset="${pi}">
-            <span class="preset-faces">${c.chars.map(img => `<img loading="lazy" src="./character-images/${img}" alt="">`).join('')}</span>
+            <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
                 <span class="pill">使用率TOP${pi + 1}</span>
                 <span class="hint">ユニオン実績 ${c.count}回 (〜${c.lastMonth})</span>
             </span>
         </button>`).join('');
-    // characters.json が読めない環境では旧来のフラットなグリッドに落とす
-    if (!characters) {
-        const pickerBtns = (ap.topChars || []).map(({ img }) =>
-            `<button type="button" data-img="${img}"${sel.includes(img) ? ` class="sel" data-n="${sel.indexOf(img) + 1}"` : ''}>
-                <img loading="lazy" src="./character-images/${img}" alt=""></button>`).join('');
-        return `
-        <p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります</p>
-        ${presetRows}
-        <div class="comp-status">${compStatusText(a)}</div>
-        <div class="picker-grid">${pickerBtns}</div>`;
-    }
     return `
         <p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります</p>
         ${presetRows}
@@ -266,50 +281,47 @@ function compBodyHTML(a) {
             const color = sb ? BURST_COLORS[sb] : '#8A9097';
             return `
             <button type="button" class="slot${si === a.activeSlot ? ' active' : ''}" data-slot="${si}" style="--sb:${color};">
-                <span class="slot-b">${sb || '自由'}</span>
-                ${img ? `<img src="./character-images/${img}" alt="${escapeHtml(nameOf(img))}">` : `<span class="slot-plus">＋</span>`}
+                <span class="slot-b${sb && BURST_DARK_TEXT.has(sb) ? ' dark' : ''}">${sb || '自由'}</span>
+                ${img ? tileHTML(infoOf(img), { strip: false }) : `<span class="slot-plus">＋</span>`}
             </button>`;
         }).join('')}</div>
         <div class="comp-status">${compStatusText(a)}</div>
         ${pickerGridHTML(a, ap)}`;
 }
 
-// アクティブ枠のバーストに合う候補だけを表示 (Λ・未分類はどの枠にも出す)。
-// 同一キャラのアイコン違いは1つにまとめる (選択中の変種があればそれを代表にする)
+// アクティブ枠のバーストに合う候補を表示 (Λ・未分類はどの枠にも出す)。
+// 全キャラが対象。ユニオンでの使用実績が多い順 → 名前順に並べる。
 function pickerGridHTML(a, ap) {
     const slotBurst = templateById(a.template).slots[a.activeSlot];
+    // 使用実績 (presets の topChars) を代表IDに集計して並び順に使う
+    const usage = new Map();
+    for (const { img, count } of (ap.topChars || [])) {
+        const cid = charKeyOf(img);
+        usage.set(cid, (usage.get(cid) || 0) + count);
+    }
+    const all = Object.keys(characters.chars)
+        .sort((x, y) => (usage.get(y) || 0) - (usage.get(x) || 0) ||
+            String(nameOf(x)).localeCompare(String(nameOf(y)), 'ja'));
     const groups = { match: [], lambda: [], unknown: [] };
-    const seen = new Map();   // charKey → ordered内のindex参照用 {group, idx}
-    for (const { img } of (ap.topChars || [])) {
-        const b = burstOf(img);
-        if (!burstMatchesSlot(b, slotBurst)) continue;
-        const group = b === 'BΛ' ? groups.lambda : !b ? groups.unknown : groups.match;
-        const key = charKeyOf(img);
-        const prev = seen.get(key);
-        if (prev) {
-            // 選択中の変種を代表にする (使用率は先勝ち = 高い方)
-            if (a.slots.includes(img)) prev.group[prev.idx] = img;
-            continue;
-        }
-        seen.set(key, { group, idx: group.length });
-        group.push(img);
+    for (const id of all) {
+        const info = infoOf(id);
+        const bs = burstsOf(info);
+        if (!burstMatchesSlot(bs, slotBurst)) continue;
+        (info.burst === 'BΛ' ? groups.lambda : !info.burst ? groups.unknown : groups.match).push(id);
     }
     const ordered = [...groups.match, ...groups.lambda, ...groups.unknown];
     if (ordered.length === 0) return `<p class="hint" style="margin-top:8px;">この枠に合う候補がありません</p>`;
-    const btns = ordered.map(img => {
-        const b = burstOf(img);
-        const si = a.slots.indexOf(img);
+    const btns = ordered.map(id => {
+        const si = a.slots.indexOf(id);
         return `
-        <button type="button" data-img="${img}"${si >= 0 ? ` class="sel" data-n="${si + 1}"` : ''}>
-            <img loading="lazy" src="./character-images/${img}" alt="${escapeHtml(nameOf(img))}">
-            ${b === 'BΛ' ? `<span class="lam-badge">Λ</span>` : ''}
-            <span class="cname">${escapeHtml(nameOf(img) || '？')}</span>
+        <button type="button" data-img="${id}"${si >= 0 ? ` class="sel" data-n="${si + 1}"` : ''}>
+            ${tileHTML(infoOf(id))}
         </button>`;
     }).join('');
     const label = slotBurst
         ? `<strong style="color:${BURST_COLORS[slotBurst]};">${slotBurst}</strong> の枠に入れるキャラ${groups.lambda.length ? ' (Λ含む)' : ''}${groups.unknown.length ? ' + 未分類' : ''}`
         : `すべてのキャラ`;
-    return `<p class="hint picker-label">${label} — タップで枠にセット</p><div class="picker-grid named">${btns}</div>`;
+    return `<p class="hint picker-label">${label} — タップで枠にセット (よく使われる順)</p><div class="picker-grid named">${btns}</div>`;
 }
 
 function compStatusText(a) {
@@ -370,8 +382,8 @@ function bindCompBody(card, a) {
             if (sel.length === 5 && c.chars.every(x => sel.includes(x))) {
                 a.slots = [null, null, null, null, null];
             } else {
-                a.template = detectTemplate(c.chars, burstOf);
-                a.slots = reslotChars(c.chars, burstOf, templateById(a.template).slots).slots;
+                a.template = detectTemplate(c.chars, burstsOfId);
+                a.slots = reslotChars(c.chars, burstsOfId, templateById(a.template).slots).slots;
             }
             a.activeSlot = 0;
             renderCompBody(card, a);
@@ -382,7 +394,7 @@ function bindCompBody(card, a) {
         chip.addEventListener('click', () => {
             if (a.template === chip.dataset.tmpl) return;
             a.template = chip.dataset.tmpl;
-            const { slots, dropped } = reslotChars(selChars(a), burstOf, templateById(a.template).slots);
+            const { slots, dropped } = reslotChars(selChars(a), burstsOfId, templateById(a.template).slots);
             a.slots = slots;
             a.activeSlot = Math.max(0, slots.indexOf(null));
             if (dropped.length) toast(`${dropped.map(x => nameOf(x) || '1体').join('・')} は枠が合わないため外れました`);
@@ -407,17 +419,12 @@ function bindCompBody(card, a) {
             if (existing >= 0) {
                 a.slots[existing] = null;
                 a.activeSlot = existing;
-            } else if (characters) {
+            } else {
                 a.slots[a.activeSlot] = img;
                 // 次の空き枠へ (後ろ優先 → 無ければ前の空き枠 → 全部埋まっていれば据え置き)
                 const next = a.slots.findIndex((s, k) => s === null && k > a.activeSlot);
                 const wrap = a.slots.indexOf(null);
                 a.activeSlot = next >= 0 ? next : (wrap >= 0 ? wrap : a.activeSlot);
-            } else {
-                // フォールバック (characters.json なし): 空き枠に順に詰める
-                const empty = a.slots.indexOf(null);
-                if (empty < 0) { toast('編成は5体までです'); return; }
-                a.slots[empty] = img;
             }
             renderCompBody(card, a);
         });
@@ -528,7 +535,7 @@ function resultCardHTML(r, i, multi) {
 
     return `
     <section class="card result-card" style="--ra:${info.color};">
-        <h2><img src="${info.icon}" alt="" style="width:18px;height:18px;">${title}</h2>
+        <h2><span style="font-size:16px;">${info.emoji}</span>${title}</h2>
         <div class="score-line">
             <span class="score-big">${r.score.toFixed(2)}</span>
             ${pill}
@@ -560,7 +567,7 @@ function distSectionHTML(r, info) {
         html += `
         <div class="hist">${bars}</div>
         <div class="hist-axis"><span>ふるり値 ${d.lo.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
-        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・直近120日) の分布。色付きがあなた。
+        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。色付きがあなた。
             真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
     // 同一編成 (サーバー閾値未満は gated)
@@ -580,7 +587,7 @@ function distSectionHTML(r, info) {
 // 描画は sharecard.js。ここは結果ごとに1度だけ生成してキャッシュする薄いラッパ
 async function getShareCard() {
     if (shareBlob) return shareBlob;
-    shareBlob = await buildShareCard(results, $('shareCanvas'));
+    shareBlob = await buildShareCard(results, $('shareCanvas'), { infoOf });
     return shareBlob;
 }
 

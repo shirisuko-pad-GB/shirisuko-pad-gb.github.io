@@ -81,43 +81,65 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `index.html` | UI (ClaudeDesign・スマホファースト) |
 | `js/calc.js` | クライアント側ユーティリティ (計算式本体はサーバー側のみ)・バースト枠ロジック |
 | `js/shared.js` | 全モジュール共通: escapeHtml・sanitizeCharacters・ATTR_INFO・THRESHOLDS・SITE_URL |
-| `js/app.js` | UIロジック (3凸入力・分布ゲート・バースト枠ピッカー・前回結果の再確認) |
-| `js/sharecard.js` | シェアカードの Canvas 描画 (自己完結・状態を持たない純処理) |
+| `js/tiles.js` | **自作キャラタイル描画** (DOM/Canvas 両対応)。ゲーム画像は使わない (下記「権利方針」) |
+| `css/tiles.css` | タイルの共通スタイル (index/stats 両方から読む) |
+| `js/app.js` | UIロジック (3凸入力・分布ゲート・バースト枠ピッカー・前回結果の再確認・募集カード) |
+| `js/sharecard.js` | シェアカードの Canvas 描画 (自己完結・状態を持たない純処理・権利表記を焼き込み) |
 | `js/backend.js` | 専用 Supabase への RPC 送信 (submit で score 受領) / 分布・集計取得 |
-| `data/base.json` | 基準値 (基準者ふるり の属性別ダメージ @ 基準SLv) — 手動メンテ |
+| `data/base.json` | 基準値 (基準者ふるり の属性別ダメージ @ 基準SLv) — new-season.mjs が生成 |
+| `data/raid.json` | シーズンのボス名・属性パネルの表示順 (order) — new-season.mjs が生成 |
+| `data/boss-catalog.json` | 本家の全実シーズンのボス名履歴 (生成物・raid.json の typo 検証用) |
 | `data/presets.json` | 属性別キャラ使用率 + 使用率TOP編成 (生成物) |
-| `data/burst-map.json` | キャラ名 → バースト区分 (B1/B2/B3/BΛ) — 手動メンテ |
-| `data/characters.json` | キャラ画像 → {名前, バースト} (生成物) |
-| `data/name-overrides.json` | PADに名前がない画像 → キャラ名 (手動メンテ・注釈ツールで生成) |
-| `data/raid.json` | **シーズン毎に更新**: season・ボス名・属性パネルの表示順 (order) |
-| `data/annotate-queue.json` | 注釈ツール用の作業キュー (生成物) |
+| `data/characters.json` | **v2 (生成物)**: 代表ID → {name, burst, burstAlt, element} + 旧アイコンIDの aliases |
+| `data/element-map.json` | キャラ名 → 属性 (手動メンテ。出典: game8 属性別キャラ一覧) — タイル背景色用 |
+| `data/burst-map.json` | 非常用フォールバック (バーストの正は本家DB。DBが null のときだけ参照) |
+| `data/name-overrides.json` | 本家DBに紐付かない旧アイコンID → キャラ名 (過去データ互換レイヤー) |
+| `data/site.json` | 運用設定: 連絡先X・ユニオン募集カード (tools/ops.html で編集支援) |
 | `stats.html` + `js/stats.js` | みんなのデータページ (分布・キャラ採用率・編成ランキング) |
-| `tools/annotate.html` | 運営用の注釈ツール (名前なし画像に名前+バーストを付ける。閲覧専用) |
-| `scripts/update-roster.mjs` | **新キャラ取り込みの1コマンド** (build-data → build-characters) |
-| `scripts/build-data.mjs` | presets.json 再生成 + キャラ画像コピー |
-| `scripts/build-characters.mjs` | characters.json 再生成 (PADの nikke_characters + name-overrides × burst-map) |
+| `tools/ops.html` | 運営用サイト設定パネル (閲覧専用ワークベンチ — site.json を生成して GitHub で commit) |
+| `scripts/new-season.mjs` | **シーズン切替の1コマンド** (本家からボス+ふるり基準を取得 → raid/base/seed 生成) |
+| `scripts/update-roster.mjs` | 新キャラ取り込みの1コマンド (build-characters → build-data) |
+| `scripts/build-characters.mjs` | characters.json 再生成 (本家 nikke_characters の名前・バースト × element-map) |
+| `scripts/build-data.mjs` | presets.json 再生成 (旧アイコンIDは aliases で代表IDに正規化して集計) |
 | `scripts/gen-seed.mjs` | 実行用 seed.local.sql をローカル生成 (**データのみ**・シードは非コミット) |
 | `supabase/01_schema.sql` | measurements テーブルの初期形 (05で season 化・匿名read/write撤去) |
 | `supabase/02_stats.sql` | 参照テーブル(非公開)・スコア再計算トリガ・分布RPC の初期形 (05が最終定義) |
 | `supabase/03_analytics.sql` | 集計RPC の初期形 (05が最終定義) |
 | `supabase/04_hardening.sql` | セキュリティ堅牢化: characters CHECK・submit RPC一本化・サーバー側ゲート |
 | `supabase/05_seasons.sql` | **シーズン制への移行 (最終定義)**: season統合・site_state・active-seasonガード・p_season RPC |
+| `supabase/06_input_bounds.sql` | damage のサニティ上限CHECK (REVIEW-aggregation.md 対処2) |
+| `supabase/99_check_applied.sql` | マイグレーション適用状況チェッカー (新環境で必須・読み取り専用) |
+
+### 🎨 権利方針: ゲームアセットを使わない (2026-07 全面移行)
+
+NIKKE 公式の二次創作ガイドラインは「ゲーム画像・動画の複製・転載」を禁止しているため、
+**キャラアイコン画像・属性アイコン等のゲームアセットはサイトから全廃した** (自作は許容されている)。
+
+- キャラ表示は `js/tiles.js` の**自作タイル** (バースト帯 = ゲーム準拠色 B1緑/B2黄/B3赤/Λ紫 +
+  キャラ名 + 属性の背景色)。属性アイコンは絵文字 (🔥💧⚡🛡️🍃)
+- キャラIDは画像があった時代の「32桁hex.webp」形式を維持 (過去データ・DB CHECK と互換)。
+  画像が無かったキャラは `md5(名前).webp` の合成ID
+- シェアカード (SNS拡散面) にも「非公式ファンコンテンツ / © SHIFT UP CORP.」を焼き込む
+- **ゲーム画像を復活させないこと** (tests/run-tests.mjs に回帰ガードあり)。
+  キャラ名等の名称・属性・バースト区分は事実データとして扱う
 
 ### 編成ピッカーのバースト枠
 
 編成入力はバースト構成テンプレート (`B1・B2・B3×3` / `B1・B2×2・B3×2` / 自由) の
-枠タップ式。枠を選ぶと、その枠に入るバーストのキャラだけが候補に出る。
-**BΛ (レッドフードのみ) はどの枠にも入れる特殊仕様**。バースト未分類のキャラも
-弾かず全枠の候補に出す (「？」表示)。同一キャラのアイコン違いは名前で1つにまとめ、
-二重編成も名前単位で防ぐ。バースト区分は `data/burst-map.json` が唯一のソース
-(出典: game8 のバースト別キャラ一覧 + 個別評価ページ)。
-`_unverified` に載っている名前は Claude の推定 — game8 で確認したら消すこと。
+枠タップ式。枠を選ぶと、その枠に入るバーストのキャラだけが候補に出る (全キャラ対象・
+ユニオン使用実績が多い順)。**BΛ (レッドフードのみ) はどの枠にも入れる特殊仕様**。
+サブバースト (`burstAlt` — 例: ラピ:レッドフード は B3 表示だが B1 枠にも入る) にも対応。
+バースト未分類のキャラも弾かず全枠の候補に出す。
+**バースト区分の正は本家DB (nikke_characters.burst / burst_alt)** — 修正は本家PADの
+設定タブ → キャラ管理から。data/burst-map.json は DB が null のときだけの非常用。
 
 ### 設定の書き換えは Git 経由のみ (管理画面を作らない)
 
-raid.json・burst-map.json などの運用設定は**リポジトリのファイル**。書けるのは
+raid.json・site.json などの運用設定は**リポジトリのファイル**。書けるのは
 組織メンバーだけで、スマホでも GitHub のWeb/アプリから編集→コミットで反映できる。
-サイト内に管理UIは置かない (誰でも触れてしまうため)。
+サイト内に管理UIは置かない (認証がないので誰でも触れてしまうため)。
+`tools/ops.html` は「フォーム→JSON生成→コピー→GitHubで commit」の閲覧専用ワークベンチ
+(どこにも書き込まない) — この方式なら安全にパネル化できる。
 
 ## テスト
 
@@ -156,23 +178,23 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
     update public.site_state set status='between', active_season=null, display_season='N',
         message='次シーズン準備中です', updated_at=now();
     → 送信停止・stats は N を read-only 表示 (最終結果)
-      ↓ 本家PADでふるり基準が確定
-[新シーズンN+1 開始]  ★切替オペレーション★
+      ↓ 本家PADでふるり基準が確定 (模擬タブ登録 or 実凸の月次JSON)
+[新シーズンN+1 開始]  ★切替オペレーション (VSCode・PC必須)★
   (a) 旧データ削除:   delete from public.measurements;
-  (b) データ更新:
-      - node scripts/update-roster.mjs        (presets/画像/characters を更新)
-      - data/base.json を N+1 に更新 (version=YYYY-MM・各属性の基準ダメージ = このレイドのボスへのふるりの値)
-      - data/raid.json を N+1 に更新 (season=同じ・order=ボスの並び・bosses=このレイドの5体)
-      - node scripts/gen-seed.mjs → supabase/seed.local.sql を SQL Editor で実行 (fururi_bases に N+1 を投入)
-      - commit & push (base.json/raid.json/presets/characters を反映)
-  (c) 開く:  update public.site_state set status='open', active_season='N+1',
+  (b) node scripts/new-season.mjs        ← ボス5体・ふるり基準 (模擬優先)・roster を全自動生成
+        (月次JSONがまだ無ければ --slv <ふるりの現在SLv> を付ける。
+         基準が揃っていなければエラーで止まる = そのまま open しないこと)
+  (c) SQL Editor で supabase/seed.local.sql を実行 (fururi_bases に N+1 を投入)
+  (d) node tests/run-tests.mjs → commit & push
+  (e) 開く:  update public.site_state set status='open', active_season='N+1',
                  display_season=null, updated_at=now();
     → N+1 が 0 から開始。
 ```
 - **順序厳守**: 基準 (seed) を入れてから open。逆だとトリガが `unknown season/attribute` で送信を弾く
   (between が蓋なので実害はないが、open は基準投入後に)。
-- `data/base.json` の `version` と `data/raid.json` の `season` は**必ず一致**させる
-  (テストが検証する)。両者と site_state の `active_season` が揃って初めて送信が通る。
+- `base.json` の `version` / `raid.json` の `season` / site_state の `active_season` が
+  揃って初めて送信が通る (テストが version 一致とボス名 typo を検証する)。
+- 現行シーズンの再生成・検証は `node scripts/new-season.mjs --season-id <本家ID>`。
 
 ## 工事中モード (随時)
 
@@ -189,13 +211,12 @@ UI もサーバーの書き込み可否もこれで決まる。
 node scripts/update-roster.mjs        # ../shirisu-pad を読む (パス指定も可)
 ```
 
-- 「⚠ バースト未分類」 → game8 でバーストを調べて `data/burst-map.json` に追記 → 再実行
-- 「⚠ 名前なし画像」 → `python -m http.server` でリポジトリを配信し
-  `/tools/annotate.html` を開く → 画像を見ながら名前+バーストを入力 →
-  出力を `data/name-overrides.json` と `data/burst-map.json` に貼る → 再実行
+- 「⚠ バースト未分類」 → 本家PADの設定タブ → キャラ管理で登録 (本家DBが唯一の正) → 再実行
+- 「⚠ 属性未分類」 → game8 の属性別キャラ一覧で調べて `data/element-map.json` に追記 → 再実行
+  (未分類のままでも動く — タイルがグレーの「属性？」表示になるだけ)
 - 警告が消えたら commit → push
 
-base.json の基準ダメージの出所 (月次メンテの内訳):
+base.json の基準ダメージの出所 (new-season.mjs が自動で解決する):
 - 基準者ふるりの `syncLevel` と各属性の実凸ダメージ → 最新月JSON (`../shirisu-pad/data/YYYY-MM.json`)
 - 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → PAD の Supabase
   `fururi_simulation_scores` (該当 season_id)。**模擬登録がある属性は模擬値を優先**

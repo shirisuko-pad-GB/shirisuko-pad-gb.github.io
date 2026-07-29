@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-// shirisu-pad の月次JSON群から presets.json (属性別キャラ使用率 + TOP編成) を生成し、
-// 参照されているキャラ画像を character-images/ へコピーする。
+// shirisu-pad の月次JSON群から presets.json (属性別キャラ使用率 + TOP編成) を生成する。
+//
+// v2 (2026-07): ゲーム画像を扱わなくなったため画像コピーは廃止。
+// 月次JSONに残っている旧アイコンIDは data/characters.json の aliases で代表IDに正規化してから
+// 集計する (アイコン違いが別キャラ扱いで票割れしない)。
+// ※ 実行順: build-characters.mjs → このスクリプト (update-roster.mjs が面倒を見る)
 //
 // 使い方:  node scripts/build-data.mjs ../shirisu-pad
-//   (引数 = shirisu-pad リポジトリのパス。data/20*.json と character-images/ を読む)
 
-import { readdirSync, readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,7 +29,18 @@ const BOSS_TO_ATTR = {
 };
 const ATTRS = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
 
-// "./character-images/<hash>.webp" → "<hash>.webp" (属性アイコン等の混入は除外)
+const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
+if (charData._format !== 2) {
+    console.error('characters.json が v2 形式ではありません。先に build-characters.mjs を実行してください');
+    process.exit(1);
+}
+// 任意のID (代表/別名) → 代表ID。未知のIDは null (集計から除外)
+function canonId(img) {
+    if (charData.chars[img]) return img;
+    return charData.aliases[img] ?? null;
+}
+
+// "./character-images/<hash>.webp" → "<hash>.webp"
 function imgName(url) {
     if (typeof url !== 'string') return null;
     const m = url.match(/character-images\/([\w-]+\.webp)$/);
@@ -37,10 +51,10 @@ const monthFiles = readdirSync(join(padDir, 'data'))
     .filter(f => /^20\d{2}-\d{2}\.json$/.test(f))
     .sort();
 
-const charCount = {};   // {attr: Map<img, count>}
+const charCount = {};   // {attr: Map<id, count>}
 const compCount = {};   // {attr: Map<sortedKey, {chars, count, lastMonth}>}
 ATTRS.forEach(a => { charCount[a] = new Map(); compCount[a] = new Map(); });
-const usedImages = new Set();
+let unknownIds = 0;
 
 for (const file of monthFiles) {
     const json = JSON.parse(readFileSync(join(padDir, 'data', file), 'utf8'));
@@ -48,14 +62,14 @@ for (const file of monthFiles) {
         for (const a of p.attacks || []) {
             const attr = BOSS_TO_ATTR[a.bossCode];
             if (!attr) continue;
-            // 元リポジトリに実在する画像だけ採用 (欠けた画像は 404 の灰色タイルになるため)
-            const chars = (a.characters || []).map(imgName)
-                .filter(c => c && existsSync(join(padDir, 'character-images', c)));
-            chars.forEach(c => {
-                usedImages.add(c);
-                charCount[attr].set(c, (charCount[attr].get(c) || 0) + 1);
-            });
-            if (chars.length === 5) {
+            const chars = (a.characters || []).map(imgName).map(img => {
+                if (!img) return null;
+                const id = canonId(img);
+                if (!id) unknownIds++;
+                return id;
+            }).filter(Boolean);
+            chars.forEach(c => charCount[attr].set(c, (charCount[attr].get(c) || 0) + 1));
+            if (chars.length === 5 && new Set(chars).size === 5) {
                 const key = [...chars].sort().join('|');
                 const cur = compCount[attr].get(key);
                 if (cur) { cur.count++; cur.lastMonth = file.replace('.json', ''); }
@@ -79,14 +93,6 @@ for (const attr of ATTRS) {
 
 writeFileSync(join(ROOT, 'data', 'presets.json'), JSON.stringify(presets, null, 1), 'utf8');
 console.log(`presets.json: ${ATTRS.map(a => `${a}=${presets.attributes[a].topChars.length}体`).join(' ')}`);
-
-// 使用実績のある画像だけコピー
-const imgDir = join(ROOT, 'character-images');
-mkdirSync(imgDir, { recursive: true });
-let copied = 0, missing = 0;
-for (const img of usedImages) {
-    const src = join(padDir, 'character-images', img);
-    if (existsSync(src)) { copyFileSync(src, join(imgDir, img)); copied++; }
-    else missing++;
+if (unknownIds > 0) {
+    console.warn(`⚠ characters.json に無いアイコンID参照 ${unknownIds}件 (集計から除外。本家DBのキャラ登録漏れの可能性)`);
 }
-console.log(`character-images: ${copied}枚コピー (元リポジトリに無い参照: ${missing})`);

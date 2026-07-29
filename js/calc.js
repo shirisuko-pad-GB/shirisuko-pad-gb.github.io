@@ -29,8 +29,11 @@ export function parseDamageInput(str) {
 }
 
 // ---------- バースト編成 (B1/B2/B3/BΛ) ----------
-// BΛ はレッドフードのみの特殊仕様: どのバースト枠にも入れる。
+// BΛ (レッドフード) はどのバースト枠にも入れる特殊仕様。
 // バースト不明 (データ未整備) のキャラも弾かず、どの枠でも選べる扱いにする。
+// サブバースト対応 (2026-07): ラピ:レッドフード のように複数の枠で使えるキャラは
+// 「入れる枠の配列」で扱う。burstsOf(img) は ['B3','B1'] のような配列 (先頭が主) か、
+// null (Λ・未分類 = どの枠でも可) を返す関数。
 
 export const BURST_TEMPLATES = [
     { id: 'standard', label: 'B1・B2・B3×3', slots: ['B1', 'B2', 'B3', 'B3', 'B3'] },
@@ -42,25 +45,30 @@ export function templateById(id) {
     return BURST_TEMPLATES.find(t => t.id === id) || BURST_TEMPLATES[0];
 }
 
-// そのキャラをその枠に置けるか。slotBurst=null は自由枠
-export function burstMatchesSlot(charBurst, slotBurst) {
-    if (!slotBurst) return true;
-    if (!charBurst || charBurst === 'BΛ') return true;
-    return charBurst === slotBurst;
+// そのキャラをその枠に置けるか。slotBurst=null は自由枠 / bursts=null はどこでも可
+export function burstMatchesSlot(bursts, slotBurst) {
+    if (!slotBurst || !bursts) return true;
+    return bursts.includes(slotBurst);
 }
 
 // 選択済みキャラ列をテンプレートの枠に詰め直す (テンプレ切替・プリセット適用時)。
-// 1パス目: バースト確定キャラを一致する枠へ / 2パス目: Λ・未分類を残り枠へ。
+// 枠の選択肢が狭いキャラから貪欲に置く: 主バーストの枠を優先し、
+// 埋まっていればサブバースト可の枠 → 自由枠。Λ・未分類は最後に残り枠へ。
 // 収まらないキャラは dropped に返す。
-export function reslotChars(imgs, burstOf, slotBursts) {
+export function reslotChars(imgs, burstsOf, slotBursts) {
     const slots = slotBursts.map(() => null);
     const dropped = [];
     const wildcards = [];
+    const fixed = [];
     for (const img of imgs) {
         if (!img) continue;
-        const b = burstOf(img);
-        if (!b || b === 'BΛ') { wildcards.push(img); continue; }
-        const i = slotBursts.findIndex((s, k) => slots[k] === null && (s === null || s === b));
+        const bs = burstsOf(img);
+        if (!bs) wildcards.push(img); else fixed.push([img, bs]);
+    }
+    fixed.sort((a, b) => a[1].length - b[1].length);   // 選択肢が狭い順
+    for (const [img, bs] of fixed) {
+        let i = slotBursts.findIndex((s, k) => slots[k] === null && s === bs[0]);
+        if (i < 0) i = slotBursts.findIndex((s, k) => slots[k] === null && (s === null || bs.includes(s)));
         if (i >= 0) slots[i] = img; else dropped.push(img);
     }
     for (const img of wildcards) {
@@ -71,10 +79,10 @@ export function reslotChars(imgs, burstOf, slotBursts) {
 }
 
 // 5キャラのバースト構成に合うテンプレートを選ぶ (プリセット適用時の自動判定)
-export function detectTemplate(imgs, burstOf) {
+export function detectTemplate(imgs, burstsOf) {
     for (const t of BURST_TEMPLATES) {
         if (t.id === 'free') continue;
-        if (reslotChars(imgs, burstOf, t.slots).dropped.length === 0) return t.id;
+        if (reslotChars(imgs, burstsOf, t.slots).dropped.length === 0) return t.id;
     }
     return 'free';
 }
