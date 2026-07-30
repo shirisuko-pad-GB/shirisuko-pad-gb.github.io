@@ -524,7 +524,7 @@ function bindCompBody(card, a) {
 // ---------- 送信中オーバーレイ (ユニオンメンバー作の Now Loading GIF) ----------
 // GIF (約700KB) は初回表示を邪魔しないよう遅延ロード。表示は最低 MIN_LOADING_MS
 // キープしてチラつき (一瞬で消える) を防ぐ。
-const MIN_LOADING_MS = 700;
+const MIN_LOADING_MS = 1000;   // 最低1秒は見せる (それ以降は実際の読み込み完了まで)
 let loadingShownAt = 0;
 
 function preloadLoadingGif() {
