@@ -282,28 +282,35 @@ function compBodyHTML(a) {
     if (!compReady()) return `<p class="hint" style="margin-top:8px;">キャラデータを読み込めなかったため、今回は編成なしで送信できます</p>`;
     const ap = presets?.attributes?.[a.attribute] ?? { topChars: [], topComps: [] };
     const sel = selChars(a);
-    const presetRows = (ap.topComps || []).map((c, pi) => {
+    // 使用率TOP: 一覧は小タイルでコンパクトに (TOP3 + もっと見る)。
+    // 行をタップすると「行内展開 (案A)」— 行がクリームになりそのまま下に膨らんで
+    // 配置候補 (大タイル・名前全文) が出る。同じクリームの塊 = その行の中身、と構造で示す
+    const allComps = (ap.topComps || []);
+    const visComps = a.presetMore ? allComps : allComps.slice(0, 3);
+    const moreCount = allComps.length - 3;
+    const presetRows = visComps.map((c, pi) => {
         const isSel = sel.length === 5 && c.chars.every(x => sel.includes(x));
         const arrs = (Array.isArray(c.arr) ? c.arr : []).filter(x => Array.isArray(x.chars) && x.chars.length === 5);
-        // 押すと配置 (並び順) を選ぶ。配置が1種類しかなければ選択肢は出さず即適用
-        const arrPicker = a.arrPick === pi && arrs.length > 1 ? `
-        <div class="arr-pick">
-            <p class="hint" style="margin:2px 0 4px;">どの並び (配置) で使いますか? — 左から配置スロット順</p>
+        const open = a.arrPick === pi && arrs.length > 1;
+        const expand = open ? `
+        <div class="arr-expand">
+            <p class="arr-lbl">▼ 使用率TOP${pi + 1} の並び (配置) を選ぶ — 左から配置スロット順</p>
             ${arrs.map((x, xi) => `
             <button type="button" class="arr-opt" data-preset="${pi}" data-arr="${xi}">
-                <span class="preset-faces">${x.chars.map(img => tileHTML(infoOf(img))).join('')}</span>
+                <span class="arr-faces">${x.chars.map(img => tileHTML(infoOf(img))).join('')}</span>
                 <span class="arr-n">この並び ${x.n}回</span>
             </button>`).join('')}
         </div>` : '';
         return `
-        <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
-            <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img))).join('')}</span>
+        <button type="button" class="preset-row${isSel ? ' active' : ''}${open ? ' open-a' : ''}" data-preset="${pi}">
+            <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
                 <span class="pill">使用率TOP${pi + 1}</span>
                 <span class="hint">使用 ${c.count}回 (〜${c.lastMonth})</span>
             </span>
-        </button>${arrPicker}`;
-    }).join('');
+        </button>${expand}`;
+    }).join('') + (moreCount > 0 && !a.presetMore ? `
+        <button type="button" class="preset-more">▼ もっと見る (使用率TOP4〜${3 + moreCount})</button>` : '');
     return `
         <p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります</p>
         ${presetRows}
@@ -464,6 +471,10 @@ function bindCompBody(card, a) {
             applyArrangement(x.chars);
             renderCompBody(card, a);
         });
+    });
+    // もっと見る (使用率TOP4〜)
+    card.querySelectorAll('.preset-more').forEach(btn => {
+        btn.addEventListener('click', () => { a.presetMore = true; renderCompBody(card, a); });
     });
     // バースト構成テンプレート切替 (選択済みキャラは合う枠に詰め直す)
     card.querySelectorAll('.tmpl-chip').forEach(chip => {
