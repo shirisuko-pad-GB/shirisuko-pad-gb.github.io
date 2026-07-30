@@ -219,11 +219,17 @@
         }
         /* 全キャラ側は 72px 以上のタイルにして名前を判読可能に (56px は潰れる — 実機FB) */
         .picker-grid.named { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 7px; max-height: 330px; }
-        /* ピッカー内は名前を2行まで折り返す — 「…」で切れて押すまで分からない問題の対策 (実機FB) */
+        /* ピッカー内は名前をできる限り折り返して入れる — 「…」省略を最小化 (実機FB)。
+           ベース名2行 + 衣装名2行まで。それでも入らない超長名だけ末尾が切れる */
         .picker-grid .gb-tile-base {
             white-space: normal; word-break: break-all;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
             overflow: hidden; font-size: 10px; line-height: 1.15;
+        }
+        .picker-grid .gb-tile-var {
+            white-space: normal; word-break: break-all;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; font-size: 8.5px; line-height: 1.15;
         }
         .picker-grid.picker-quick .gb-tile-base { font-size: 11px; }
         /* ⭐ クイック選択: 使用率トップを4列の大きめタイルで常時表示 (スクロールなし) */
