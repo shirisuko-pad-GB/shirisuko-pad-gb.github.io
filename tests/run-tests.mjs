@@ -362,8 +362,12 @@ test('08_shadow_stats: シャドウ除外と score_bounds 既定値の整合', (
     const sql = readFileSync(join(ROOT, 'supabase', '08_shadow_stats.sql'), 'utf8');
     // 両RPCとも「per-client ベスト選抜の前」に妥当範囲でフィルタしていること (位置まで検査 —
     // 集約後に移すと荒らし票が本人の正当票を隠すため、出現数だけでなく順序を見る)
-    const dist = sql.slice(sql.indexOf('get_distribution'), sql.indexOf('get_comp_insights'));
-    const ins = sql.slice(sql.indexOf('get_comp_insights'));
+    // 冒頭コメントにも関数名が出るため、関数定義行をアンカーに切り出す
+    const defDist = sql.indexOf('create or replace function public.get_distribution');
+    const defIns = sql.indexOf('create or replace function public.get_comp_insights');
+    assert(defDist >= 0 && defIns > defDist, '08 に関数定義が見つからない');
+    const dist = sql.slice(defDist, defIns);
+    const ins = sql.slice(defIns);
     const before = (part, label, anchor) => {
         const f = part.indexOf('between v_min and v_max');
         const a = part.indexOf(anchor);
