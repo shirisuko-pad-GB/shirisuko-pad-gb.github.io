@@ -218,7 +218,7 @@ function onSlvChanged() {
 function updateSubmitState() {
     const ok = slvValid() &&
         attacks.every(a => a.attribute && parseDamageInput(a.damage) > 0);
-    $('submitBtn').disabled = !ok;
+    $('submitBtn').disabled = submitting || !ok;   // 送信中は入力イベントでも再有効化しない
     $('addAtkBtn').disabled = attacks.length >= MAX_ATTACKS;
 }
 
@@ -538,6 +538,17 @@ function showLoading() {
     preloadLoadingGif();   // 未ロードならここから読み始める (表示しつつ流れてくる)
     loadingShownAt = Date.now();
     el.style.display = 'flex';
+    // 表示中は背面を触れなくする (キーボードフォーカス = inert / スクロール = overflow)
+    document.querySelector('.wrap')?.setAttribute('inert', '');
+    document.body.style.overflow = 'hidden';
+}
+
+// 即時クローズ (finally の保険用・待たない)。二重呼び出しは無害
+function forceCloseLoading() {
+    const el = $('loadingOverlay');
+    if (el) el.style.display = 'none';
+    document.querySelector('.wrap')?.removeAttribute('inert');
+    document.body.style.overflow = '';
 }
 
 async function hideLoading() {
@@ -545,10 +556,13 @@ async function hideLoading() {
     if (!el) return;
     const rest = MIN_LOADING_MS - (Date.now() - loadingShownAt);
     if (rest > 0) await new Promise(r => setTimeout(r, rest));
-    el.style.display = 'none';
+    forceCloseLoading();
 }
 
+let submitting = false;   // 多重送信ガード (updateSubmitState がボタンを再有効化しないように)
+
 async function onSubmit() {
+    if (submitting) return;
     const slv = parseInt($('slv').value);
     const items = attacks.map(a => ({
         attribute: a.attribute, slv,
@@ -561,59 +575,67 @@ async function onSubmit() {
     }
 
     const btn = $('submitBtn');
+    submitting = true;
     btn.disabled = true;
     btn.textContent = '送信中…';
     showLoading();
 
-    // 計算はサーバー側 — 送信が通らないとスコアも出ない
-    let returned = null;
     try {
-        returned = await submitSet(items, season);
-        if (returned.some(r => !Number.isFinite(r.score))) throw new Error('score missing in response');
-    } catch (e) {
-        console.warn('送信失敗:', e);
+        // 計算はサーバー側 — 送信が通らないとスコアも出ない
+        let returned = null;
+        try {
+            returned = await submitSet(items, season);
+            // 件数・中身を検証してから展開する (不正レスポンスでこの後の参照が落ちないように)
+            if (!Array.isArray(returned) || returned.length !== items.length ||
+                returned.some(r => !Number.isFinite(r?.score))) {
+                throw new Error('bad response shape');
+            }
+        } catch (e) {
+            console.warn('送信失敗:', e);
+            await hideLoading();
+            $('resultsArea').innerHTML = `
+            <section class="card">
+                <h2>⚠️ 測定できませんでした</h2>
+                <p class="score-detail">サーバーに接続できませんでした。ふるり値の計算はサーバー側で行うため、
+                通信が復活してから再度お試しください。入力内容はそのまま残っています。</p>
+            </section>`;
+            $('shareCard').style.display = 'none';
+            $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+
+        // 分布取得 (凸ごとに並列)
+        const dists = await Promise.all(items.map(async (it, i) => {
+            try {
+                const { score, compKey } = returned[i];
+                const [dist, compDist] = await Promise.all([
+                    fetchDistribution({ attribute: it.attribute, season, score }),
+                    compKey
+                        ? fetchDistribution({ attribute: it.attribute, season, score, compKey })
+                        : Promise.resolve(null),
+                ]);
+                return { dist, compDist, fetchError: false };
+            } catch (e) {
+                console.warn('分布取得失敗:', e);
+                return { dist: null, compDist: null, fetchError: true };
+            }
+        }));
+
+        results = items.map((it, i) => ({ ...it, score: returned[i].score, ...dists[i] }));
         await hideLoading();
-        $('resultsArea').innerHTML = `
-        <section class="card">
-            <h2>⚠️ 測定できませんでした</h2>
-            <p class="score-detail">サーバーに接続できませんでした。ふるり値の計算はサーバー側で行うため、
-            通信が復活してから再度お試しください。入力内容はそのまま残っています。</p>
-        </section>`;
-        $('shareCard').style.display = 'none';
+        renderResults();
+        saveLastResult(results);   // 再訪時に分布だけ見直せるよう保存
+        renderRecallBanner();
+
+        showShareCardPreview();
         $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } finally {
+        // どの経路 (想定外の例外含む) でも: オーバーレイを閉じ、ボタンを復帰させる
+        forceCloseLoading();
+        submitting = false;
         btn.textContent = '送信して測定する';
         updateSubmitState();
-        return;
     }
-
-    // 分布取得 (凸ごとに並列)
-    const dists = await Promise.all(items.map(async (it, i) => {
-        try {
-            const { score, compKey } = returned[i];
-            const [dist, compDist] = await Promise.all([
-                fetchDistribution({ attribute: it.attribute, season, score }),
-                compKey
-                    ? fetchDistribution({ attribute: it.attribute, season, score, compKey })
-                    : Promise.resolve(null),
-            ]);
-            return { dist, compDist, fetchError: false };
-        } catch (e) {
-            console.warn('分布取得失敗:', e);
-            return { dist: null, compDist: null, fetchError: true };
-        }
-    }));
-
-    results = items.map((it, i) => ({ ...it, score: returned[i].score, ...dists[i] }));
-    await hideLoading();
-    renderResults();
-    saveLastResult(results);   // 再訪時に分布だけ見直せるよう保存
-    renderRecallBanner();
-
-    showShareCardPreview();
-    $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    btn.textContent = '送信して測定する';
-    updateSubmitState();
 }
 
 function renderResults() {
