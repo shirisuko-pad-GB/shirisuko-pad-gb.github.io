@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 # 募集バナー (assets/recruit-banner.jpg) から「推しりをすこれ部」タイトルを切り出して
 # 背景透過した assets/union-logo.png を再生成する (シェアカード右上のロゴ)。
-#   実行:  python3 scripts/extract-union-logo.py   (要 pillow + numpy)
-# バナー画像を差し替えたときはゾーン座標 (グリッド実測値) の見直しが必要。
+#   実行:  python3 scripts/extract-union-logo.py
+#   依存:  pillow + numpy (作成時: pillow 11.3.0 / numpy 2.0.2。PNG エンコードは
+#          ライブラリ版に依存するためバイト一致は保証しない — コミット済み PNG が正)
+#
+# ⚠ バナー画像を差し替えたときは以下すべてが元画像固有なので見直すこと:
+#   CROP・各ゾーン座標・明色/青/赤の閾値・成分サイズ閾値。
+#   座標の出典: 元画像に 50px グリッドを重ねた確認画像を目視計測して決めた
+#   (再計測は PIL で crop に ImageDraw の格子+座標ラベルを描いて行う)。
 import numpy as np
 from PIL import Image, ImageFilter
 from collections import deque
@@ -26,10 +32,13 @@ hue = np.zeros((H, W), dtype=np.float32)
 delta = mx - mn
 nz = delta > 0
 rr, gg, bb = r, g, b
-h_r = np.where((mx == rr) & nz, (60 * ((gg - bb) / np.maximum(delta, 1e-6)) + 360) % 360, 0)
-h_g = np.where((mx == gg) & nz, 60 * ((bb - rr) / np.maximum(delta, 1e-6)) + 120, 0)
-h_b = np.where((mx == bb) & nz, 60 * ((rr - gg) / np.maximum(delta, 1e-6)) + 240, 0)
-hue = h_r + h_g + h_b
+# 同率最大チャネルの画素で候補が二重加算されないよう、優先順位つきで択一する
+hue = np.select(
+    [(mx == rr) & nz, (mx == gg) & nz, (mx == bb) & nz],
+    [(60 * ((gg - bb) / np.maximum(delta, 1e-6)) + 360) % 360,
+     60 * ((bb - rr) / np.maximum(delta, 1e-6)) + 120,
+     60 * ((rr - gg) / np.maximum(delta, 1e-6)) + 240],
+    default=0).astype(np.float32)
 
 light = (V >= 0.80) & (S <= 0.50)                                  # 空・雲・白フチ
 vivid = (S >= 0.60) & (V >= 0.50) & (hue >= 190) & (hue <= 228)    # 七宝柄・キーライン青
@@ -77,7 +86,8 @@ keep &= ~((xs >= 580) & (ys <= 14))
 # 6) 画鋲上端の淡いピンクの弧 (彩度が低く reddish に掛からない) — 下帯のピンクを追加消去
 pinkish = (((hue <= 40) | (hue >= 320)) & (S >= 0.16) & (V >= 0.5))
 keep &= ~(pinkish & (ys >= 168) & (((xs <= 282)) | ((xs >= 398) & (xs <= 585)) | ((xs >= 660) & (xs <= 697))))
-# 7b) 部の下の画鋲ドーム (橙赤 hue≈7。部の紅 hue≈346 とは色相で区別できる)
+# 7b) 部の下の画鋲ドーム。淡い縁 (hue 330〜/〜45・低〜中彩度) と本体 (橙赤・高彩度) の2段。
+#     hue>=330 側は S<=0.65 の上限があるため 部の紅 (hue≈346, S≈0.96) は除去されない
 orange = (((hue >= 3) & (hue <= 45)) | (hue >= 330)) & (S >= 0.15) & (S <= 0.65) & (V >= 0.4)
 keep &= ~(orange & (ys >= 168) & (xs >= 665) & (xs <= 765))
 keep &= ~((hue >= 3) & (hue <= 45) & (S >= 0.5) & (V >= 0.4) & (ys >= 170) & (xs >= 665) & (xs <= 765))

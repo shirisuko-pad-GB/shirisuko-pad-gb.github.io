@@ -114,6 +114,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `scripts/build-characters.mjs` | characters.json 再生成 (本家 nikke_characters の名前・バースト × element-map) |
 | `scripts/build-data.mjs` | presets.json 再生成 (旧アイコンIDは aliases で代表IDに正規化して集計) |
 | `scripts/gen-seed.mjs` | 実行用 seed.local.sql をローカル生成 (**データのみ**・シードは非コミット) |
+| `scripts/extract-union-logo.py` | union-logo.png の再生成 (バナーからロゴを背景透過抽出。要 python3+pillow+numpy) |
 | `supabase/01_schema.sql` | measurements テーブルの初期形 (05で season 化・匿名read/write撤去) |
 | `supabase/02_stats.sql` | 参照テーブル(非公開)・スコア再計算トリガ・分布RPC の初期形 (05が最終定義) |
 | `supabase/03_analytics.sql` | 集計RPC の初期形 (05が最終定義) |
