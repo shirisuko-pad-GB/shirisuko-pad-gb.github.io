@@ -12,8 +12,8 @@ const F = "'Poppins', 'Noto Sans JP', sans-serif";
 const INK = '#14161A';
 const CREAM = '#F6F1CD';
 
-// 分布が解禁済みか (サーバーが bins を返しているか)
-const distReady = (d) => d && !d.gated && Array.isArray(d.bins);
+// 分布が解禁済みか (bins と median が揃っているか — 欠損応答での例外を防ぐ)
+const distReady = (d) => d && !d.gated && Array.isArray(d.bins) && Number.isFinite(d.median);
 
 // ミニ分布: シルエットバー + 自分のビンだけ属性色 + 白い「あなた」バッジ
 function drawMini(ctx, { x, y, w, h, bins, myBin, color, badge }) {
@@ -43,15 +43,20 @@ function drawMini(ctx, { x, y, w, h, bins, myBin, color, badge }) {
     ctx.fillText(badge, px + 11, py + 19);
 }
 
-// 大きい% (単位の%だけ小さく)
-function drawBigPct(ctx, x, y, pct, size, color) {
-    ctx.fillStyle = color;
-    ctx.font = `800 ${size}px ${F}`;
+// 大きい% (単位の%だけ小さく)。桁が多いときは列幅に収まるまで縮小 (荒らし自認スコア対策)
+function drawBigPct(ctx, x, y, pct, size, color, maxW) {
     const t = pct != null ? String(pct) : '—';
+    let px = size;
+    ctx.font = `800 ${px}px ${F}`;
+    while (px > 20 && maxW && ctx.measureText(t).width + px * 0.42 > maxW) {
+        px -= 4;
+        ctx.font = `800 ${px}px ${F}`;
+    }
+    ctx.fillStyle = color;
     ctx.fillText(t, x, y);
     if (pct != null) {
         const w = ctx.measureText(t).width;
-        ctx.font = `800 ${Math.round(size * 0.42)}px ${F}`;
+        ctx.font = `800 ${Math.round(px * 0.42)}px ${F}`;
         ctx.fillText('%', x + w + 6, y);
     }
 }
@@ -113,7 +118,7 @@ export async function buildShareCard(results, canvas /*, opts */) {
             ctx.fillStyle = CREAM;
             ctx.font = `800 24px ${F}`;
             ctx.fillText('総合', x0, 262);
-            drawBigPct(ctx, x0, 262 + bigSize + 8, totalPct, bigSize, CREAM);
+            drawBigPct(ctx, x0, 262 + bigSize + 8, totalPct, bigSize, CREAM, iw);
             ctx.fillStyle = '#8A9097';
             ctx.font = `700 19px ${F}`;
             ctx.fillText('各凸の中央値比の平均', x0, 262 + bigSize + 44);
@@ -133,7 +138,7 @@ export async function buildShareCard(results, canvas /*, opts */) {
         ctx.font = `800 ${multi ? 24 : 30}px ${F}`;
         ctx.fillText(`${info.jp}PT`, x0, multi ? 262 : 270);
         const bigY = (multi ? 262 : 270) + bigSize + 8;
-        drawBigPct(ctx, x0, bigY, mp, bigSize, info.color);
+        drawBigPct(ctx, x0, bigY, mp, bigSize, info.color, iw);
         ctx.fillStyle = '#8A9097';
         ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
         ctx.fillText(`ふるり値 ${r.score.toFixed(2)}`, x0, bigY + (multi ? 36 : 44));
