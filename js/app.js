@@ -644,6 +644,12 @@ async function onSubmit() {
     }
 }
 
+// 中央値比 (分布解禁時のみ)。カード・総合・シェア文の全部がこれを使う
+function medianRatioOf(r) {
+    return (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0)
+        ? r.score / r.dist.median : null;
+}
+
 function renderResults() {
     const area = $('resultsArea');
     const multi = results.length > 1;
@@ -652,9 +658,7 @@ function renderResults() {
         // 総合 = 各凸の中央値比の平均。ふるり値は属性ごとに基準ボスが違うため、
         // 属性をまたいだ「ふるり値の合算」はしない (運営判断 2026-07-30)。
         // 全凸の分布が解禁されているときだけ出せる
-        const ratios = results.map(r =>
-            (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0)
-                ? r.score / r.dist.median : null);
+        const ratios = results.map(medianRatioOf);
         const totalPct = ratios.every(x => x != null)
             ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
         html += `
@@ -684,18 +688,25 @@ function resultCardHTML(r, i, multi) {
         distHtml = distSectionHTML(r, info);
     }
 
-    // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)。
-    // フィードバックは順位ではなく「中央値=100%としたときの%」(運営方針 2026-07-30)
-    const distReady = r.dist && !r.dist.gated && Array.isArray(r.dist.bins);
-    const medianPct = distReady && r.dist.median > 0 ? Math.round((r.score / r.dist.median) * 100) : null;
+    // フィードバックは順位ではなく「中央値=100%としたときの%」(運営方針 2026-07-30)。
+    // シェアカードと同じ構図に統一: 主役 = 中央値比% / サブ = ふるり値 (導入のまき餌)。
+    // 分布未解禁の導入期だけは中央値比が無いので、ふるり値が主役のまま
+    const ratio = medianRatioOf(r);
+    const medianPct = ratio != null ? Math.round(ratio * 100) : null;
     const pill = medianPct != null
-        ? `<span class="rank-pill">中央値比 ${medianPct}% / ${r.dist.n}人</span>` : '';
+        ? `<span class="rank-pill">ふるり値 ${r.score.toFixed(2)}</span>` : '';
+    const big = medianPct != null
+        ? `${medianPct}<span style="font-size:26px;">%</span>`
+        : r.score.toFixed(2);
+    const mainPill = medianPct != null
+        ? `<span class="pill">中央値 = 100% ・ ${r.dist.n}人中</span>` : '';
 
     return `
     <section class="card result-card">
         <div class="score-label"><strong style="color:${info.color};">${info.jp}PT</strong> ${title}${pill}</div>
-        <div class="score-big">${r.score.toFixed(2)}</div>
+        <div class="score-big">${big}</div>
         <div class="pill-row">
+            ${mainPill}
             <span class="pill">SLv ${r.slv}</span>
             <span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>
             <span class="pill">基準 ${(base.bases[r.attribute].damage / 1e9).toFixed(2)} B @ SLv ${base.baseSlv}</span>
@@ -726,8 +737,8 @@ function distSectionHTML(r, info) {
         html += `
         <div class="hist">${bars}</div>
         <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
-        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。黒いバーがあなたの位置。
-            真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
+        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。色の違うバーがあなたの位置。
+            真ん中の人 (=100%) はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
     // 同一編成 (サーバー閾値未満は gated)。こちらも中央値比で返す
     if (r.characters && r.compDist) {
@@ -783,16 +794,24 @@ async function showShareCardPreview() {
     }
 }
 
+// シェア文もカードと同じ主従: 中央値比%が主役、ふるり値はサブ (未解禁時のみふるり値が主役)
 function shareText() {
     if (results.length > 1) {
-        const avg = results.reduce((s, r) => s + r.score, 0) / results.length;
+        const ratios = results.map(medianRatioOf);
+        if (ratios.every(x => x != null)) {
+            const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
+            const parts = results.map((r, i) => `${ATTR_INFO[r.attribute].jp}${Math.round(ratios[i] * 100)}%`).join('/');
+            return `総合 ${totalPct}% (${parts}) — みんなの中央値=100% #ふるり値チェッカー #NIKKE`;
+        }
         const parts = results.map(r => `${ATTR_INFO[r.attribute].jp}${r.score.toFixed(2)}`).join('/');
-        return `ふるり値 平均${avg.toFixed(2)} (${parts}) #ふるり値チェッカー #NIKKE`;
+        return `ふるり値 ${parts} を測定! #ふるり値チェッカー #NIKKE`;
     }
     const r = results[0];
-    const mp = (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0)
-        ? Math.round((r.score / r.dist.median) * 100) : null;
-    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT)${mp != null ? ` — 中央値比${mp}%!` : ''} #ふるり値チェッカー #NIKKE`;
+    const ratio = medianRatioOf(r);
+    if (ratio != null) {
+        return `中央値比 ${Math.round(ratio * 100)}% (${ATTR_INFO[r.attribute].jp}PT・みんなの真ん中=100%) — ふるり値 ${r.score.toFixed(2)} #ふるり値チェッカー #NIKKE`;
+    }
+    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT) を測定! #ふるり値チェッカー #NIKKE`;
 }
 
 async function onShare() {

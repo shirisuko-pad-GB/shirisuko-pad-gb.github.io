@@ -69,7 +69,12 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       const errored = [...fd.querySelectorAll('.card h2')].some(h => h.textContent.includes('測定できません'));
       R.backendUp = !errored && !!scoreEl;   // シーズンが open で基準投入済みなら成功
       if (R.backendUp) {
-        check('スコア 1.00 (基準ダメージ入力)', scoreEl.textContent === '1.00');
+        // 主従統一 (2026-07-30): 分布解禁時は 中央値比% が主役でふるり値はサブpill、
+        // 未解禁時は ふるり値が主役。基準ダメージ入力なのでふるり値は必ず 1.00
+        const pillTxt = fd.querySelector('.result-card .rank-pill')?.textContent || '';
+        const scoreOk = pillTxt.includes('ふるり値 1.00') || scoreEl.textContent === '1.00';
+        check('スコア 1.00 (基準ダメージ入力・主役orサブ表示)', scoreOk);
+        check('解禁時は中央値比%が主役', !pillTxt || /%$/.test(scoreEl.textContent.trim()));
         // 分布セクション: 未解禁なら「◯人で解禁」ゲート、解禁済みなら中央値の分布が出る (どちらかで合格)
         check('分布セクション表示 (ゲート or 解禁後の中央値)', /で解禁|中央値/.test(fd.querySelector('.result-card')?.textContent || ''));
         check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));
@@ -79,7 +84,9 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
         const rbtn = fd.getElementById('recallBtn');
         check('再確認ボタンあり', !!rbtn);
         if (rbtn) { rbtn.click(); await wait(4500);
-          check('再確認で結果を再表示 (新規送信なし)', fd.querySelector('.result-card .score-big')?.textContent === '1.00'); }
+          const rp = fd.querySelector('.result-card .rank-pill')?.textContent || '';
+          check('再確認で結果を再表示 (新規送信なし)',
+            rp.includes('ふるり値 1.00') || fd.querySelector('.result-card .score-big')?.textContent === '1.00'); }
       } else {
         R.steps.push({ name: '(送信不可 = シーズン未 open/基準未投入: 送信系 skip)', skip: true });
       }
