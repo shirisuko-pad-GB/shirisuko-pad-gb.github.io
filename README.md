@@ -29,13 +29,20 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふ
 - **シーズン = 1つの regime (同じボス集合・キャラ顔ぶれ)**。regime が変わると母集団が変わるため、
   分布・採用率・編成ランキングは **season で区切る** (RPC が `season = p_season` で絞る)。
 - **順位づけは norm_damage (= damage ÷ slvRatio[slv])**。ふるり値は表示用の換算値。
-- 集計はサーバー側 RPC (`get_distribution` / `get_comp_insights`、supabase/05_seasons.sql):
-  シーズン絞り・1端末(client_id)につき属性ごとベスト1件・ヒストグラムは p1〜p99 トリム。
+- 集計はサーバー側 RPC (`get_distribution` / `get_comp_insights`、**最終定義は 08_shadow_stats.sql**):
+  シーズン絞り・1端末(client_id)につき属性ごとベスト1件・ヒストグラムは p1〜p99 域にクリップ。
   返り値はふるり値単位。**時間窓は撤去** (シーズンで区切るため)。
+- **シャドウ集計 (08)**: 荒らしの極端値は送信を拒否せず受理する (突っぱねるとエスカレートするため)。
+  シーズン別の妥当スコア範囲 (`score_bounds`、既定 [0.01, 5.0]・anon 読み取り不可) の外の票は
+  **公開集計から黙って除外** (per-client ベスト選抜の前に落とす)。本人の画面には自分のスコアが
+  出続けるので除外は分からない。範囲の実運用値は DB のみ (リポジトリには既定値だけ)。
+- **利用者へのフィードバックは順位ではなく「中央値=100%としたときの%」** (中央値比)。
 - score / norm_damage は BEFORE INSERT トリガがサーバー側で再計算 (クライアント申告値は無視)。
 - **しきい値はサーバーが強制** (n<閾値なら分布本体を返さず `{n,gated,need}`)。
   クライアントの `js/shared.js` `THRESHOLDS` (dist=50 / comp=15 / insights=10) は表示用で、
-  ゲート表示はサーバーの `need` を優先。個別編成の best/median は **採用5人未満だと伏せる** (プライバシー)。
+  ゲート表示はサーバーの `need` を優先。個別編成の median は **採用5人未満だと伏せる** (プライバシー)。
+  編成の「最高」(生max) は公開しない (境界内の1票で乗っ取れるため 08 で廃止 —
+  かわりに中央値TOP3 と並び順の内訳を返す)。
 
 ### 🛡️ 脅威モデルと対策 (04_hardening.sql / 公開サイトの前提)
 
@@ -53,7 +60,7 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふ
   RPC 内定数で、未満なら `{n, gated, need}` だけ返し分布本体を出さない。
 - **閉じた/準備中シーズンへの送信をサーバーが拒否** (`submit_measurements` が `site_state` を見て
   `status='open' かつ season=active_season` 以外を弾く)。運用モードは UI だけでなく DB が強制。
-- **個別編成のスコア開示は採用5人以上** (`get_comp_insights` が best/median を n<5 で null に)。
+- **個別編成のスコア開示は採用5人以上** (`get_comp_insights` が median を n<5 で null に。best は非公開)。
 - **Sybil を弱める**: `client_id` は NOT NULL 必須。完全な1端末1票保証・レート制限は将来課題。
 - RPC の可変引数 (`p_bins`/`p_top_*`) は関数内でクランプ、`season` は `YYYY-MM` 形式CHECK。
 - **エラー応答から行内容を漏らさない** (07_sanitize_errors.sql): CHECK違反の Postgres エラー DETAIL
@@ -114,6 +121,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `supabase/05_seasons.sql` | **シーズン制への移行 (集計RPCの最終定義)**: season統合・site_state・p_season RPC (submit の最終は 07) |
 | `supabase/06_input_bounds.sql` | damage のサニティ上限CHECK (REVIEW-aggregation.md 対処2) |
 | `supabase/07_sanitize_errors.sql` | **submit_measurements の最終定義**: エラーDETAILの行内容漏洩 (norm_damage→slv_ratio逆算) を遮断 |
+| `supabase/08_shadow_stats.sql` | **集計RPCの最終定義**: シャドウ除外 (score_bounds)・「最高」廃止・中央値TOP・並び順内訳 |
 | `supabase/99_check_applied.sql` | マイグレーション適用状況チェッカー (新環境で必須・読み取り専用) |
 
 ### 🎨 権利方針: ゲームアセットを使わない (2026-07 全面移行)

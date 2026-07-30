@@ -6,7 +6,9 @@
 (「最高」廃止 → 中央値TOP / 並び順内訳)。**適用するまでは従来の集計のまま動く**
 (クライアントは新旧両対応済み。medianTop・並び順内訳は適用後に自然に出現する)。
 
-手順: SQL Editor で `supabase/08_shadow_stats.sql` を実行 → `99_check_applied.sql` で 08 が ✅ になればOK。
+手順: **push 後のデプロイが済んでから** (Pages 反映 + JSキャッシュ約10分。旧クライアントは
+best 前提のため、08 を先に適用すると一時的に編成の中央値が「5人以上で表示」と出る) →
+SQL Editor で `supabase/08_shadow_stats.sql` を実行 → `99_check_applied.sql` で 08 が ✅ になればOK。
 シーズン切替時は `score_bounds` に新シーズン行を足す (無ければ既定 [0.01, 5.0] で動く。
 new-season.mjs の残り手順にも表示される)。
 

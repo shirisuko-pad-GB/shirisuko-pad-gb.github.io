@@ -608,8 +608,9 @@ function shareText() {
         return `ふるり値 平均${avg.toFixed(2)} (${parts}) #ふるり値チェッカー #NIKKE`;
     }
     const r = results[0];
-    const pct = (r.dist && !r.dist.gated && Array.isArray(r.dist.bins)) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
-    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT)${pct != null ? ` — 上位${pct}%!` : ''} #ふるり値チェッカー #NIKKE`;
+    const mp = (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0)
+        ? Math.round((r.score / r.dist.median) * 100) : null;
+    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT)${mp != null ? ` — 中央値比${mp}%!` : ''} #ふるり値チェッカー #NIKKE`;
 }
 
 async function onShare() {

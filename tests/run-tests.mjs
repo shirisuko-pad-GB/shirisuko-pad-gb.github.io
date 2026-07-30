@@ -360,8 +360,18 @@ test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 
 
 test('08_shadow_stats: シャドウ除外と score_bounds 既定値の整合', () => {
     const sql = readFileSync(join(ROOT, 'supabase', '08_shadow_stats.sql'), 'utf8');
-    // 両RPCとも per-client ベスト選抜の前に妥当範囲でフィルタしていること
-    assertEq((sql.match(/between v_min and v_max/g) || []).length, 2, 'シャドウ除外が両RPCに入っていない');
+    // 両RPCとも「per-client ベスト選抜の前」に妥当範囲でフィルタしていること (位置まで検査 —
+    // 集約後に移すと荒らし票が本人の正当票を隠すため、出現数だけでなく順序を見る)
+    const dist = sql.slice(sql.indexOf('get_distribution'), sql.indexOf('get_comp_insights'));
+    const ins = sql.slice(sql.indexOf('get_comp_insights'));
+    const before = (part, label, anchor) => {
+        const f = part.indexOf('between v_min and v_max');
+        const a = part.indexOf(anchor);
+        assert(f >= 0, `${label}: シャドウ除外が無い`);
+        assert(a >= 0 && f < a, `${label}: シャドウ除外が per-client 選抜 (${anchor}) より後にある`);
+    };
+    before(dist, 'get_distribution', 'group by client_id');
+    before(ins, 'get_comp_insights', 'order by client_id, norm_damage desc');
     // フォールバック既定 [0.01, 5.0] がテーブル既定と一致
     assert(sql.includes("coalesce(b.min_score, 0.01)") && sql.includes("coalesce(b.max_score, 5.0)"),
         'フォールバック既定が [0.01, 5.0] ではない');
