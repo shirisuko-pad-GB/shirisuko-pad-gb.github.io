@@ -130,22 +130,48 @@ function renderInsights(ins, info) {
             <div class="pct">${Math.round((c.count / n) * 100)}%</div>
         </div>`).join('')}</div>
     <p class="dist-note">対象: 編成つき提出 ${n}人</p>`;
-    // 編成ランキング (best/median は採用5人未満だと null で返る = プライバシー下限)
-    $('compsArea').innerHTML = (ins.comps || []).map((cp, i) => {
-        const hasStats = Number.isFinite(cp.median) && Number.isFinite(cp.best);
-        const stats = hasStats
-            ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span><span>最高 <strong>${Number(cp.best).toFixed(2)}</strong></span>`
+    // 💪 中央値が高い編成 (採用5人以上のみ・サーバーが選抜)。08未適用の旧サーバーでは
+    // medianTop が無いので、そのときはセクションごと出さない (静かに劣化)
+    const medianTop = (Array.isArray(ins.medianTop) ? ins.medianTop : []).map((cp, i) => `
+    <div class="comp-row strong-comp">
+        <span class="rank">${i + 1}</span>
+        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img, { xs: true })).join('')}</span>
+        <span class="comp-meta">
+            <span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>
+            <span>採用 <strong>${cp.n}人</strong></span>
+        </span>
+    </div>`).join('');
+    const medianTopHtml = medianTop
+        ? `<p class="sec-label">💪 中央値が高い編成 (採用5人以上)</p>${medianTop}
+           <p class="sec-label" style="margin-top:14px;">📊 よく使われる編成 (使用率順)</p>` : '';
+
+    // 編成ランキング (使用率順)。median は採用5人未満だと null (プライバシー下限)。
+    // ▼ を開くと「並び順 (配置) の内訳」— 順不同5人の中でどの並びが多いか
+    $('compsArea').innerHTML = medianTopHtml + ((ins.comps || []).map((cp, i) => {
+        const stats = Number.isFinite(cp.median)
+            ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>`
             : `<span style="color:var(--faint);">スコアは<br>5人以上で表示</span>`;
-        return `
-    <div class="comp-row">
+        const arrs = (Array.isArray(cp.arr) ? cp.arr : []).filter(a => Array.isArray(a.chars));
+        const arrHtml = arrs.length >= 2 ? `
+        <div class="arr-list">
+            <p class="hint" style="margin:6px 0 2px;">並び順の内訳 (左から配置スロット順):</p>
+            ${arrs.map(a => `
+            <div class="arr-row">
+                <span class="comp-faces">${a.chars.map(img => charTileTag(img, { xs: true })).join('')}</span>
+                <span class="arr-n">${a.n}人</span>
+            </div>`).join('')}
+        </div>` : '';
+        const row = `
         <span class="rank">${i + 1}</span>
         <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img, { xs: true })).join('')}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
             ${stats}
-        </span>
-    </div>`;
-    }).join('') || '<p class="hint">まだ編成つきの提出がありません</p>';
+        </span>`;
+        return arrHtml
+            ? `<details class="comp-x"><summary class="comp-row">${row}<span class="chev">▼</span></summary>${arrHtml}</details>`
+            : `<div class="comp-row">${row}</div>`;
+    }).join('') || '<p class="hint">まだ編成つきの提出がありません</p>');
 }
 
 init().catch(e => {

@@ -347,14 +347,26 @@ test('ゲームアセットを同梱していない (権利方針の回帰ガー
     assert(!existsSync(join(ROOT, 'assets', 'attr')), 'assets/attr/ が復活しています (ゲーム内アイコンは同梱禁止)');
 });
 
-test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 05_seasons.sql)', () => {
-    const sql = readFileSync(join(ROOT, 'supabase', '05_seasons.sql'), 'utf8');
-    // get_distribution: case when p_comp_key is null then 50 else 15
-    assert(new RegExp(`then\\s+${THRESHOLDS.dist}\\s+else\\s+${THRESHOLDS.comp}`).test(sql),
-        `05_seasons.sql の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
-    // get_comp_insights: v_thresh int := 10
-    assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(sql),
-        `05_seasons.sql の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
+test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 08)', () => {
+    // 集計RPCの最終定義は 08_shadow_stats.sql (05 は歴史)。両方に同じ閾値があることを確認
+    for (const file of ['05_seasons.sql', '08_shadow_stats.sql']) {
+        const sql = readFileSync(join(ROOT, 'supabase', file), 'utf8');
+        assert(new RegExp(`then\\s+${THRESHOLDS.dist}\\s+else\\s+${THRESHOLDS.comp}`).test(sql),
+            `${file} の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
+        assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(sql),
+            `${file} の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
+    }
+});
+
+test('08_shadow_stats: シャドウ除外と score_bounds 既定値の整合', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '08_shadow_stats.sql'), 'utf8');
+    // 両RPCとも per-client ベスト選抜の前に妥当範囲でフィルタしていること
+    assertEq((sql.match(/between v_min and v_max/g) || []).length, 2, 'シャドウ除外が両RPCに入っていない');
+    // フォールバック既定 [0.01, 5.0] がテーブル既定と一致
+    assert(sql.includes("coalesce(b.min_score, 0.01)") && sql.includes("coalesce(b.max_score, 5.0)"),
+        'フォールバック既定が [0.01, 5.0] ではない');
+    // 「最高」(生max) を公開しない
+    assert(!/['"]best['"]/.test(sql), '08 に best (生max) の公開が残っている');
 });
 
 test('07: submit の INSERT が例外ハンドラで包まれている (エラーDETAILの行内容漏洩ガード)', () => {

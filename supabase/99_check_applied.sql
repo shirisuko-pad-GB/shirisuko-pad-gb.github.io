@@ -38,6 +38,13 @@ SELECT * FROM (
                            AND policyname IN ('anon_select', 'anon_insert'))),
         'submit RPC 一本化 + characters CHECK + 匿名直読み書き撤去'
 
+    UNION ALL SELECT '08_shadow_stats',
+        (to_regclass('public.score_bounds') IS NOT NULL
+         AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                     WHERE n.nspname = 'public' AND p.proname = 'get_comp_insights'
+                       AND pg_get_functiondef(p.oid) LIKE '%medianTop%')),
+        'シャドウ集計 (score_bounds) + 編成の中央値TOP/並び順内訳'
+
     UNION ALL SELECT '06_input_bounds',
         EXISTS (SELECT 1 FROM pg_constraint
                 WHERE conrelid = to_regclass('public.measurements')

@@ -3,7 +3,6 @@
 // SNS に流れる画像なので、ゲームアセットは一切使わない (絵文字 + 自作タイルのみ) —
 // 権利表記 (非公式ファンコンテンツ / © SHIFT UP CORP.) を必ず焼き込む。
 import { ATTR_INFO, SITE_URL } from './shared.js';
-import { topPercentFromCounts } from './calc.js';
 import { drawTileCanvas } from './tiles.js';
 
 const F = "'Poppins', 'Noto Sans JP', sans-serif";
@@ -68,16 +67,17 @@ export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
         ctx.fillStyle = '#A4AAB0';
         ctx.font = `700 32px ${F}`;
         ctx.fillText(`SLv ${r.slv} / ${(r.damage / 1e9).toFixed(2)} B`, 340, 484);
-        const pct = distReady(r.dist) ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
-        if (pct != null) {
+        // 順位ではなく「中央値=100%としたときの%」を出す (運営方針 2026-07-30)
+        const mp = distReady(r.dist) && r.dist.median > 0 ? Math.round((r.score / r.dist.median) * 100) : null;
+        if (mp != null) {
             ctx.fillStyle = mainColor;
             ctx.font = `900 46px ${F}`;
-            const pctText = `上位 ${pct}%`;
+            const pctText = `中央値比 ${mp}%`;
             const pctW = ctx.measureText(pctText).width;
             ctx.fillText(pctText, 70, 580);
             ctx.fillStyle = '#8A9097';
             ctx.font = `700 30px ${F}`;
-            ctx.fillText(`(${r.dist.n}人中)`, 70 + pctW + 24, 578);
+            ctx.fillText(`(${r.dist.n}人)`, 70 + pctW + 24, 578);
         }
         // 編成タイル (登録があるときだけ・右側に5枚)
         if (infoOf && Array.isArray(r.characters) && r.characters.length === 5) {

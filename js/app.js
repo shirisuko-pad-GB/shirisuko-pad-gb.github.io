@@ -1,7 +1,7 @@
 // しりすこPAD GB — ふるり値チェッカー UIロジック
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
+import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL } from './shared.js';
 import { buildShareCard } from './sharecard.js';
@@ -310,17 +310,24 @@ function pickerGridHTML(a, ap) {
     }
     const ordered = [...groups.match, ...groups.lambda, ...groups.unknown];
     if (ordered.length === 0) return `<p class="hint" style="margin-top:8px;">この枠に合う候補がありません</p>`;
-    const btns = ordered.map(id => {
+    const btn = (id) => {
         const si = a.slots.indexOf(id);
         return `
         <button type="button" data-img="${id}"${si >= 0 ? ` class="sel" data-n="${si + 1}"` : ''}>
             ${tileHTML(infoOf(id))}
         </button>`;
-    }).join('');
+    };
+    // ⭐ クイック選択: この枠に入るキャラのうち、ユニオン使用実績トップ8を大きめに常時表示
+    // (文字タイル化で一覧の視認性が下がったため — 大多数が選ぶキャラへの最短経路を作る)
+    const quick = ordered.filter(id => (usage.get(id) || 0) > 0).slice(0, 8);
+    const rest = quick.length >= 4 ? ordered.filter(id => !quick.includes(id)) : ordered;
+    const quickHtml = quick.length >= 4 ? `
+        <p class="hint picker-label">⭐ よく使われるキャラ</p>
+        <div class="picker-grid picker-quick">${quick.map(btn).join('')}</div>` : '';
     const label = slotBurst
-        ? `<strong style="color:${BURST_COLORS[slotBurst]};">${slotBurst}</strong> の枠に入れるキャラ${groups.lambda.length ? ' (Λ含む)' : ''}${groups.unknown.length ? ' + 未分類' : ''}`
+        ? `<strong style="color:${BURST_COLORS[slotBurst]};">${slotBurst}</strong> の枠に入れる全キャラ${groups.lambda.length ? ' (Λ含む)' : ''}${groups.unknown.length ? ' + 未分類' : ''}`
         : `すべてのキャラ`;
-    return `<p class="hint picker-label">${label} — タップで枠にセット (よく使われる順)</p><div class="picker-grid named">${btns}</div>`;
+    return `${quickHtml}<p class="hint picker-label">${label} — タップで枠にセット (よく使われる順)</p><div class="picker-grid named">${rest.map(id => btn(id)).join('')}</div>`;
 }
 
 function compStatusText(a) {
@@ -527,11 +534,12 @@ function resultCardHTML(r, i, multi) {
         distHtml = distSectionHTML(r, info);
     }
 
-    // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
+    // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)。
+    // フィードバックは順位ではなく「中央値=100%としたときの%」(運営方針 2026-07-30)
     const distReady = r.dist && !r.dist.gated && Array.isArray(r.dist.bins);
-    const pct = distReady ? topPercentFromCounts(r.dist.above, r.dist.n) : null;
-    const pill = pct != null
-        ? `<span class="rank-pill">上位 ${pct}% / ${r.dist.n}人</span>` : '';
+    const medianPct = distReady && r.dist.median > 0 ? Math.round((r.score / r.dist.median) * 100) : null;
+    const pill = medianPct != null
+        ? `<span class="rank-pill">中央値比 ${medianPct}% / ${r.dist.n}人</span>` : '';
 
     return `
     <section class="card result-card">
@@ -572,12 +580,12 @@ function distSectionHTML(r, info) {
         <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。
             真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
-    // 同一編成 (サーバー閾値未満は gated)
+    // 同一編成 (サーバー閾値未満は gated)。こちらも中央値比で返す
     if (r.characters && r.compDist) {
         const cd = r.compDist;
-        if (!cd.gated && Number.isFinite(cd.above)) {
-            const cp = topPercentFromCounts(cd.above, cd.n);
-            html += `<div class="comp-pos">🧩 同じ編成 ${cd.n}人の中では <strong>上位 ${cp}%</strong> です</div>`;
+        if (!cd.gated && Number.isFinite(cd.median) && cd.median > 0) {
+            const cp = Math.round((r.score / cd.median) * 100);
+            html += `<div class="comp-pos">🧩 同じ編成 ${cd.n}人の中央値と比べて <strong>${cp}%</strong> です</div>`;
         } else {
             html += `<div class="comp-pos">🧩 同じ編成の提出は ${cd.n}人 (${cd.need ?? THRESHOLDS.comp}人で編成内比較が解禁)</div>`;
         }
