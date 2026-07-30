@@ -93,8 +93,7 @@ pinkish = (((hue <= 40) | (hue >= 320)) & (S >= 0.16) & (V >= 0.5))
 keep &= ~(pinkish & (ys >= 168) & (((xs <= 282)) | ((xs >= 398) & (xs <= 585))))
 orange_pale = (hue <= 45) & (S >= 0.16) & (S <= 0.7) & (V >= 0.5)
 keep &= ~(orange_pale & (ys >= 168) & (xs >= 660) & (xs <= 697))
-# 7b) 部の下の画鋲ドーム。淡い縁 (hue 330〜/〜45・低〜中彩度) と本体 (橙赤・高彩度) の2段。
-#     hue>=330 側は S<=0.65 の上限があるため 部の紅 (hue≈346, S≈0.96) は除去されない
+# 7b) 部の下の画鋲ドーム (橙〜深赤 hue<=45)。部の紅 (hue≈345-358) は色相範囲外なので無傷
 orange = (hue <= 45) & (S >= 0.15) & (S <= 0.7) & (V >= 0.4)   # 橙〜深赤 (hue下限なし)。部の紅 hue≈346 は範囲外
 keep &= ~(orange & (ys >= 166) & (xs >= 665) & (xs <= 765))
 keep &= ~((hue >= 3) & (hue <= 45) & (S >= 0.5) & (V >= 0.4) & (ys >= 170) & (xs >= 665) & (xs <= 765))
@@ -151,7 +150,7 @@ out = Image.alpha_composite(Image.alpha_composite(key_layer, white_layer), body)
 out = out.resize((cw // 2, ch // 2), Image.LANCZOS)
 # 最終スイープ: 文字クラスタに属さない小さな孤立成分 (150px未満) を色を問わず除去
 oa = np.array(out)
-vis = oa[..., 3] > 60
+vis = oa[..., 3] > 10
 lab2 = np.zeros(vis.shape, dtype=np.int32)
 n2 = 0
 for yy in range(vis.shape[0]):
