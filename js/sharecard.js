@@ -15,6 +15,19 @@ const CREAM = '#F6F1CD';
 // 分布が解禁済みか (bins と median が揃っているか — 欠損応答での例外を防ぐ)
 const distReady = (d) => d && !d.gated && Array.isArray(d.bins) && Number.isFinite(d.median);
 
+// ユニオンロゴ (推しりをすこれ部 — メンバー作の背景透過版)。読めなければ静かに省く
+let logoImg = null, logoTried = false;
+function loadLogo() {
+    if (logoTried) return Promise.resolve(logoImg);
+    logoTried = true;
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => { logoImg = img; resolve(img); };
+        img.onerror = () => resolve(null);
+        img.src = './assets/union-logo.png';
+    });
+}
+
 // ミニ分布: シルエットバー + 自分のビンだけ属性色 (バッジ・高さ盛りは無し —
 // 色変えだけで伝わる & 分布の形を歪めない。最低4pxの床は全バー共通)
 function drawMini(ctx, { x, y, w, h, bins, myBin, color }) {
@@ -66,6 +79,14 @@ export async function buildShareCard(results, canvas /*, opts */) {
     if (multi) barColors.push(CREAM);
     const segW = W / barColors.length;
     barColors.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(i * segW, 0, segW + 1, 14); });
+
+    // 右上: ユニオンロゴ (宣伝枠)。カード情報と重ならない位置に固定
+    const logo = await loadLogo();
+    if (logo) {
+        const lw = 380;
+        const lh = Math.round(lw * logo.height / logo.width);
+        ctx.drawImage(logo, W - 70 - lw, 38, lw, lh);
+    }
 
     // ブランド + タイトル + 注記
     ctx.textAlign = 'left';

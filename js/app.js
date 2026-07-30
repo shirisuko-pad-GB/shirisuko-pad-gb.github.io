@@ -100,9 +100,14 @@ function applySiteConf() {
     host.innerHTML = `
     <section class="card recruit-card">
         <h2>📣 ${escapeHtml(r.title || 'メンバー募集中')}</h2>
+        <img class="recruit-banner" src="./assets/recruit-banner.jpg"
+             alt="ユニオン「推しりをすこれ部」メンバー募集バナー" loading="lazy">
         <p class="recruit-note">${escapeHtml(r.note || '')}</p>
         <a class="x-btn" href="https://x.com/${xid}" target="_blank" rel="noopener">𝕏 @${xid} を見る →</a>
     </section>`;
+    // 画像が読めない環境では静かに消す (inline onerror は XSS 回帰検査で禁止のためリスナーで)
+    const banner = host.querySelector('.recruit-banner');
+    if (banner) banner.addEventListener('error', () => { banner.style.display = 'none'; });
     host.style.display = 'block';
 }
 
