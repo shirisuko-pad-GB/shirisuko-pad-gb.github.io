@@ -74,7 +74,11 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
         const pillTxt = fd.querySelector('.result-card .rank-pill')?.textContent || '';
         const scoreOk = pillTxt.includes('ふるり値 1.00') || scoreEl.textContent === '1.00';
         check('スコア 1.00 (基準ダメージ入力・主役orサブ表示)', scoreOk);
-        check('解禁時は中央値比%が主役', !pillTxt || /%$/.test(scoreEl.textContent.trim()));
+        // どちらのモードでも空振りしない整合検査:
+        //   解禁 = ふるり値サブpillあり かつ 主役が% / 未解禁 = pillなし かつ 主役がふるり値
+        const pctMain = /%$/.test(scoreEl.textContent.trim());
+        check('主従の整合 (解禁=%主役 / 未解禁=ふるり値主役)',
+          (pillTxt.includes('ふるり値') && pctMain) || (!pillTxt && !pctMain && scoreEl.textContent === '1.00'));
         // 分布セクション: 未解禁なら「◯人で解禁」ゲート、解禁済みなら中央値の分布が出る (どちらかで合格)
         check('分布セクション表示 (ゲート or 解禁後の中央値)', /で解禁|中央値/.test(fd.querySelector('.result-card')?.textContent || ''));
         check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));

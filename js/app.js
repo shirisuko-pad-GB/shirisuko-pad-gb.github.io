@@ -644,11 +644,12 @@ async function onSubmit() {
     }
 }
 
-// 中央値比 (分布解禁時のみ)。カード・総合・シェア文の全部がこれを使う
-function medianRatioOf(r) {
-    return (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0)
-        ? r.score / r.dist.median : null;
+// 中央値比 (分布解禁時のみ)。カード・総合・同一編成・シェア文の全部がこれを使う単一源泉
+function ratioAgainst(dist, score) {
+    return (dist && !dist.gated && Array.isArray(dist.bins) && dist.median > 0)
+        ? score / dist.median : null;
 }
+function medianRatioOf(r) { return ratioAgainst(r.dist, r.score); }
 
 function renderResults() {
     const area = $('resultsArea');
@@ -740,12 +741,12 @@ function distSectionHTML(r, info) {
         <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。色の違うバーがあなたの位置。
             真ん中の人 (=100%) はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
-    // 同一編成 (サーバー閾値未満は gated)。こちらも中央値比で返す
+    // 同一編成 (サーバー閾値未満は gated)。こちらも中央値比 (単一源泉 ratioAgainst) で返す
     if (r.characters && r.compDist) {
         const cd = r.compDist;
-        if (!cd.gated && Number.isFinite(cd.median) && cd.median > 0) {
-            const cp = Math.round((r.score / cd.median) * 100);
-            html += `<div class="comp-pos">🧩 同じ編成 ${cd.n}人の中央値と比べて <strong>${cp}%</strong> です</div>`;
+        const cratio = ratioAgainst(cd, r.score);
+        if (cratio != null) {
+            html += `<div class="comp-pos">🧩 同じ編成 ${cd.n}人の中央値と比べて <strong>${Math.round(cratio * 100)}%</strong> です</div>`;
         } else {
             html += `<div class="comp-pos">🧩 同じ編成の提出は ${cd.n}人 (${cd.need ?? THRESHOLDS.comp}人で編成内比較が解禁)</div>`;
         }
