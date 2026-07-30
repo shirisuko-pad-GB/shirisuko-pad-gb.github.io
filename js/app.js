@@ -82,6 +82,7 @@ async function init() {
     applyMode();            // open 以外は測定UIを隠して告知を出す
     renderRecallBanner();   // 前回測定があれば「最新の分布を見る」を出す
     applySiteConf();        // ユニオン募集カード + 連絡先X (data/site.json)
+    setTimeout(preloadLoadingGif, 2000);   // 送信前にキャッシュされるよう裏で読んでおく
 }
 
 // data/site.json (運用設定): 募集カードの出し入れと連絡先Xの埋め込み。
@@ -520,6 +521,33 @@ function bindCompBody(card, a) {
 }
 
 // ---------- 送信・測定 ----------
+// ---------- 送信中オーバーレイ (ユニオンメンバー作の Now Loading GIF) ----------
+// GIF (約700KB) は初回表示を邪魔しないよう遅延ロード。表示は最低 MIN_LOADING_MS
+// キープしてチラつき (一瞬で消える) を防ぐ。
+const MIN_LOADING_MS = 700;
+let loadingShownAt = 0;
+
+function preloadLoadingGif() {
+    const img = $('loadingGifImg');
+    if (img && !img.getAttribute('src')) img.src = './assets/loading.gif';
+}
+
+function showLoading() {
+    const el = $('loadingOverlay');
+    if (!el) return;
+    preloadLoadingGif();   // 未ロードならここから読み始める (表示しつつ流れてくる)
+    loadingShownAt = Date.now();
+    el.style.display = 'flex';
+}
+
+async function hideLoading() {
+    const el = $('loadingOverlay');
+    if (!el) return;
+    const rest = MIN_LOADING_MS - (Date.now() - loadingShownAt);
+    if (rest > 0) await new Promise(r => setTimeout(r, rest));
+    el.style.display = 'none';
+}
+
 async function onSubmit() {
     const slv = parseInt($('slv').value);
     const items = attacks.map(a => ({
@@ -535,6 +563,7 @@ async function onSubmit() {
     const btn = $('submitBtn');
     btn.disabled = true;
     btn.textContent = '送信中…';
+    showLoading();
 
     // 計算はサーバー側 — 送信が通らないとスコアも出ない
     let returned = null;
@@ -543,6 +572,7 @@ async function onSubmit() {
         if (returned.some(r => !Number.isFinite(r.score))) throw new Error('score missing in response');
     } catch (e) {
         console.warn('送信失敗:', e);
+        await hideLoading();
         $('resultsArea').innerHTML = `
         <section class="card">
             <h2>⚠️ 測定できませんでした</h2>
@@ -574,6 +604,7 @@ async function onSubmit() {
     }));
 
     results = items.map((it, i) => ({ ...it, score: returned[i].score, ...dists[i] }));
+    await hideLoading();
     renderResults();
     saveLastResult(results);   // 再訪時に分布だけ見直せるよう保存
     renderRecallBanner();

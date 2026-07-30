@@ -41,6 +41,7 @@
             --accent: #EFDD3C;          /* CTA (シェア等) */
             --accent-ink: #2A2708;
             --chart-fill: rgba(20, 20, 18, 0.07);
+            --scrim: rgba(20, 20, 18, 0.5);      /* オーバーレイの背景幕 */
             --ok: #18C26B; --warn: #F59E0B; --err: #FF3D44;
             /* キャラタイル (css/tiles.css が消費) */
             --tile-mix: #FFFFFF; --tile-tint: 16%; --tile-ink: 62%; --tile-ink-mix: #141412;
@@ -59,6 +60,7 @@
                 --cream: #F6F1CD;
                 --cream-ink: #3A3712;
                 --chart-fill: rgba(255, 255, 255, 0.09);
+                --scrim: rgba(0, 0, 0, 0.62);
                 --tile-mix: #22221F; --tile-tint: 26%; --tile-ink: 66%; --tile-ink-mix: #F2F2EE;
             }
         }
@@ -411,6 +413,21 @@
             max-width: 90vw; text-align: center;
         }
         .toast.show { opacity: 1; }
+
+        /* ===== 送信中オーバーレイ (ユニオンメンバー作の Now Loading GIF) =====
+           箱と文字色はGIFの白背景に合わせた固定値 (テーマで変えない意図的な例外) */
+        .loading-overlay {
+            position: fixed; inset: 0; z-index: 60;
+            background: var(--scrim);
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+        }
+        .loading-box {
+            background: #FFFFFF; border-radius: 22px; padding: 12px 12px 10px;
+            width: min(72vw, 250px); text-align: center;
+        }
+        .loading-box img { width: 100%; display: block; border-radius: 14px; background: #FFFFFF; }
+        .loading-box p { font-size: 11.5px; font-weight: 800; color: rgba(20, 20, 18, 0.6); margin-top: 6px; }
     </style>
 </head>
 <body>
@@ -490,6 +507,12 @@
 
 <canvas id="shareCanvas" width="1200" height="675"></canvas>
 <div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite" style="display:none;">
+    <div class="loading-box">
+        <img id="loadingGifImg" alt="Now Loading…">
+        <p>サーバーでスコアを測定しています…</p>
+    </div>
+</div>
 
 <script type="module" src="./js/app.js"></script>
 </body>
