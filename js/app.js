@@ -710,7 +710,6 @@ function resultCardHTML(r, i, multi) {
             ${mainPill}
             <span class="pill">SLv ${r.slv}</span>
             <span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>
-            <span class="pill">基準 ${(base.bases[r.attribute].damage / 1e9).toFixed(2)} B @ SLv ${base.baseSlv}</span>
         </div>
         ${distHtml}
     </section>`;
