@@ -171,11 +171,11 @@ function renderInsights(ins, info) {
     const medianTop = (Array.isArray(ins.medianTop) ? ins.medianTop : []).map((cp, i) => `
     <div class="comp-row strong-comp">
         <span class="rank">${i + 1}</span>
-        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img, { xs: true })).join('')}</span>
         <span class="comp-meta">
             <span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>
             <span>採用 <strong>${cp.n}人</strong></span>
         </span>
+        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img)).join('')}</span>
     </div>`).join('');
     const medianTopHtml = medianTop
         ? `<p class="sec-label">💪 中央値が高い編成 (採用5人以上)</p>${medianTop}
@@ -186,24 +186,24 @@ function renderInsights(ins, info) {
     $('compsArea').innerHTML = medianTopHtml + ((ins.comps || []).map((cp, i) => {
         const stats = Number.isFinite(cp.median)
             ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>`
-            : `<span style="color:var(--faint);">スコアは<br>5人以上で表示</span>`;
+            : `<span style="color:var(--faint);">スコアは5人以上で表示</span>`;
         const arrs = (Array.isArray(cp.arr) ? cp.arr : []).filter(a => Array.isArray(a.chars));
         const arrHtml = arrs.length >= 2 ? `
         <div class="arr-list">
             <p class="hint" style="margin:6px 0 2px;">並び順の内訳 (左から配置スロット順):</p>
             ${arrs.map(a => `
             <div class="arr-row">
-                <span class="comp-faces">${a.chars.map(img => charTileTag(img, { xs: true })).join('')}</span>
                 <span class="arr-n">${a.n}人</span>
+                <span class="comp-faces">${a.chars.map(img => charTileTag(img)).join('')}</span>
             </div>`).join('')}
         </div>` : '';
         const row = `
         <span class="rank">${i + 1}</span>
-        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img, { xs: true })).join('')}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
             ${stats}
-        </span>`;
+        </span>
+        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img)).join('')}</span>`;
         return arrHtml
             ? `<details class="comp-x"><summary class="comp-row">${row}<span class="chev">▼</span></summary>${arrHtml}</details>`
             : `<div class="comp-row">${row}</div>`;

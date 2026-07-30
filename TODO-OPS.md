@@ -25,9 +25,9 @@ delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8
 - **別PCでの最初の一歩**: 両リポジトリを同じ親フォルダに pull → GB の CLAUDE.md →
   `node tests/run-tests.mjs`。Codex フラグは PC ごと: 本家側で `touch .claude/hooks/.codex-on`。
   **作業開始時は必ず git fetch で別PC分を確認**。
+- **決定済み (2026-07-30)**: Codex 運用は2レーン化せず**基本併用のまま** (外すときはユーザーが都度指示)。
+  stats の編成ランキングは大タイル化済み。
 - **未決の判断事項** (ユーザー判断待ち):
-  1. Codex 運用の2レーン化の採否 (小さいUI反復=事後バッチレビュー / ロジック・SQL=事前レビュー)
-  2. stats ページの編成ランキングのタイルも大きくするか (測定ページ側は対応済み)
-  3. IDEAS-pad-integration.md (本家活用6案) の着手順 — 本家 ROADMAP への転記もまだ
+  1. IDEAS-pad-integration.md (本家活用6案) の着手順 — 本家 ROADMAP への転記もまだ
 - **ユーザー側タスク**: 公式への画像使用許諾メール (help@nikke-jp.com 宛・文面は会話ログに作成済み。
   プレイヤー名/ID を埋めて送るだけ)
