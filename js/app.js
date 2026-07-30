@@ -227,7 +227,7 @@ function attackCardHTML(a, i) {
         return `
         <button type="button" class="attr-btn${a.attribute === attr ? ' active' : ''}" data-attr="${attr}"
                 style="--ac:${ai.color};">
-            <span class="ico">${ai.emoji}</span>
+            <span class="ico">${ai.jp[0]}</span>
             <span class="name">${ai.jp}PT</span>
         </button>`;
     }).join('');
@@ -237,7 +237,7 @@ function attackCardHTML(a, i) {
         <h2><span class="step-num">2</span>${title}${delBtn}</h2>
         <div class="attr-grid">${attrBtns}</div>
         <p class="vs-note">${info && raid?.bosses?.[a.attribute]
-            ? `⚔ 相手は ${info.enemyEmoji} ${info.enemyJp}属性ボス「<strong>${escapeHtml(raid.bosses[a.attribute])}</strong>」 (${escapeHtml(raid.season || '')} シーズン)`
+            ? `⚔ 相手は <strong style="color:${ATTR_INFO[info.enemy].color};">${ATTR_INFO[info.enemy].jp}</strong>属性ボス「<strong>${escapeHtml(raid.bosses[a.attribute])}</strong>」 (${escapeHtml(raid.season || '')} シーズン)`
             : `PT属性を選択してください (そのPTで殴った相手ボスが表示されます)`}</p>
         <div style="margin-top:12px;">
             <p class="hint" style="margin-bottom:6px;">与えたダメージを <strong>B (10億) 単位</strong>で (例: 13.18)。フル桁の貼り付けもOK</p>
@@ -558,7 +558,7 @@ function renderResults() {
             <div class="score-big">${sum.toFixed(2)}</div>
             <div class="pill-row">
                 <span class="pill">合計ふるり値</span>
-                ${results.map(r => `<span class="pill">${ATTR_INFO[r.attribute].emoji} ${r.score.toFixed(2)}</span>`).join('')}
+                ${results.map(r => `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${r.score.toFixed(2)}</span>`).join('')}
             </div>
             <p class="dist-note">${totalPct != null
                 ? `総合 ${totalPct}% = みんなの真ん中の人が同じ${results.length}凸をしたときの合計と比べた値。ボスごとのダメージの通しやすさは各属性の中央値で補正済みです。`
@@ -588,7 +588,7 @@ function resultCardHTML(r, i, multi) {
 
     return `
     <section class="card result-card">
-        <div class="score-label">${info.emoji} ${multi ? `${info.jp}PT ${title}` : `${info.jp}PT ${title}`}${pill}</div>
+        <div class="score-label"><strong style="color:${info.color};">${info.jp}PT</strong> ${title}${pill}</div>
         <div class="score-big">${r.score.toFixed(2)}</div>
         <div class="pill-row">
             <span class="pill">SLv ${r.slv}</span>
@@ -648,21 +648,34 @@ async function getShareCard() {
 
 // シェアカードを「まず見せる」: 生成してその場にプレビュー表示する
 // (保存は 長押し/右クリック または ボタン — 見えてから保存できるのが正)。
+// 世代トークンで連続送信の競合を防ぐ (遅れて完了した古い生成は捨てる — Codex指摘)。
 let previewUrl = null;
+let previewGen = 0;
+function setPreviewImage(blob) {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(blob);
+    const img = $('cardPreview');
+    img.src = previewUrl;
+    img.style.display = 'block';
+    const hint = $('saveHint');
+    if (hint) hint.style.display = 'block';
+}
 async function showShareCardPreview() {
+    const gen = ++previewGen;
     shareBlob = null;
     $('shareCard').style.display = 'block';
+    // 生成中は古いカードを見せない (前回結果の保存事故を防ぐ)
+    $('cardPreview').style.display = 'none';
+    const hint = $('saveHint');
+    if (hint) hint.style.display = 'none';
     try {
         await document.fonts.ready;
-        const blob = await getShareCard();
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        previewUrl = URL.createObjectURL(blob);
-        const img = $('cardPreview');
-        img.src = previewUrl;
-        img.style.display = 'block';
+        const blob = await buildShareCard(results, $('shareCanvas'), { infoOf });
+        if (gen !== previewGen) return;   // その間に新しい測定が始まった → この結果は破棄
+        shareBlob = blob;
+        setPreviewImage(blob);
     } catch (e) {
         console.warn('シェアカード生成失敗:', e);
-        $('cardPreview').style.display = 'none';
     }
 }
 
@@ -712,9 +725,7 @@ async function onSave() {
 
 async function previewCard() {
     const blob = await getShareCard();
-    const img = $('cardPreview');
-    img.src = URL.createObjectURL(blob);
-    img.style.display = 'block';
+    setPreviewImage(blob);   // Object URL は setPreviewImage が一元管理 (漏れ防止 — Codex指摘)
 }
 
 // ---------- misc ----------

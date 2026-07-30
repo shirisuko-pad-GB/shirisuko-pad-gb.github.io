@@ -71,17 +71,15 @@ async function renderEase() {
             const info = ATTR_INFO[attr];
             if (median == null) return `
             <div class="ease-cell">
-                <span class="e-ico">${info.emoji}</span>
+                <span class="e-name" style="color:${info.color};">${info.jp}</span>
                 <span class="e-val" style="color:var(--faint);">—</span>
-                <span class="e-name">${info.jp}</span>
                 <span class="e-med">集計待ち</span>
             </div>`;
             const v = median / center;
             return `
             <div class="ease-cell${Math.abs(v - 1) < 1e-9 ? ' center' : ''}">
-                <span class="e-ico">${info.emoji}</span>
+                <span class="e-name" style="color:${info.color};">${info.jp}</span>
                 <span class="e-val">×${v.toFixed(2)}</span>
-                <span class="e-name">${info.jp}</span>
                 <span class="e-med">中央値 ${median.toFixed(2)}</span>
             </div>`;
         }).join('');
@@ -102,7 +100,7 @@ function renderTabs() {
         return `
         <button type="button" class="attr-tab${a === current ? ' active' : ''}" data-attr="${a}"
                 style="--ac:${i.color};">
-            <span class="ico">${i.emoji}</span><span class="name">${i.jp}PT</span>
+            <span class="ico">${i.jp[0]}</span><span class="name">${i.jp}PT</span>
         </button>`;
     }).join('');
     $('attrTabs').querySelectorAll('.attr-tab').forEach(b =>

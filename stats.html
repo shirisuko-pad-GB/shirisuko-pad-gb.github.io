@@ -59,10 +59,12 @@
             border-radius:18px; border:1px solid var(--line); background:var(--card);
             cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; min-width:0;
         }
+        /* 属性は「色 + 漢字」表記 (絵文字全廃)。丸の中は属性の頭文字 */
         .attr-tab .ico {
-            width:30px; height:30px; border-radius:999px; font-size:14px;
+            width:30px; height:30px; border-radius:999px;
+            font-size:13px; font-weight:800; color:var(--ac,#8A8A84);
             display:flex; align-items:center; justify-content:center;
-            background:color-mix(in srgb, var(--ac,#8A8A84) 18%, var(--tile-mix));
+            background:color-mix(in srgb, var(--ac,#8A8A84) 16%, var(--tile-mix));
         }
         .attr-tab .name { font-size:10.5px; font-weight:800; color:var(--sub); white-space:nowrap; }
         .attr-tab.active { background:var(--cream); border-color:transparent; }
@@ -72,9 +74,8 @@
             display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 2px 8px;
             border-radius:16px; background:var(--card2); min-width:0;
         }
-        .ease-cell .e-ico { font-size:15px; line-height:1.2; }
         .ease-cell .e-val { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
-        .ease-cell .e-name { font-size:9.5px; font-weight:800; color:var(--sub2); white-space:nowrap; }
+        .ease-cell .e-name { font-size:11px; font-weight:800; white-space:nowrap; }
         .ease-cell .e-med { font-size:8.5px; color:var(--faint); font-variant-numeric:tabular-nums; }
         .ease-cell.center { background:var(--cream); }
         .ease-cell.center .e-name, .ease-cell.center .e-med { color:var(--cream-ink); opacity:0.8; }

@@ -55,9 +55,9 @@ export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
                 ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(x0 - 24, 250); ctx.lineTo(x0 - 24, 430); ctx.stroke();
             }
-            ctx.fillStyle = '#B6BBC1';
+            ctx.fillStyle = inf.color;
             ctx.font = `900 32px ${F}`;
-            ctx.fillText(`${inf.emoji} ${inf.jp}PT`, x0, 280);
+            ctx.fillText(`${inf.jp}PT`, x0, 280);
             ctx.fillStyle = inf.color;
             ctx.font = `900 ${n === 3 ? 84 : 96}px ${F}`;
             ctx.fillText(r.score.toFixed(2), x0, 375);
@@ -88,9 +88,9 @@ export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
         ctx.fillStyle = mainColor;
         ctx.font = `900 190px ${F}`;
         ctx.fillText(mainScore.toFixed(2), 70, 400);
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = mainInfo.color;
         ctx.font = `900 44px ${F}`;
-        ctx.fillText(`${mainInfo.emoji} ${mainInfo.jp}PT`, 74, 484);
+        ctx.fillText(`${mainInfo.jp}PT`, 74, 484);
         ctx.fillStyle = '#A4AAB0';
         ctx.font = `700 32px ${F}`;
         ctx.fillText(`SLv ${r.slv} / ${(r.damage / 1e9).toFixed(2)} B`, 340, 484);

@@ -1,15 +1,16 @@
 // 複数モジュール (app.js / stats.js / backend.js / tests) 共通のユーティリティ。
 // ※ ATTR_INFO や属性色の完全統合は将来課題。今は安全系の共有関数としきい値を置く。
 
-// PT属性の表示情報 (色・和名・絵文字・相手ボス)。app.js/stats.js/sharecard.js で共用。
-// enemyJp/enemyEmoji = そのPTで殴る相手ボスの属性。
-// ※ アイコンは絵文字 (自作フォント描画)。ゲーム内の属性アイコン画像は使わない (権利方針)。
+// PT属性の表示情報 (色・和名・相手ボス)。app.js/stats.js/sharecard.js で共用。
+// enemy = そのPTで殴る相手ボスの属性キー (色は ATTR_INFO[enemy].color で引く)。
+// ※ 属性は「色 + 漢字」で表現する。絵文字・ゲーム内アイコン画像は使わない
+//    (絵文字は端末で見た目が揺れるため全廃 — 2026-07-30 運営判断)。
 export const ATTR_INFO = {
-    FIRE:     { jp: '灼熱', color: '#FF3D44', emoji: '🔥', enemyJp: '風圧', enemyEmoji: '🍃' },
-    WATER:    { jp: '水冷', color: '#2E8BFF', emoji: '💧', enemyJp: '灼熱', enemyEmoji: '🔥' },
-    ELECTRIC: { jp: '電撃', color: '#9B4DFF', emoji: '⚡', enemyJp: '水冷', enemyEmoji: '💧' },
-    IRON:     { jp: '鉄甲', color: '#FF8A2B', emoji: '🛡️', enemyJp: '電撃', enemyEmoji: '⚡' },
-    WIND:     { jp: '風圧', color: '#18C26B', emoji: '🍃', enemyJp: '鉄甲', enemyEmoji: '🛡️' },
+    FIRE:     { jp: '灼熱', color: '#FF3D44', enemy: 'WIND' },
+    WATER:    { jp: '水冷', color: '#2E8BFF', enemy: 'FIRE' },
+    ELECTRIC: { jp: '電撃', color: '#9B4DFF', enemy: 'WATER' },
+    IRON:     { jp: '鉄甲', color: '#FF8A2B', enemy: 'ELECTRIC' },
+    WIND:     { jp: '風圧', color: '#18C26B', enemy: 'IRON' },
 };
 
 export const SITE_URL = 'https://shirisuko-pad-gb.github.io/';

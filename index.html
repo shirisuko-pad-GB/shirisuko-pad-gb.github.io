@@ -115,10 +115,12 @@
             -webkit-tap-highlight-color: transparent;
             min-width: 0; font-family: inherit;
         }
+        /* 属性は「色 + 漢字」表記 (絵文字は端末で揺れるため全廃)。丸の中は属性の頭文字 */
         .attr-btn .ico {
-            width: 32px; height: 32px; border-radius: 999px; font-size: 15px;
+            width: 32px; height: 32px; border-radius: 999px;
+            font-size: 14px; font-weight: 800; color: var(--ac, #8A8A84);
             display: flex; align-items: center; justify-content: center;
-            background: color-mix(in srgb, var(--ac, #8A8A84) 18%, var(--tile-mix));
+            background: color-mix(in srgb, var(--ac, #8A8A84) 16%, var(--tile-mix));
         }
         .attr-btn .name { font-size: 10.5px; font-weight: 800; color: var(--sub); letter-spacing: 0.2px; white-space: nowrap; }
         .attr-btn.active { background: var(--cream); border-color: transparent; }
@@ -420,7 +422,7 @@
     <!-- シェア (カードは先に見せる → 長押し/右クリック or ボタンで保存) -->
     <section class="card" id="shareCard" style="display:none;">
         <img id="cardPreview" alt="シェアカード" style="margin-top:0;">
-        <p class="hint" style="text-align:center;margin-top:8px;">画像を長押し (PCは右クリック) で保存できます</p>
+        <p class="hint" id="saveHint" style="display:none;text-align:center;margin-top:8px;">画像を長押し (PCは右クリック) で保存できます</p>
         <div class="share-row">
             <button class="share-btn primary" id="shareBtn">📤 シェアする</button>
             <button class="share-btn sub" id="saveBtn">💾 画像を保存</button>
