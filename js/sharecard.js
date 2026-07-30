@@ -129,15 +129,21 @@ export async function buildShareCard(results, canvas /*, opts */) {
         drawBigPct(ctx, x0, bigY, mp, bigSize, info.color, iw);
         ctx.fillStyle = '#8A9097';
         ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
+        // damage/slv は localStorage 復元の古い保存に無いことがある → 欠けは静かに省く (NaN対策)
+        const dmgB = Number.isFinite(r.damage) ? `${(r.damage / 1e9).toFixed(2)} B` : null;
         if (multi) {
             ctx.fillText(`ふるり値 ${r.score.toFixed(2)}`, x0, bigY + 36);
             // 実ダメージ (見る人が一番イメージしやすい生の数字)
-            ctx.fillStyle = '#A4AAB0';
-            ctx.font = `700 19px ${F}`;
-            ctx.fillText(`${(r.damage / 1e9).toFixed(2)} B`, x0, bigY + 64);
+            if (dmgB) {
+                ctx.fillStyle = '#A4AAB0';
+                ctx.font = `700 19px ${F}`;
+                ctx.fillText(dmgB, x0, bigY + 64);
+            }
         } else {
             // 単発は列幅が広いので1行にまとめる (SLv は総合列が無いのでここに出す)
-            ctx.fillText(`ふるり値 ${r.score.toFixed(2)} · SLv ${r.slv} · ${(r.damage / 1e9).toFixed(2)} B`, x0, bigY + 44);
+            const parts = [`ふるり値 ${r.score.toFixed(2)}`,
+                Number.isFinite(r.slv) ? `SLv ${r.slv}` : null, dmgB].filter(Boolean);
+            ctx.fillText(parts.join(' · '), x0, bigY + 44);
         }
         // ミニ分布 (解禁前は出さず、案内だけ)。バッジ廃止で空いた分グラフを大きく
         const histY = multi ? 424 : 428;
