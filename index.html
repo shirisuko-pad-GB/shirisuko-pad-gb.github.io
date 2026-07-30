@@ -417,13 +417,14 @@
     <!-- 結果 (app.js が生成) -->
     <div id="resultsArea"></div>
 
-    <!-- シェア -->
+    <!-- シェア (カードは先に見せる → 長押し/右クリック or ボタンで保存) -->
     <section class="card" id="shareCard" style="display:none;">
-        <div class="share-row" style="margin-top:0;">
+        <img id="cardPreview" alt="シェアカード" style="margin-top:0;">
+        <p class="hint" style="text-align:center;margin-top:8px;">画像を長押し (PCは右クリック) で保存できます</p>
+        <div class="share-row">
             <button class="share-btn primary" id="shareBtn">📤 シェアする</button>
             <button class="share-btn sub" id="saveBtn">💾 画像を保存</button>
         </div>
-        <img id="cardPreview" alt="シェアカード">
     </section>
 
     <!-- ユニオン募集 (data/site.json の recruit.enabled で出し入れ — app.js が描画) -->

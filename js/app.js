@@ -190,9 +190,7 @@ async function showRecalledDistribution(last) {
     }));
     results = items.map((it, i) => ({ ...it, ...dists[i] }));
     renderResults();
-    shareBlob = null;
-    $('cardPreview').style.display = 'none';
-    $('shareCard').style.display = 'block';
+    showShareCardPreview();
     $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (btn) { btn.disabled = false; btn.textContent = '最新の分布を見る'; }
 }
@@ -535,9 +533,7 @@ async function onSubmit() {
     saveLastResult(results);   // 再訪時に分布だけ見直せるよう保存
     renderRecallBanner();
 
-    shareBlob = null;
-    $('cardPreview').style.display = 'none';
-    $('shareCard').style.display = 'block';
+    showShareCardPreview();
     $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     btn.textContent = '送信して測定する';
@@ -648,6 +644,26 @@ async function getShareCard() {
     if (shareBlob) return shareBlob;
     shareBlob = await buildShareCard(results, $('shareCanvas'), { infoOf });
     return shareBlob;
+}
+
+// シェアカードを「まず見せる」: 生成してその場にプレビュー表示する
+// (保存は 長押し/右クリック または ボタン — 見えてから保存できるのが正)。
+let previewUrl = null;
+async function showShareCardPreview() {
+    shareBlob = null;
+    $('shareCard').style.display = 'block';
+    try {
+        await document.fonts.ready;
+        const blob = await getShareCard();
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(blob);
+        const img = $('cardPreview');
+        img.src = previewUrl;
+        img.style.display = 'block';
+    } catch (e) {
+        console.warn('シェアカード生成失敗:', e);
+        $('cardPreview').style.display = 'none';
+    }
 }
 
 function shareText() {

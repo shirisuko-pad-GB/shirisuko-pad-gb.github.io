@@ -67,6 +67,18 @@
         .attr-tab .name { font-size:10.5px; font-weight:800; color:var(--sub); white-space:nowrap; }
         .attr-tab.active { background:var(--cream); border-color:transparent; }
         .attr-tab.active .name { color:var(--cream-ink); }
+        .ease-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; }
+        .ease-cell {
+            display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 2px 8px;
+            border-radius:16px; background:var(--card2); min-width:0;
+        }
+        .ease-cell .e-ico { font-size:15px; line-height:1.2; }
+        .ease-cell .e-val { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+        .ease-cell .e-name { font-size:9.5px; font-weight:800; color:var(--sub2); white-space:nowrap; }
+        .ease-cell .e-med { font-size:8.5px; color:var(--faint); font-variant-numeric:tabular-nums; }
+        .ease-cell.center { background:var(--cream); }
+        .ease-cell.center .e-name, .ease-cell.center .e-med { color:var(--cream-ink); opacity:0.8; }
+        .ease-cell.center .e-val { color:var(--cream-ink); }
         .hist { display:flex; align-items:flex-end; gap:3px; height:84px; margin-top:8px; }
         .hist .bar { flex:1; background:var(--chart-fill); border-radius:99px 99px 0 0; min-height:3px; }
         .hist-axis { display:flex; justify-content:space-between; font-size:10px; color:var(--faint); font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums; }
@@ -115,6 +127,13 @@
     <a class="back" href="./"><span class="arr">←</span> 測定にもどる</a>
 
     <div class="attr-tabs" id="attrTabs"></div>
+
+    <!-- ボスごとのダメージの通りやすさ (全属性の中央値から算出・3属性以上解禁で表示) -->
+    <section class="card" id="easeCard" style="display:none;">
+        <h2>⚖️ ボスの通りやすさ (今シーズンの補正値)</h2>
+        <p class="hint" style="margin-bottom:10px;">みんなの中央値から算出した「ダメージの出やすさ」。真ん中の属性を <strong>×1.00</strong> として表示。3凸総合の中央値比は、この差を補正したうえで計算されています。</p>
+        <div class="ease-grid" id="easeArea"></div>
+    </section>
 
     <section class="card">
         <h2>📈 ふるり値の分布</h2>

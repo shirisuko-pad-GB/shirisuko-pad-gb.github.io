@@ -49,6 +49,44 @@ async function init() {
         return;
     }
     load();
+    renderEase();   // ボスの通りやすさ (全属性の中央値・タブに依存しない)
+}
+
+// ⚖️ ボスの通りやすさ: 5属性の中央値を取り、真ん中の属性を ×1.00 に正規化して表示。
+// 解禁済みが3属性未満のうちは出さない (中央の基準が不安定なため)。失敗しても静かに諦める。
+async function renderEase() {
+    try {
+        const attrs = orderedAttrs();
+        const dists = await Promise.all(attrs.map(a =>
+            fetchDistribution({ attribute: a, season: viewSeason, score: 0 }).catch(() => null)));
+        const meds = attrs.map((a, i) => ({
+            attr: a,
+            median: (dists[i] && !dists[i].gated && Number.isFinite(dists[i].median)) ? dists[i].median : null,
+        }));
+        const avail = meds.filter(m => m.median != null).map(m => m.median).sort((x, y) => x - y);
+        if (avail.length < 3) return;
+        const center = avail[Math.floor(avail.length / 2)];   // 真ん中の属性 = ×1.00
+        if (!(center > 0)) return;
+        $('easeArea').innerHTML = meds.map(({ attr, median }) => {
+            const info = ATTR_INFO[attr];
+            if (median == null) return `
+            <div class="ease-cell">
+                <span class="e-ico">${info.emoji}</span>
+                <span class="e-val" style="color:var(--faint);">—</span>
+                <span class="e-name">${info.jp}</span>
+                <span class="e-med">集計待ち</span>
+            </div>`;
+            const v = median / center;
+            return `
+            <div class="ease-cell${Math.abs(v - 1) < 1e-9 ? ' center' : ''}">
+                <span class="e-ico">${info.emoji}</span>
+                <span class="e-val">×${v.toFixed(2)}</span>
+                <span class="e-name">${info.jp}</span>
+                <span class="e-med">中央値 ${median.toFixed(2)}</span>
+            </div>`;
+        }).join('');
+        $('easeCard').style.display = 'block';
+    } catch (e) { console.warn('通りやすさの算出失敗:', e); }
 }
 
 // 属性タブの順 (raid.order があればそれ)
