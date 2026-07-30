@@ -68,7 +68,8 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       R.backendUp = !errored && !!scoreEl;   // シーズンが open で基準投入済みなら成功
       if (R.backendUp) {
         check('スコア 1.00 (基準ダメージ入力)', scoreEl.textContent === '1.00');
-        check('分布ゲート表示', /で解禁/.test(fd.querySelector('.result-card')?.textContent || ''));
+        // 分布セクション: 未解禁なら「◯人で解禁」ゲート、解禁済みなら中央値の分布が出る (どちらかで合格)
+        check('分布セクション表示 (ゲート or 解禁後の中央値)', /で解禁|中央値/.test(fd.querySelector('.result-card')?.textContent || ''));
         check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));
         await reload(); await wait(2200);
         fw = f.contentWindow; fd = fw.document;

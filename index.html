@@ -195,12 +195,22 @@
         .preset-row.active .hint { color: var(--cream-ink); opacity: 0.75; }
         .preset-faces { display: flex; gap: 4px; flex-shrink: 0; }
         .preset-faces .gb-tile { width: 38px; }
+        /* 配置 (並び順) の選択肢 — プリセットを押すと開く */
+        .arr-pick { margin: 4px 0 2px 10px; padding-left: 10px; border-left: 2px solid var(--line); }
+        .arr-opt {
+            display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px;
+            border: 1px solid var(--line); background: var(--card2); cursor: pointer; margin-top: 6px;
+            -webkit-tap-highlight-color: transparent; width: 100%; font-family: inherit; text-align: left;
+        }
+        .arr-opt .preset-faces .gb-tile { width: 34px; }
+        .arr-n { font-size: 10.5px; font-weight: 800; color: var(--sub); white-space: nowrap; margin-left: auto; }
         .preset-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
         .picker-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px;
             max-height: 250px; overflow-y: auto; margin-top: 10px; padding: 2px;
         }
-        .picker-grid.named { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); max-height: 290px; }
+        /* 全キャラ側は 72px 以上のタイルにして名前を判読可能に (56px は潰れる — 実機FB) */
+        .picker-grid.named { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 7px; max-height: 330px; }
         /* ⭐ クイック選択: 使用率トップを4列の大きめタイルで常時表示 (スクロールなし) */
         .picker-grid.picker-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; max-height: none; overflow: visible; }
         .picker-grid.picker-quick .gb-tile-base { font-size: 12px; }

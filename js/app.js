@@ -261,14 +261,28 @@ function compBodyHTML(a) {
     if (!compReady()) return `<p class="hint" style="margin-top:8px;">キャラデータを読み込めなかったため、今回は編成なしで送信できます</p>`;
     const ap = presets?.attributes?.[a.attribute] ?? { topChars: [], topComps: [] };
     const sel = selChars(a);
-    const presetRows = (ap.topComps || []).map((c, pi) => `
-        <button type="button" class="preset-row${sel.length === 5 && c.chars.every(x => sel.includes(x)) ? ' active' : ''}" data-preset="${pi}">
+    const presetRows = (ap.topComps || []).map((c, pi) => {
+        const isSel = sel.length === 5 && c.chars.every(x => sel.includes(x));
+        const arrs = (Array.isArray(c.arr) ? c.arr : []).filter(x => Array.isArray(x.chars) && x.chars.length === 5);
+        // 押すと配置 (並び順) を選ぶ。配置が1種類しかなければ選択肢は出さず即適用
+        const arrPicker = a.arrPick === pi && arrs.length > 1 ? `
+        <div class="arr-pick">
+            <p class="hint" style="margin:2px 0 4px;">どの並び (配置) で使いますか? — 左から配置スロット順</p>
+            ${arrs.map((x, xi) => `
+            <button type="button" class="arr-opt" data-preset="${pi}" data-arr="${xi}">
+                <span class="preset-faces">${x.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
+                <span class="arr-n">${x.n}回</span>
+            </button>`).join('')}
+        </div>` : '';
+        return `
+        <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
             <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
                 <span class="pill">使用率TOP${pi + 1}</span>
-                <span class="hint">ユニオン実績 ${c.count}回 (〜${c.lastMonth})</span>
+                <span class="hint">使用 ${c.count}回 (〜${c.lastMonth})</span>
             </span>
-        </button>`).join('');
+        </button>${arrPicker}`;
+    }).join('');
     return `
         <p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります</p>
         ${presetRows}
@@ -380,18 +394,42 @@ function renderCompBody(card, a) {
 
 function bindCompBody(card, a) {
     const ap = presets?.attributes?.[a.attribute];
-    // プリセット: バースト構成を自動判定して枠に詰める。再タップで解除
+    // 指定の並び (配置) をそのまま枠に入れる。並び順がテンプレに順番どおり合うなら
+    // そのテンプレで、合わなければ「自由」で順序を保存する (並びの情報を壊さない)
+    const applyArrangement = (chars) => {
+        const tmpl = BURST_TEMPLATES.find(t => t.id !== 'free' &&
+            chars.every((id, k) => burstMatchesSlot(burstsOfId(id), t.slots[k])));
+        a.template = tmpl ? tmpl.id : 'free';
+        a.slots = [...chars];
+        a.activeSlot = 0;
+        a.arrPick = null;
+    };
+    // プリセット: 押すと配置 (並び順) の選択肢を開く。1種類なら即適用。再タップで解除
     card.querySelectorAll('.preset-row').forEach(row => {
         row.addEventListener('click', () => {
-            const c = ap.topComps[Number(row.dataset.preset)];
+            const pi = Number(row.dataset.preset);
+            const c = ap.topComps[pi];
             const sel = selChars(a);
             if (sel.length === 5 && c.chars.every(x => sel.includes(x))) {
                 a.slots = [null, null, null, null, null];
+                a.arrPick = null;
             } else {
-                a.template = detectTemplate(c.chars, burstsOfId);
-                a.slots = reslotChars(c.chars, burstsOfId, templateById(a.template).slots).slots;
+                const arrs = (Array.isArray(c.arr) ? c.arr : []).filter(x => Array.isArray(x.chars) && x.chars.length === 5);
+                if (arrs.length > 1) {
+                    a.arrPick = a.arrPick === pi ? null : pi;   // 配置の選択肢を開閉
+                } else {
+                    applyArrangement(arrs[0]?.chars ?? c.chars);
+                }
             }
-            a.activeSlot = 0;
+            renderCompBody(card, a);
+        });
+    });
+    // 配置 (並び順) の選択
+    card.querySelectorAll('.arr-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const c = ap.topComps[Number(btn.dataset.preset)];
+            const x = c.arr[Number(btn.dataset.arr)];
+            applyArrangement(x.chars);
             renderCompBody(card, a);
         });
     });
@@ -510,14 +548,24 @@ function renderResults() {
     const multi = results.length > 1;
     let html = results.map((r, i) => resultCardHTML(r, i, multi)).join('');
     if (multi) {
-        const avg = results.reduce((s, r) => s + r.score, 0) / results.length;
+        // 総合 = Σスコア ÷ Σ中央値 (各ボスの通しやすさを中央値で補正した「合計の中央値比」)。
+        // 全凸の分布が解禁されているときだけ出せる
+        const sum = results.reduce((s, r) => s + r.score, 0);
+        const meds = results.map(r =>
+            (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0) ? r.dist.median : null);
+        const totalPct = meds.every(m => m != null)
+            ? Math.round((sum / meds.reduce((s, m) => s + m, 0)) * 100) : null;
         html += `
         <section class="card set-card">
-            <div class="score-label">🏅 ${results.length}凸 平均ふるり値</div>
-            <div class="score-big">${avg.toFixed(2)}</div>
-            <div class="pill-row">${results.map(r =>
-                `<span class="pill">${ATTR_INFO[r.attribute].emoji} ${r.score.toFixed(2)}</span>`).join('')}</div>
-            <p class="dist-note">※ 属性間の重み付けをした総合指標は、全属性の分布が解禁されると使えるようになります</p>
+            <div class="score-label">🏅 ${results.length}凸の総合${totalPct != null ? `<span class="rank-pill">総合 中央値比 ${totalPct}%</span>` : ''}</div>
+            <div class="score-big">${sum.toFixed(2)}</div>
+            <div class="pill-row">
+                <span class="pill">合計ふるり値</span>
+                ${results.map(r => `<span class="pill">${ATTR_INFO[r.attribute].emoji} ${r.score.toFixed(2)}</span>`).join('')}
+            </div>
+            <p class="dist-note">${totalPct != null
+                ? `総合 ${totalPct}% = みんなの真ん中の人が同じ${results.length}凸をしたときの合計と比べた値。ボスごとのダメージの通しやすさは各属性の中央値で補正済みです。`
+                : `※ ボス補正込みの総合指標は、凸した全属性の分布が解禁されると表示されます`}</p>
         </section>`;
     }
     area.innerHTML = html;

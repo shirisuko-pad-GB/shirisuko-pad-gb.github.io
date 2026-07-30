@@ -71,9 +71,13 @@ for (const file of monthFiles) {
             chars.forEach(c => charCount[attr].set(c, (charCount[attr].get(c) || 0) + 1));
             if (chars.length === 5 && new Set(chars).size === 5) {
                 const key = [...chars].sort().join('|');
-                const cur = compCount[attr].get(key);
-                if (cur) { cur.count++; cur.lastMonth = file.replace('.json', ''); }
-                else compCount[attr].set(key, { chars, count: 1, lastMonth: file.replace('.json', '') });
+                let cur = compCount[attr].get(key);
+                if (!cur) { cur = { chars, count: 0, lastMonth: '', arrs: new Map() }; compCount[attr].set(key, cur); }
+                cur.count++;
+                cur.lastMonth = file.replace('.json', '');
+                // 並び順 (配置) の内訳: 配列の完全一致でカウント
+                const arrKey = chars.join('|');
+                cur.arrs.set(arrKey, (cur.arrs.get(arrKey) || 0) + 1);
             }
         }
     }
@@ -86,8 +90,13 @@ for (const attr of ATTRS) {
         .map(([img, count]) => ({ img, count }));
     const topComps = [...compCount[attr].values()]
         .sort((a, b) => b.count - a.count || (a.lastMonth < b.lastMonth ? 1 : -1))
-        .slice(0, 3)
-        .map(({ chars, count, lastMonth }) => ({ chars, count, lastMonth }));
+        .slice(0, 5)
+        .map(({ chars, count, lastMonth, arrs }) => ({
+            chars, count, lastMonth,
+            // 並び順の内訳 上位3 (押したときの「配置を選ぶ」候補)
+            arr: [...arrs.entries()].sort((x, y) => y[1] - x[1]).slice(0, 3)
+                .map(([k, n]) => ({ chars: k.split('|'), n })),
+        }));
     presets.attributes[attr] = { topChars, topComps };
 }
 

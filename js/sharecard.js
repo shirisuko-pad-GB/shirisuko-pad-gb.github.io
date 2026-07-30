@@ -41,26 +41,53 @@ export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
     ctx.fillText('SHIRISUKO PAD GB', 70, 92);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `900 56px ${F}`;
-    ctx.fillText(multi ? `ふるり値 (${results.length}凸平均)` : 'ふるり値', 70, 210);
-    ctx.fillStyle = mainColor;
-    ctx.font = `900 190px ${F}`;
-    ctx.fillText(mainScore.toFixed(2), 70, 400);
+    ctx.fillText(multi ? `ふるり値 (${results.length}凸)` : 'ふるり値', 70, 200);
 
     if (multi) {
-        let x = 74;
-        for (const r of results) {
+        // 凸した数ぶんのカラム (2凸なら2列)。各列 = 属性 / スコア / 中央値比%
+        const n = results.length;
+        const colW = (W - 140) / n;
+        results.forEach((r, i) => {
+            const x0 = 70 + i * colW;
             const inf = ATTR_INFO[r.attribute];
-            ctx.font = `900 40px ${F}`;
-            ctx.fillStyle = '#FFFFFF';
-            const t = `${inf.emoji} ${r.score.toFixed(2)}`;
-            ctx.fillText(t, x, 478);
-            x += ctx.measureText(t).width + 44;
-        }
+            if (i > 0) {   // 区切り線
+                ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(x0 - 24, 250); ctx.lineTo(x0 - 24, 430); ctx.stroke();
+            }
+            ctx.fillStyle = '#B6BBC1';
+            ctx.font = `900 32px ${F}`;
+            ctx.fillText(`${inf.emoji} ${inf.jp}PT`, x0, 280);
+            ctx.fillStyle = inf.color;
+            ctx.font = `900 ${n === 3 ? 84 : 96}px ${F}`;
+            ctx.fillText(r.score.toFixed(2), x0, 375);
+            const mp = distReady(r.dist) && r.dist.median > 0 ? Math.round((r.score / r.dist.median) * 100) : null;
+            ctx.fillStyle = '#8A9097';
+            ctx.font = `700 27px ${F}`;
+            ctx.fillText(mp != null ? `中央値比 ${mp}%` : `中央値 集計待ち`, x0, 425);
+        });
+        // 3凸合計: 各属性の中央値 (=そのボスの通しやすさ) で補正した総合指標。
+        // 全属性の分布が解禁されているときだけ出す (Σスコア ÷ Σ中央値)
+        const meds = results.map(r => (distReady(r.dist) && r.dist.median > 0) ? r.dist.median : null);
+        const sum = results.reduce((s, r) => s + r.score, 0);
         ctx.fillStyle = '#A4AAB0';
-        ctx.font = `700 30px ${F}`;
-        ctx.fillText(`SLv ${results[0].slv}`, 70, 550);
+        ctx.font = `700 26px ${F}`;
+        ctx.fillText(`${n}凸合計 ${sum.toFixed(2)} / SLv ${results[0].slv}`, 70, 505);
+        if (meds.every(m => m != null)) {
+            const totalPct = Math.round((sum / meds.reduce((s, m) => s + m, 0)) * 100);
+            ctx.fillStyle = '#EFDD3C';
+            ctx.font = `900 68px ${F}`;
+            const tt = `総合 中央値比 ${totalPct}%`;
+            ctx.fillText(tt, 70, 585);
+            ctx.fillStyle = '#6B7178';
+            ctx.font = `700 22px ${F}`;
+            ctx.fillText('(ボスの通しやすさを中央値で補正した総合値)', 70 + ctx.measureText(tt).width + 20, 578);
+        }
     } else {
         const r = results[0];
+        ctx.fillStyle = mainColor;
+        ctx.font = `900 190px ${F}`;
+        ctx.fillText(mainScore.toFixed(2), 70, 400);
         ctx.fillStyle = '#FFFFFF';
         ctx.font = `900 44px ${F}`;
         ctx.fillText(`${mainInfo.emoji} ${mainInfo.jp}PT`, 74, 484);

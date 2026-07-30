@@ -1,5 +1,15 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
+## 🧪 投入中: 見え方確認用の仮データ (2026-07-30)
+
+`scripts/seed-demo.mjs` で仮ユーザー350人分 (各属性 n≈190〜250) を本番に投入済み。
+公開拡散の前に必ず削除する:
+```sql
+delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8ddd-%';
+```
+(実機確認用の固定端末票 …-ffffffffffff も同じSQLで消える)。追加投入は
+`node scripts/seed-demo.mjs --from 350 --to 400` のように範囲を伸ばす (同範囲の再実行は同じデータ)。
+
 ## ⏳ 未適用: supabase/08_shadow_stats.sql (2026-07-30 作成)
 
 シャドウ集計 (荒らしの極端値は受理したまま公開集計から黙って除外) + 編成集計の刷新
