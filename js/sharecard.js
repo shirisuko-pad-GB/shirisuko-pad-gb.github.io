@@ -15,8 +15,9 @@ const CREAM = '#F6F1CD';
 // 分布が解禁済みか (bins と median が揃っているか — 欠損応答での例外を防ぐ)
 const distReady = (d) => d && !d.gated && Array.isArray(d.bins) && Number.isFinite(d.median);
 
-// ミニ分布: シルエットバー + 自分のビンだけ属性色 + 白い「あなた」バッジ
-function drawMini(ctx, { x, y, w, h, bins, myBin, color, badge }) {
+// ミニ分布: シルエットバー + 自分のビンだけ属性色 (バッジ・高さ盛りは無し —
+// 色変えだけで伝わる & 分布の形を歪めない。最低4pxの床は全バー共通)
+function drawMini(ctx, { x, y, w, h, bins, myBin, color }) {
     const n = bins.length;
     const gap = 3;
     const bw = (w - gap * (n - 1)) / n;
@@ -28,19 +29,6 @@ function drawMini(ctx, { x, y, w, h, bins, myBin, color, badge }) {
         ctx.roundRect(x + i * (bw + gap), y + h - bh, bw, bh, [bw / 2, bw / 2, 0, 0]);
         ctx.fill();
     }
-    // 「あなた」バッジ (白ピル + 足)
-    const cx = Math.min(x + w - 40, Math.max(x + 40, x + (myBin - 0.5) / n * w));
-    ctx.font = `800 16px ${F}`;
-    const tw = ctx.measureText(badge).width;
-    const pw = tw + 22, ph = 26;
-    const px = Math.min(x + w - pw, Math.max(x, cx - pw / 2));
-    const py = y - ph - 10;
-    ctx.fillStyle = '#F2F2EE';
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 13); ctx.fill();
-    ctx.fillRect(cx - 1, py + ph, 2, 8);
-    ctx.fillStyle = INK;
-    ctx.textAlign = 'left';
-    ctx.fillText(badge, px + 11, py + 19);
 }
 
 // 大きい% (単位の%だけ小さく)。桁が多いときは列幅に収まるまで縮小 (荒らし自認スコア対策)
@@ -142,14 +130,13 @@ export async function buildShareCard(results, canvas /*, opts */) {
         ctx.fillStyle = '#8A9097';
         ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
         ctx.fillText(`ふるり値 ${r.score.toFixed(2)}`, x0, bigY + (multi ? 36 : 44));
-        // ミニ分布 (解禁前は出さず、案内だけ)
-        const histY = multi ? 448 : 452;
-        const histH = multi ? 76 : 96;
+        // ミニ分布 (解禁前は出さず、案内だけ)。バッジ廃止で空いた分グラフを大きく
+        const histY = multi ? 424 : 428;
+        const histH = multi ? 100 : 124;
         if (distReady(r.dist)) {
             drawMini(ctx, {
                 x: x0, y: histY, w: iw, h: histH,
                 bins: r.dist.bins, myBin: r.dist.my_bin, color: info.color,
-                badge: mp != null ? `あなた ${mp}%` : 'あなた',
             });
             ctx.fillStyle = '#8A9097';
             ctx.font = `700 17px ${F}`;

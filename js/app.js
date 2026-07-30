@@ -649,14 +649,13 @@ function distSectionHTML(r, info) {
         </div>`;
     } else {
         const maxBin = Math.max(...d.bins, 1);
+        // 自分のビンは色が変わるだけ (バッジ・高さ盛りは無し — スタイリッシュ優先の運営判断)
         const bars = d.bins.map((v, bi) =>
             `<div class="bar${bi === d.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
-        // 自分のビンの中心位置に黒吹き出しを立てる (端に寄りすぎたらクランプ)
-        const tipPos = Math.min(92, Math.max(8, ((d.my_bin - 0.5) / d.bins.length) * 100));
         html += `
-        <div class="hist"><div class="tooltip" style="left:${tipPos}%;">あなた ${r.score.toFixed(2)}</div>${bars}</div>
+        <div class="hist">${bars}</div>
         <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
-        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。
+        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。黒いバーがあなたの位置。
             真ん中の人はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
     }
     // 同一編成 (サーバー閾値未満は gated)。こちらも中央値比で返す
