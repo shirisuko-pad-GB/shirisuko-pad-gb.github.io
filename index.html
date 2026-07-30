@@ -122,6 +122,7 @@
             width: 32px; height: 32px; border-radius: 999px;
             font-size: 14px; font-weight: 800; color: var(--ac, #8A8A84);
             display: flex; align-items: center; justify-content: center;
+            background: rgba(138, 138, 132, 0.14);   /* color-mix 非対応環境のフォールバック */
             background: color-mix(in srgb, var(--ac, #8A8A84) 16%, var(--tile-mix));
         }
         .attr-btn .name { font-size: 10.5px; font-weight: 800; color: var(--sub); letter-spacing: 0.2px; white-space: nowrap; }
@@ -212,6 +213,7 @@
         /* 展開中の行: クリーム + 下の展開部と一体化 (角丸を接続) */
         .preset-row.open-a { background: var(--cream); border-color: transparent; border-radius: 16px 16px 0 0; }
         .arr-expand {
+            background: var(--card2);   /* color-mix 非対応環境のフォールバック */
             background: color-mix(in srgb, var(--cream) 45%, var(--card));
             border-radius: 0 0 16px 16px; padding: 10px 12px 12px; margin-bottom: 2px;
         }
@@ -262,12 +264,15 @@
         .picker-grid.picker-quick { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; max-height: none; overflow: visible; }
         .picker-grid.picker-quick .gb-tile-var { font-size: 8.5px; }
         .picker-grid.picker-quick .gb-tile-strip { height: 16px; font-size: 10px; line-height: 16px; }
+        /* ⚠ iOS Safari 対策: グリッド内で aspect-ratio ボタン + 内側 height:100% を連鎖させると
+           タイル高さが 0 に解決されて文字が隣セルへ重なる (実機FB)。ピッカー内は正方形をやめ、
+           内容ベースの高さ + min-height にする (行の高さはグリッドが揃える) */
         .picker-grid button {
             position: relative; border: 2px solid transparent; border-radius: 15px; padding: 0;
-            background: transparent; cursor: pointer; aspect-ratio: 1; overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
+            background: transparent; cursor: pointer; overflow: hidden;
+            -webkit-tap-highlight-color: transparent; height: 100%;
         }
-        .picker-grid button .gb-tile { height: 100%; }
+        .picker-grid button .gb-tile { aspect-ratio: auto; height: 100%; min-height: 74px; }
         .picker-grid button.sel { border-color: var(--ink); }
         .picker-grid button.sel::after {
             content: attr(data-n); position: absolute; bottom: 2px; right: 2px;

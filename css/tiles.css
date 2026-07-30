@@ -14,6 +14,8 @@
     aspect-ratio: 1;
     border-radius: 13px;
     overflow: hidden;
+    /* color-mix 非対応環境 (iOS 16.1 以前) は無地グレーに劣化 (透明化して文字が浮くのを防ぐ) */
+    background: #ECECE9;
     background: color-mix(in srgb, var(--tile-ac) var(--tile-tint, 16%), var(--tile-mix, #ffffff));
 }
 .gb-tile-strip {
@@ -36,6 +38,7 @@
     justify-content: center;
     gap: 1px;
     padding: 1px 3px 3px;
+    color: #4A4A46;   /* color-mix 非対応環境のフォールバック */
     color: color-mix(in srgb, var(--tile-ac) var(--tile-ink, 62%), var(--tile-ink-mix, #141412));
 }
 .gb-tile-base {
