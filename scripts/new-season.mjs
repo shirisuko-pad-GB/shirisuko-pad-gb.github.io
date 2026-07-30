@@ -170,7 +170,8 @@ console.log(`
       delete from public.measurements;
  2. SQL Editor で supabase/seed.local.sql を実行 (${seasonKey} の基準投入)
     あわせてシャドウ集計の妥当範囲行を追加 (無ければ既定 [0.01, 5.0] で動作):
-      insert into public.score_bounds (season) values ('${seasonKey}') on conflict do nothing;
+      insert into public.score_bounds (season, min_score, max_score)
+      values ('${seasonKey}', 0.1, 2.5) on conflict do nothing;   -- 運用値 (実測レンジを見て調整)
  3. node tests/run-tests.mjs で整合を確認 → commit & push
  4. SQL Editor で open:
       update public.site_state set status='open', active_season='${seasonKey}',

@@ -10,15 +10,15 @@ delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8
 (実機確認用の固定端末票 …-ffffffffffff も同じSQLで消える)。追加投入は
 `node scripts/seed-demo.mjs --from 350 --to 400` のように範囲を伸ばす (同範囲の再実行は同じデータ)。
 
-## ⏳ 未適用: supabase/08_shadow_stats.sql (2026-07-30 作成)
+## ⏳ 実行待ち: score_bounds の運用値 (2026-07-30 決定)
 
-シャドウ集計 (荒らしの極端値は受理したまま公開集計から黙って除外) + 編成集計の刷新
-(「最高」廃止 → 中央値TOP / 並び順内訳)。**適用するまでは従来の集計のまま動く**
-(クライアントは新旧両対応済み。medianTop・並び順内訳は適用後に自然に出現する)。
-
-手順: **push 後のデプロイが済んでから** (Pages 反映 + JSキャッシュ約10分。旧クライアントは
-best 前提のため、08 を先に適用すると一時的に編成の中央値が「5人以上で表示」と出る) →
-SQL Editor で `supabase/08_shadow_stats.sql` を実行 → `99_check_applied.sql` で 08 が ✅ になればOK。
+08 は適用済み・シャドウ除外の実弾テストOK (範囲外票が n に乗らないことを確認済み)。
+運用値 [0.1, 2.5] (実測: 最強クラスでも1.5、下は0.3もいる) への更新だけ残っている:
+```sql
+update public.score_bounds set min_score = 0.1, max_score = 2.5 where season = '2026-07';
+```
+※ 仮データは最大2.6まで振ってあるので、適用後に n が数票減るのは正常 (除外の動作確認になる)。
+シーズン切替時の新シーズン行は new-season.mjs の残り手順に表示される (0.1〜2.5 で挿入)。
 シーズン切替時は `score_bounds` に新シーズン行を足す (無ければ既定 [0.01, 5.0] で動く。
 new-season.mjs の残り手順にも表示される)。
 
