@@ -67,7 +67,7 @@ async function init() {
     $('thresholdCompLabel').textContent = THRESHOLDS.comp;
     $('slvMinus').addEventListener('click', () => stepSlv(-1));
     $('slvPlus').addEventListener('click', () => stepSlv(1));
-    $('slv').addEventListener('input', updateSubmitState);
+    $('slv').addEventListener('input', onSlvChanged);
     $('addAtkBtn').addEventListener('click', () => {
         if (attacks.length >= MAX_ATTACKS) return;
         attacks.push(newAttack());
@@ -199,12 +199,22 @@ function stepSlv(d) {
     const el = $('slv');
     const v = parseInt(el.value) || 0;
     el.value = Math.max(1, Math.min(1000, v + d));
-    updateSubmitState();
+    onSlvChanged();
+}
+
+const slvValid = () => { const v = parseInt($('slv').value); return v >= 1 && v <= 1000; };
+
+// SLv の入力状態が変わったら、凸入力の出し入れを判定してから状態更新
+// (「測定が押せない」の原因第1位が SLv 未入力だったため、SLv を入れるまで凸カードを出さない)
+let slvWasValid = null;
+function onSlvChanged() {
+    const ok = slvValid();
+    if (ok !== slvWasValid) { slvWasValid = ok; renderAttacks(); }
+    else updateSubmitState();
 }
 
 function updateSubmitState() {
-    const slv = parseInt($('slv').value);
-    const ok = slv >= 1 && slv <= 1000 &&
+    const ok = slvValid() &&
         attacks.every(a => a.attribute && parseDamageInput(a.damage) > 0);
     $('submitBtn').disabled = !ok;
     $('addAtkBtn').disabled = attacks.length >= MAX_ATTACKS;
@@ -213,6 +223,18 @@ function updateSubmitState() {
 // ---------- 凸カードの描画 ----------
 function renderAttacks() {
     const area = $('attacksArea');
+    if (!slvValid()) {
+        // STEP1 が済むまで凸入力は出さない (ガイドだけ表示)
+        area.innerHTML = `
+        <section class="card slv-gate">
+            <p class="slv-gate-txt">⬆️ まず <strong>STEP 1 の SLv (シンクロレベル)</strong> を入力してください。<br>
+            入力すると凸の入力があらわれます。</p>
+        </section>`;
+        $('addAtkBtn').style.display = 'none';
+        $('submitBtn').disabled = true;
+        return;
+    }
+    $('addAtkBtn').style.display = '';
     area.innerHTML = attacks.map((a, i) => attackCardHTML(a, i)).join('');
     area.querySelectorAll('.atk-card').forEach(card => bindAttackCard(card));
     updateSubmitState();
@@ -248,7 +270,7 @@ function attackCardHTML(a, i) {
             <p class="preview">${damagePreviewText(a.damage)}</p>
         </div>
         <details class="comp"${a.compOpen ? ' open' : ''}>
-            <summary>キャラ編成 <span class="pill">任意</span><span class="chev">▼</span></summary>
+            <summary><span class="sum-label">キャラ編成</span><span class="pill">任意</span><span class="sum-faces">${summaryFacesHTML(a)}</span><span class="chev">▼</span></summary>
             <div class="comp-body">${compBodyHTML(a)}</div>
         </details>
     </section>`;
@@ -385,9 +407,19 @@ function bindAttackCard(card) {
     bindCompBody(card, a);
 }
 
-// 編成エリアだけ再描画 (ダメージ入力のフォーカスを壊さない)
+// 折りたたみ見出しに出す選択済み編成のミニタイル (畳んでいても選択が見える — 実機FB)
+function summaryFacesHTML(a) {
+    const sel = selChars(a);
+    if (sel.length === 0) return '';
+    return sel.map(id => tileHTML(infoOf(id), { xs: true, strip: false })).join('') +
+        `<span class="sum-count">${sel.length}/5</span>`;
+}
+
+// 編成エリアだけ再描画 (ダメージ入力のフォーカスを壊さない)。見出しのミニタイルも追随させる
 function renderCompBody(card, a) {
     card.querySelector('.comp-body').innerHTML = compBodyHTML(a);
+    const faces = card.querySelector('details.comp > summary .sum-faces');
+    if (faces) faces.innerHTML = summaryFacesHTML(a);
     bindCompBody(card, a);
 }
 
