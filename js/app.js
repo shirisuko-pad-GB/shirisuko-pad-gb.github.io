@@ -197,8 +197,9 @@ async function showRecalledDistribution(last) {
 
 function stepSlv(d) {
     const el = $('slv');
-    const v = parseInt(el.value) || 0;
-    el.value = Math.max(1, Math.min(1000, v + d));
+    const v = parseInt(el.value);
+    if (Number.isNaN(v) && d < 0) return;   // 空欄で「−」はゲート解除しない (Codex指摘)
+    el.value = Math.max(1, Math.min(1000, (Number.isNaN(v) ? 0 : v) + d));
     onSlvChanged();
 }
 

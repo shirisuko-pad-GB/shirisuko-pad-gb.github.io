@@ -53,9 +53,11 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       R.steps.push({ name: '(closed mode: 測定・分布系は skip)', skip: true });
     } else {
       check('初回バナー非表示', fd.getElementById('recallBanner').style.display === 'none');
-      check('属性ボタン5個', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
+      // SLv入力ゲート: 未入力の間は凸カードが出ず、ガイドカードが出る
+      check('SLv未入力ゲート表示', !!fd.querySelector('.slv-gate') && fd.querySelectorAll('.atk-card').length === 0);
       const set = (el, v) => { el.value = v; el.dispatchEvent(new fw.Event('input', { bubbles: true })); };
       set(fd.getElementById('slv'), 544);
+      check('属性ボタン5個 (SLv入力後に出現)', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
       fd.querySelectorAll('.atk-card')[0].querySelector('[data-attr="FIRE"]').click();
       await wait(250);
       set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), '13.18');
