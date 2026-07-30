@@ -543,7 +543,9 @@ function showLoading() {
     document.body.style.overflow = 'hidden';
 }
 
-// 即時クローズ (finally の保険用・待たない)。二重呼び出しは無害
+// 即時クローズ (finally の保険用・待たない)。二重呼び出しは無害。
+// ⚠ .wrap の inert / body の overflow はこのオーバーレイが唯一の管理者という前提
+// (他機能で inert やスクロールロックを導入するときは所有権の整理が必要)
 function forceCloseLoading() {
     const el = $('loadingOverlay');
     if (el) el.style.display = 'none';
@@ -575,12 +577,12 @@ async function onSubmit() {
     }
 
     const btn = $('submitBtn');
-    submitting = true;
-    btn.disabled = true;
-    btn.textContent = '送信中…';
-    showLoading();
-
     try {
+        submitting = true;
+        btn.disabled = true;
+        btn.textContent = '送信中…';
+        showLoading();
+
         // 計算はサーバー側 — 送信が通らないとスコアも出ない
         let returned = null;
         try {
@@ -629,6 +631,10 @@ async function onSubmit() {
 
         showShareCardPreview();
         $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+        // 想定外の例外 (描画等)。送信自体は成功していることがあるので静かに落とさず知らせる
+        console.error('onSubmit 想定外エラー:', e);
+        toast('結果の表示に失敗しました。再読み込みしてお試しください');
     } finally {
         // どの経路 (想定外の例外含む) でも: オーバーレイを閉じ、ボタンを復帰させる
         forceCloseLoading();
