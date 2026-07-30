@@ -545,24 +545,25 @@ function renderResults() {
     const multi = results.length > 1;
     let html = results.map((r, i) => resultCardHTML(r, i, multi)).join('');
     if (multi) {
-        // 総合 = Σスコア ÷ Σ中央値 (各ボスの通しやすさを中央値で補正した「合計の中央値比」)。
+        // 総合 = 各凸の中央値比の平均。ふるり値は属性ごとに基準ボスが違うため、
+        // 属性をまたいだ「ふるり値の合算」はしない (運営判断 2026-07-30)。
         // 全凸の分布が解禁されているときだけ出せる
-        const sum = results.reduce((s, r) => s + r.score, 0);
-        const meds = results.map(r =>
-            (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0) ? r.dist.median : null);
-        const totalPct = meds.every(m => m != null)
-            ? Math.round((sum / meds.reduce((s, m) => s + m, 0)) * 100) : null;
+        const ratios = results.map(r =>
+            (r.dist && !r.dist.gated && Array.isArray(r.dist.bins) && r.dist.median > 0)
+                ? r.score / r.dist.median : null);
+        const totalPct = ratios.every(x => x != null)
+            ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
         html += `
         <section class="card set-card">
-            <div class="score-label">🏅 ${results.length}凸の総合${totalPct != null ? `<span class="rank-pill">総合 中央値比 ${totalPct}%</span>` : ''}</div>
-            <div class="score-big">${sum.toFixed(2)}</div>
+            <div class="score-label">🏅 ${results.length}凸の総合</div>
+            <div class="score-big">${totalPct != null ? `${totalPct}<span style="font-size:26px;">%</span>` : '—'}</div>
             <div class="pill-row">
-                <span class="pill">合計ふるり値</span>
-                ${results.map(r => `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${r.score.toFixed(2)}</span>`).join('')}
+                <span class="pill">各凸の中央値比の平均</span>
+                ${results.map((r, ri) => `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${ratios[ri] != null ? `${Math.round(ratios[ri] * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
             </div>
             <p class="dist-note">${totalPct != null
-                ? `総合 ${totalPct}% = みんなの真ん中の人が同じ${results.length}凸をしたときの合計と比べた値。ボスごとのダメージの通しやすさは各属性の中央値で補正済みです。`
-                : `※ ボス補正込みの総合指標は、凸した全属性の分布が解禁されると表示されます`}</p>
+                ? `総合 ${totalPct}% = みんなの真ん中 (100%) と比べた${results.length}凸の総合力。ボスごとのダメージの通りやすさは各属性の中央値で補正済みです。`
+                : `※ 総合 (各凸の中央値比の平均) は、凸した全属性の分布が解禁されると表示されます`}</p>
         </section>`;
     }
     area.innerHTML = html;

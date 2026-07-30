@@ -66,22 +66,21 @@ export async function buildShareCard(results, canvas, { infoOf = null } = {}) {
             ctx.font = `700 27px ${F}`;
             ctx.fillText(mp != null ? `中央値比 ${mp}%` : `中央値 集計待ち`, x0, 425);
         });
-        // 3凸合計: 各属性の中央値 (=そのボスの通しやすさ) で補正した総合指標。
-        // 全属性の分布が解禁されているときだけ出す (Σスコア ÷ Σ中央値)
-        const meds = results.map(r => (distReady(r.dist) && r.dist.median > 0) ? r.dist.median : null);
-        const sum = results.reduce((s, r) => s + r.score, 0);
+        // 総合 = 各凸の中央値比の平均 (ふるり値の属性またぎ合算はしない — 運営判断)。
+        // 全凸の分布が解禁されているときだけ出す
+        const ratios = results.map(r => (distReady(r.dist) && r.dist.median > 0) ? r.score / r.dist.median : null);
         ctx.fillStyle = '#A4AAB0';
         ctx.font = `700 26px ${F}`;
-        ctx.fillText(`${n}凸合計 ${sum.toFixed(2)} / SLv ${results[0].slv}`, 70, 505);
-        if (meds.every(m => m != null)) {
-            const totalPct = Math.round((sum / meds.reduce((s, m) => s + m, 0)) * 100);
-            ctx.fillStyle = '#EFDD3C';
+        ctx.fillText(`${n}凸 / SLv ${results[0].slv}`, 70, 505);
+        if (ratios.every(x => x != null)) {
+            const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
+            ctx.fillStyle = '#F6F1CD';
             ctx.font = `900 68px ${F}`;
             const tt = `総合 中央値比 ${totalPct}%`;
             ctx.fillText(tt, 70, 585);
             ctx.fillStyle = '#6B7178';
             ctx.font = `700 22px ${F}`;
-            ctx.fillText('(ボスの通しやすさを中央値で補正した総合値)', 70 + ctx.measureText(tt).width + 20, 578);
+            ctx.fillText('(各凸の中央値比の平均 — ボスの通りやすさ補正済み)', 70 + ctx.measureText(tt).width + 20, 578);
         }
     } else {
         const r = results[0];
