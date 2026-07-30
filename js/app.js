@@ -395,7 +395,8 @@ function bindAttackCard(card) {
             a.attribute = btn.dataset.attr;
             a.slots = [null, null, null, null, null];
             a.activeSlot = 0;
-            a.arrPick = null;   // 配置候補の開閉状態も属性ごとにリセット (Codex指摘)
+            a.arrPick = null;      // 配置候補の開閉状態も属性ごとにリセット (Codex指摘)
+            a.presetMore = false;  // 「もっと見る」もTOP3表示に戻す (Codex指摘)
             renderAttacks();
         });
     });
