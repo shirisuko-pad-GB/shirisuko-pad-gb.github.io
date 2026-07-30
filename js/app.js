@@ -291,13 +291,13 @@ function compBodyHTML(a) {
             <p class="hint" style="margin:2px 0 4px;">どの並び (配置) で使いますか? — 左から配置スロット順</p>
             ${arrs.map((x, xi) => `
             <button type="button" class="arr-opt" data-preset="${pi}" data-arr="${xi}">
-                <span class="preset-faces">${x.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
-                <span class="arr-n">${x.n}回</span>
+                <span class="preset-faces">${x.chars.map(img => tileHTML(infoOf(img))).join('')}</span>
+                <span class="arr-n">この並び ${x.n}回</span>
             </button>`).join('')}
         </div>` : '';
         return `
         <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
-            <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
+            <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img))).join('')}</span>
             <span class="preset-meta">
                 <span class="pill">使用率TOP${pi + 1}</span>
                 <span class="hint">使用 ${c.count}回 (〜${c.lastMonth})</span>
