@@ -685,7 +685,7 @@ function renderResults() {
     <details class="card tips">
         <summary>❓ この%はどう計算している?<span class="chev">▼</span></summary>
         <div class="tips-body">
-            <p><strong>イメージ:</strong> 縦軸ダメージ・横軸SLvの散布図に今シーズンの提出を全部置き、
+            <p><strong>イメージ:</strong> 縦軸ダメージ・横軸SLvの散布図に今シーズンの各人のベスト提出を置き、
             「真ん中の人の曲線」を引く。その曲線上 = 100% で、あなたの%は曲線からどれだけ上か、です。</p>
             <p>曲線は直線の当てはめではなく <strong>SLv補正の実測カーブ × みんなの中央値</strong>で
             引いています。SLvの伸びが直線でないことを正確に扱え、平均と違って極端な値に引っ張られません。</p>
