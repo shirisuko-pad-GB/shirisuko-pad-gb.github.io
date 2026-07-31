@@ -47,6 +47,17 @@ export function splitName(name) {
     return { base: p[0] || '？', variant: p.slice(1).join(':') || null };
 }
 
+// 編成の表示順: バースト順 (B1→B2→B3→Λ→不明) → 名前。保存値はID順不同ソートで
+// 並びに意味がないため、見せるときはこの順に揃える (結果カード・シェアカード共通)。
+const BURST_RANK = { B1: 0, B2: 1, B3: 2, 'BΛ': 3 };
+export function sortForDisplay(ids, infoOf) {
+    return [...ids].sort((a, b) => {
+        const ia = infoOf(a), ib = infoOf(b);
+        const ra = BURST_RANK[ia?.burst] ?? 4, rb = BURST_RANK[ib?.burst] ?? 4;
+        return ra - rb || String(ia?.name ?? '').localeCompare(String(ib?.name ?? ''), 'ja');
+    });
+}
+
 function colorsOf(info) {
     const el = info?.element;
     return {

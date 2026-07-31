@@ -1,12 +1,14 @@
 // シェアカードの Canvas 描画 (自己完結・状態を持たない純処理)。
-// v5 (2026-07-31 モック承認版):
+// v6 (2026-07-31): v5 + 各列に「使った編成 (5人タイル)」と「編成内% (同一編成の中央値比)」。
 //   - 主役 = 中央値比% / サブ = ふるり値
 //   - 凸した数だけ属性列が並び、複数凸なら「総合」列 (各凸の中央値比の平均) を最後に足す
 //   - 各列にミニ分布 + 「あなた」マーカー ("だいたいこの辺" が分かる)
+//   - 編成内%は同一編成の提出がしきい値未満なら解禁待ちの案内に劣化
 //   - ふるり値の属性またぎ合算はしない (運営判断)
 //   - 属性は色+漢字 (絵文字なし)。カードは常に暗色 (テーマ非依存)
 // SNS に流れる画像なのでゲームアセットは使わず、権利表記を必ず焼き込む。
-import { ATTR_INFO, SITE_URL } from './shared.js';
+import { ATTR_INFO, SITE_URL, THRESHOLDS } from './shared.js';
+import { drawTileCanvas, sortForDisplay } from './tiles.js';
 
 const F = "'Poppins', 'Noto Sans JP', sans-serif";
 const INK = '#14161A';
@@ -62,8 +64,19 @@ function drawBigPct(ctx, x, y, pct, size, color, maxW) {
     }
 }
 
-export async function buildShareCard(results, canvas /*, opts */) {
+// 編成内% の1行 (同一編成の分布が解禁済みなら%、未解禁なら案内)。編成未入力は null
+function compLineOf(r) {
+    if (!r.characters?.length || !r.compDist) return null;
+    const cd = r.compDist;
+    if (!cd.gated && Number.isFinite(cd.median) && cd.median > 0) {
+        return { text: `編成内 ${Math.round((r.score / cd.median) * 100)}% · ${cd.n}人`, ready: true };
+    }
+    return { text: `編成内%は${cd.need ?? THRESHOLDS.comp}人で解禁`, ready: false };
+}
+
+export async function buildShareCard(results, canvas, opts = {}) {
     if (!Array.isArray(results) || results.length === 0) return null;
+    const infoOf = typeof opts.infoOf === 'function' ? opts.infoOf : null;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const multi = results.length > 1;
@@ -120,7 +133,7 @@ export async function buildShareCard(results, canvas /*, opts */) {
     for (let i = 1; i < cols.length; i++) {
         ctx.beginPath();
         ctx.moveTo(left + i * cw, 226);
-        ctx.lineTo(left + i * cw, 566);
+        ctx.lineTo(left + i * cw, 650);
         ctx.stroke();
     }
 
@@ -138,11 +151,12 @@ export async function buildShareCard(results, canvas /*, opts */) {
             ctx.fillText('各凸の中央値比を同じ重みで平均', x0, 262 + bigSize + 44);
             ctx.fillStyle = '#A4AAB0';
             ctx.font = `700 22px ${F}`;
-            ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 470);
+            ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 500);
             ctx.fillStyle = '#6B7178';
             ctx.font = `700 16px ${F}`;
-            ctx.fillText('ボスの通りやすさは属性ごとの', x0, 504);
-            ctx.fillText('中央値で補正済み', x0, 528);
+            ctx.fillText('ボスの通りやすさは属性ごとの', x0, 596);
+            ctx.fillText('中央値で補正済み。編成内%は', x0, 622);
+            ctx.fillText('同じ5人 (並び不問) との比較', x0, 648);
             return;
         }
         const { r, ratio } = c;
@@ -171,9 +185,26 @@ export async function buildShareCard(results, canvas /*, opts */) {
                 Number.isFinite(r.slv) ? `SLv ${r.slv}` : null, dmgB].filter(Boolean);
             ctx.fillText(parts.join(' · '), x0, bigY + 44);
         }
-        // ミニ分布 (解禁前は出さず、案内だけ)。バッジ廃止で空いた分グラフを大きく
-        const histY = multi ? 424 : 428;
-        const histH = multi ? 100 : 124;
+        // 使った編成 (5人・順不同保存なのでバースト順) + 編成内% (同一編成の中央値比)
+        const tilesY = multi ? 430 : 448;
+        const gapT = 4;
+        const ts = Math.min(multi ? 42 : 58, Math.floor((iw - gapT * 4) / 5));
+        const canTiles = infoOf && r.characters?.length;
+        if (canTiles) {
+            sortForDisplay(r.characters, infoOf).forEach((id, ti) => {
+                drawTileCanvas(ctx, infoOf(id), x0 + ti * (ts + gapT), tilesY, ts, F);
+            });
+        }
+        const compLine = compLineOf(r);
+        if (compLine) {
+            const clY = tilesY + (canTiles ? ts : 0) + (multi ? 30 : 34);
+            ctx.fillStyle = compLine.ready ? '#F1F2F4' : '#6B7178';
+            ctx.font = `700 ${multi ? 17 : 20}px ${F}`;
+            ctx.fillText(compLine.text, x0, clY);
+        }
+        // ミニ分布 (解禁前は出さず、案内だけ)
+        const histY = multi ? 524 : 566;
+        const histH = multi ? 96 : 114;
         if (distReady(r.dist)) {
             drawMini(ctx, {
                 x: x0, y: histY, w: iw, h: histH,

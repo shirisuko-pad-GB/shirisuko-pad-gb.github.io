@@ -7,10 +7,11 @@
     <meta name="description" content="NIKKEユニオンレイドのダメージをSLv補正して実力を測る「ふるり値」を測定。みんなの提出データの中で自分がどの位置かがわかる。">
     <!-- OGP -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="ふるり値チェッカー | しりすこPAD GB">
-    <meta property="og:description" content="NIKKEユニオンレイドのダメージから、SLv補正済みの実力指標「ふるり値」を測定しよう。">
+    <meta property="og:title" content="しりすこPAD GB">
+    <meta property="og:site_name" content="しりすこPAD GB">
+    <meta property="og:description" content="NIKKEユニオンレイドのふるり値チェッカー。SLv補正済みの実力をみんなの分布と比較。Developed by 推しりをすこれ部">
     <meta property="og:url" content="https://shirisuko-pad-gb.github.io/">
-    <meta property="og:image" content="https://shirisuko-pad-gb.github.io/assets/ogp.png">
+    <meta property="og:image" content="https://shirisuko-pad-gb.github.io/assets/ogp.png?v=2">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="color-scheme" content="light dark">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
@@ -350,6 +351,10 @@
             font-size: 12px; font-weight: 700; color: var(--sub);
         }
         .comp-pos strong { color: var(--ink); }
+        /* 結果カードの「使った編成」行 (保存は順不同 → バースト順で表示) */
+        .result-comp { display: flex; align-items: center; gap: 3px; margin-top: 12px; }
+        .result-comp .gb-tile { width: 42px; }
+        .result-comp-label { font-size: 10.5px; font-weight: 800; color: var(--faint); margin-right: 6px; flex-shrink: 0; }
         .gate-note {
             display: flex; align-items: center; gap: 8px; margin-top: 14px;
             padding: 12px 14px; border-radius: 16px; background: var(--card2);
@@ -528,7 +533,7 @@
     </footer>
 </div>
 
-<canvas id="shareCanvas" width="1200" height="675"></canvas>
+<canvas id="shareCanvas" width="1200" height="800"></canvas>
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite" style="display:none;">
     <div class="loading-box">

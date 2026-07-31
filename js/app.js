@@ -5,7 +5,7 @@ import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, de
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL } from './shared.js';
 import { buildShareCard } from './sharecard.js';
-import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML } from './tiles.js';
+import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML, sortForDisplay } from './tiles.js';
 
 // 解禁しきい値は shared.js の THRESHOLDS に一元化 (実ゲートはサーバーが強制)
 const MAX_ATTACKS = 3;
@@ -724,6 +724,13 @@ function resultCardHTML(r, i, multi) {
     const mainPill = medianPct != null
         ? `<span class="pill">中央値 = 100% ・ ${r.dist.n}人中</span>` : '';
 
+    // 使った編成 (5人・順不同保存なのでバースト順で表示)。編成未入力の提出では出さない
+    const compRow = (r.characters?.length && compReady())
+        ? `<div class="result-comp"><span class="result-comp-label">編成</span>` +
+          sortForDisplay(r.characters, infoOf).map(id => tileHTML(infoOf(id), { xs: true })).join('') +
+          `</div>`
+        : '';
+
     return `
     <section class="card result-card">
         <div class="score-label"><strong style="color:${info.color};">${info.jp}PT</strong> ${title}${pill}</div>
@@ -733,6 +740,7 @@ function resultCardHTML(r, i, multi) {
             <span class="pill">SLv ${r.slv}</span>
             <span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>
         </div>
+        ${compRow}
         ${distHtml}
     </section>`;
 }
