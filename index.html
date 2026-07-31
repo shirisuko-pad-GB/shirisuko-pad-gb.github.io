@@ -243,6 +243,7 @@
         }
         .picker-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px;
+            grid-auto-rows: minmax(78px, auto);   /* 行の下限をGrid側で明示 (Safariの行高0対策 — Codex提案) */
             max-height: 250px; overflow-y: auto; margin-top: 10px; padding: 2px;
         }
         /* 全キャラ側は 72px 以上のタイルにして名前を判読可能に (56px は潰れる — 実機FB) */
