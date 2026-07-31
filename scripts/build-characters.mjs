@@ -17,7 +17,7 @@
 //   「⚠ 属性未分類」  → game8 の属性別キャラ一覧で調べて data/element-map.json に追記
 //   「⚠ バースト未分類」→ 本家PADの設定タブ → キャラ管理で登録 (こちらが唯一の正)
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,8 +65,9 @@ if (!res.ok) {
 }
 const rows = await res.json();
 
-const characters = {};          // 代表ID → {name, burst, burstAlt, element}
+const characters = {};          // 代表ID → {name, burst, burstAlt, element, hasImg}
 const aliases = {};             // 旧アイコンID → 代表ID
+const iconCandidates = new Map();   // 代表ID → PADにあるかもしれないアイコンファイル名の候補列
 const noElement = [];
 const noBurst = [];
 const seenName = new Map();     // norm(name) → 代表ID (名前重複の検出)
@@ -86,6 +87,7 @@ for (const row of rows) {
     const burst = row.burst ?? fallbackBurst.get(norm(name)) ?? null;
     const element = elementOfName.get(norm(name)) ?? null;
     characters[id] = { name, burst, burstAlt: row.burst_alt ?? null, element };
+    iconCandidates.set(id, icons);   // 画像コピー候補 (代表→変種の順)
     for (const icon of icons.slice(1)) aliases[icon] = id;
     if (!element) noElement.push(name);
     if (!burst) noBurst.push(name);
@@ -98,14 +100,39 @@ if (existsSync(overridePath)) {
     for (const [img, name] of Object.entries(overrides)) {
         if (img.startsWith('_') || !name || characters[img] || aliases[img]) continue;
         const canonId = seenName.get(norm(name));
-        if (canonId) aliases[img] = canonId;
+        if (canonId) {
+            aliases[img] = canonId;
+            iconCandidates.get(canonId)?.push(img);   // 手動紐付けの旧画像もコピー候補に
+        }
         else console.warn(`⚠ name-overrides の「${name}」は本家DBに存在しません (削除推奨)`);
     }
 }
 
+// ---- キャラ画像のコピー (掲載方針 2026-07-31: 公式へ許諾照会済み・削除対応前提で掲載) ----
+// 代表IDの画像が本家に無ければ変種アイコンで代用し、GB側は常に <代表ID>.webp の名前で持つ。
+// 画像が1枚も無いキャラは hasImg なし → 表示は自作タイルに自動フォールバック (js/tiles.js)。
+// 掲載を取りやめる場合は tiles.js の USE_CHAR_IMAGES を false に (画像削除はこのディレクトリごと)。
+const imgDir = join(ROOT, 'character-images');
+mkdirSync(imgDir, { recursive: true });
+let copied = 0;
+for (const [id, cands] of iconCandidates) {
+    const src = cands.find(f => existsSync(join(padDir, 'character-images', f)));
+    if (src) {
+        copyFileSync(join(padDir, 'character-images', src), join(imgDir, id));
+        characters[id].hasImg = true;
+        copied++;
+    }
+}
+// 参照されなくなった旧ファイルを掃除 (キャラ削除・代表ID変更への追従)
+let removed = 0;
+for (const f of readdirSync(imgDir)) {
+    if (f.endsWith('.webp') && !characters[f]?.hasImg) { unlinkSync(join(imgDir, f)); removed++; }
+}
+console.log(`character-images: ${copied}キャラ分コピー (画像なし=タイル表示: ${Object.keys(characters).length - copied}) 掃除: ${removed}件`);
+
 writeFileSync(join(ROOT, 'data', 'characters.json'), JSON.stringify({
     _format: 2,
-    _readme: 'build-characters.mjs の生成物。chars: 代表ID→キャラ情報 / aliases: 旧アイコンID→代表ID',
+    _readme: 'build-characters.mjs の生成物。chars: 代表ID→キャラ情報 (hasImg=character-images/に画像あり) / aliases: 旧アイコンID→代表ID',
     chars: characters,
     aliases,
 }, null, 1), 'utf8');

@@ -1,12 +1,24 @@
 // キャラタイル描画 (DOM / Canvas 両対応・状態を持たない純処理)。
 //
-// サイトはゲーム画像を一切使わない方針 (NIKKE 二次創作ガイドライン準拠)。
-// キャラは「バースト帯 (ゲーム準拠色) + キャラ名 + 属性の背景色」の自作タイルで表現する。
+// 表示は「キャラ画像 (あれば) + バースト帯」のハイブリッド。画像が無いキャラは
+// 従来の自作タイル (バースト帯 + キャラ名 + 属性の背景色) に自動フォールバックする。
 // ここが唯一のタイル実装 — 画面側で似た描画を再実装しないこと。
+//
+// 【掲載方針 2026-07-31 — README「権利方針」が正】 公式に許諾照会済み (一次返信: 調査中)。
+// 削除対応前提で掲載し、指摘があれば USE_CHAR_IMAGES を false にするだけで
+// サイト全体が即時に自作タイル表示へ戻る (シェアカード含む)。
 //
 // ⚠ name は本家DB由来の外部入力として扱い、必ずエスケープして DOM に入れる。
 
 import { escapeHtml, ATTR_INFO } from './shared.js';
+
+// キャラ画像を使うか (削除要請時の即時撤去レバー — false で全面自作タイルに戻る)
+export const USE_CHAR_IMAGES = true;
+
+// 画像パス (代表IDのみ画像を持つ。hasImg は build-characters.mjs が付与)
+export function charImgSrc(info) {
+    return (USE_CHAR_IMAGES && info?.hasImg) ? `./character-images/${info.id}` : null;
+}
 
 // バースト固有色 (ゲームのバーストスキル色に準拠: B1=緑 / B2=黄 / B3=赤)。Λ は紫。
 export const BURST_COLORS = { B1: '#1FA95C', B2: '#F2B705', B3: '#E5484D', 'BΛ': '#8B5CF6' };
@@ -81,6 +93,20 @@ export function tileHTML(info, { strip = true, xs = false } = {}) {
         ? `<span class="gb-tile-strip${BURST_DARK_TEXT.has(b) ? ' dark' : ''}" style="background:${BURST_COLORS[b]};">${BURST_SHORT[b]}</span>`
         : '';
     const title = escapeHtml(info.name);
+    const src = charImgSrc(info);   // id は build 生成の 32hex.webp のみ (CHAR_IMG_RE 相当) — 外部入力は混ざらない
+    if (src) {
+        // 画像タイル: 顔 + バースト帯。名前は下端の薄幕オーバーレイ (xs は tooltip のみ)
+        const overlay = xs ? '' : `<span class="gb-tile-body gb-tile-body--overlay">` +
+            `<span class="gb-tile-base">${escapeHtml(base)}</span>` +
+            (variant ? `<span class="gb-tile-var">${escapeHtml(variant)}</span>` : '') +
+            `</span>`;
+        return `<span class="gb-tile gb-tile--img${xs ? ' gb-tile--xs' : ''}" style="--tile-ac:${attr};" title="${title}">` +
+            stripHtml +
+            `<img class="gb-tile-img" src="${src}" alt="${title}" loading="lazy">` +
+            overlay +
+            (known ? `<span class="gb-tile-dot" style="background:${attr};"></span>` : '') +
+            `</span>`;
+    }
     if (xs) {
         return `<span class="gb-tile gb-tile--xs${known ? '' : ' gb-tile--unknown'}" style="--tile-ac:${attr};" title="${title}">` +
             `${stripHtml}<span class="gb-tile-body"><span class="gb-tile-base">${escapeHtml(base)}</span></span></span>`;
@@ -97,7 +123,8 @@ export function tileHTML(info, { strip = true, xs = false } = {}) {
 }
 
 // Canvas 用タイル描画 (シェアカード)。size = 一辺 px。
-export function drawTileCanvas(ctx, info, x, y, size, fontFamily) {
+// img (HTMLImageElement) を渡すと顔画像タイルになる (名前は描かない — 顔で伝わる)。
+export function drawTileCanvas(ctx, info, x, y, size, fontFamily, img = null) {
     const r = size * 0.14;
     const { base, variant } = info ? splitName(info.name) : { base: '？', variant: null };
     const { attr } = colorsOf(info);
@@ -113,6 +140,13 @@ export function drawTileCanvas(ctx, info, x, y, size, fontFamily) {
     // バースト帯
     const b = info?.burst;
     const stripH = Math.round(size * 0.24);
+    if (img) {
+        // 顔画像 (帯の下に正方形で収める。元画像は正方形前提だが cover 相当で描く)
+        const bodyH = size - stripH;
+        const scale = Math.max(size / img.width, bodyH / img.height);
+        const dw = img.width * scale, dh = img.height * scale;
+        ctx.drawImage(img, x + (size - dw) / 2, y + stripH + (bodyH - dh) / 2, dw, dh);
+    }
     if (b) {
         ctx.fillStyle = BURST_COLORS[b];
         ctx.fillRect(x, y, size, stripH);
@@ -121,6 +155,7 @@ export function drawTileCanvas(ctx, info, x, y, size, fontFamily) {
         ctx.textAlign = 'center';
         ctx.fillText(BURST_SHORT[b], x + size / 2, y + stripH * 0.78);
     }
+    if (img) { ctx.restore(); ctx.textAlign = 'left'; return; }
     // 名前 (ベース名 + 衣装違い)
     ctx.fillStyle = '#F1F2F4';
     const bodyY = y + stripH + (size - stripH) / 2;

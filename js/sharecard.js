@@ -8,7 +8,7 @@
 //   - 属性は色+漢字 (絵文字なし)。カードは常に暗色 (テーマ非依存)
 // SNS に流れる画像なのでゲームアセットは使わず、権利表記を必ず焼き込む。
 import { ATTR_INFO, SITE_URL, THRESHOLDS } from './shared.js';
-import { drawTileCanvas, sortForDisplay } from './tiles.js';
+import { drawTileCanvas, sortForDisplay, charImgSrc } from './tiles.js';
 
 const F = "'Poppins', 'Noto Sans JP', sans-serif";
 const INK = '#14161A';
@@ -28,6 +28,23 @@ function loadLogo() {
         img.onerror = () => resolve(null);
         img.src = './assets/union-logo.png';
     });
+}
+
+// キャラ顔画像のロード (同一オリジンの character-images/ のみ — Canvas を汚染しない)。
+// 失敗・画像なしは null → drawTileCanvas が自作タイルにフォールバック
+const charImgCache = new Map();
+function loadCharImg(info) {
+    const src = charImgSrc(info);
+    if (!src) return Promise.resolve(null);
+    if (charImgCache.has(src)) return charImgCache.get(src);
+    const p = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+    });
+    charImgCache.set(src, p);
+    return p;
 }
 
 // ミニ分布: シルエットバー + 自分のビンだけ属性色 (バッジ・高さ盛りは無し —
@@ -84,6 +101,16 @@ export async function buildShareCard(results, canvas, opts = {}) {
         (distReady(r.dist) && r.dist.median > 0) ? r.score / r.dist.median : null);
     const totalPct = multi && ratios.every(x => x != null)
         ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
+
+    // 編成の顔画像を先にまとめてロード (Canvas 描画は同期のため)。無い顔は自作タイルで描く
+    const charFaces = new Map();   // 代表ID → HTMLImageElement
+    if (infoOf) {
+        const ids = [...new Set(results.flatMap(r => r.characters ?? []).map(id => infoOf(id)?.id).filter(Boolean))];
+        await Promise.all(ids.map(async (cid) => {
+            const img = await loadCharImg(infoOf(cid));
+            if (img) charFaces.set(cid, img);
+        }));
+    }
 
     // 背景 + 上端バー (属性色 + 総合のクリーム)
     ctx.fillStyle = INK;
@@ -192,7 +219,8 @@ export async function buildShareCard(results, canvas, opts = {}) {
         const canTiles = infoOf && r.characters?.length;
         if (canTiles) {
             sortForDisplay(r.characters, infoOf).forEach((id, ti) => {
-                drawTileCanvas(ctx, infoOf(id), x0 + ti * (ts + gapT), tilesY, ts, F);
+                const cinfo = infoOf(id);
+                drawTileCanvas(ctx, cinfo, x0 + ti * (ts + gapT), tilesY, ts, F, charFaces.get(cinfo?.id) ?? null);
             });
         }
         const compLine = compLineOf(r);
@@ -220,13 +248,15 @@ export async function buildShareCard(results, canvas, opts = {}) {
         }
     });
 
-    // 権利表記 + URL (SNS拡散面の必須表記)
+    // 権利表記 + URL (SNS拡散面の必須表記 — キャラ画像の著作権の在りどころを明記)。
+    // 表記が長くなったため左側は2段組 (URL と重ねない)
     ctx.fillStyle = '#6B7178';
-    ctx.font = `700 20px ${F}`;
-    ctx.fillText('非公式ファンコンテンツ | 勝利の女神：NIKKE © SHIFT UP CORP.', 70, H - 34);
+    ctx.font = `700 17px ${F}`;
+    ctx.fillText('非公式ファンコンテンツ — 掲載に問題がある場合は削除対応します', 70, H - 58);
+    ctx.fillText('キャラクター画像・名称: 勝利の女神：NIKKE © SHIFT UP CORP.', 70, H - 30);
     ctx.font = `700 24px ${F}`;
     ctx.textAlign = 'right';
-    ctx.fillText(SITE_URL.replace('https://', '').replace(/\/$/, ''), W - 70, H - 34);
+    ctx.fillText(SITE_URL.replace('https://', '').replace(/\/$/, ''), W - 70, H - 30);
     ctx.textAlign = 'left';
 
     return new Promise(res => canvas.toBlob(res, 'image/png'));

@@ -2,7 +2,7 @@
 // クライアント側テスト:  node tests/run-tests.mjs
 // ふるり値の計算式はサーバー側 (supabase/02_stats.sql) にしかないため、
 // ここでは クライアントユーティリティ と 秘匿データの混入ガード を検証する。
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from '../js/calc.js';
@@ -342,9 +342,26 @@ test('site.json: xAccount の形式と recruit の構造', () => {
     assert(typeof site.recruit?.note === 'string', 'recruit.note がありません');
 });
 
-test('ゲームアセットを同梱していない (権利方針の回帰ガード)', () => {
-    assert(!existsSync(join(ROOT, 'character-images')), 'character-images/ が復活しています (ゲーム画像は同梱禁止)');
-    assert(!existsSync(join(ROOT, 'assets', 'attr')), 'assets/attr/ が復活しています (ゲーム内アイコンは同梱禁止)');
+test('キャラ画像の掲載方針 (2026-07-31 削除対応前提) の整合ガード', () => {
+    // 属性アイコン等のUI用ゲームアセットは引き続き同梱しない (自作SVG/絵文字のまま)
+    assert(!existsSync(join(ROOT, 'assets', 'attr')), 'assets/attr/ が復活しています (UI用ゲームアイコンは同梱禁止)');
+    // キャラ画像は「即時撤去レバー + 生成物の整合」を条件に掲載する
+    const tiles = readFileSync(join(ROOT, 'js', 'tiles.js'), 'utf8');
+    assert(/export const USE_CHAR_IMAGES = (true|false);/.test(tiles),
+        'tiles.js に USE_CHAR_IMAGES フラグ (削除要請時の即時撤去レバー) がありません');
+    const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
+    const files = existsSync(join(ROOT, 'character-images'))
+        ? readdirSync(join(ROOT, 'character-images')).filter(f => f.endsWith('.webp')) : [];
+    for (const f of files) {
+        assert(/^[0-9a-f]{32}[.]webp$/.test(f), `character-images/${f} が 32hex.webp 形式ではありません`);
+        assert(charData.chars[f]?.hasImg, `character-images/${f} が characters.json の hasImg と対応していません (孤児ファイル)`);
+    }
+    for (const [id, c] of Object.entries(charData.chars)) {
+        if (c.hasImg) assert(files.includes(id), `hasImg の ${c.name} (${id}) の画像ファイルがありません`);
+    }
+    // シェアカード (SNS拡散面) に著作権表記が焼き込まれている
+    const sc = readFileSync(join(ROOT, 'js', 'sharecard.js'), 'utf8');
+    assert(sc.includes('© SHIFT UP CORP.'), 'sharecard.js に著作権表記がありません');
 });
 
 test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 08)', () => {

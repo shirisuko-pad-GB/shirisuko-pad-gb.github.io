@@ -14,9 +14,11 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
 1. **SLv補正テーブル (slv-ratio) は公開厳禁**。リポジトリ・サイト・Supabase の公開範囲に置かない。
    計算はサーバー側トリガのみ。seed は `scripts/gen-seed.mjs` が生成する gitignore 済みの
    `supabase/seed.local.sql` だけ (データのみ・関数は含めない)。詳細: README「SLv補正テーブルの秘匿」
-2. **ゲームアセット(画像)を置かない**。キャラ画像・属性アイコン・スクショ切り抜きは
-   NIKKE 二次創作ガイドラインの「ゲーム画像の複製・転載」に当たるため全廃済み。
-   キャラは自作タイル描画 (`js/tiles.js`)、属性アイコンは自作SVG。**復活させないこと**
+2. **キャラ画像は「削除対応前提」で掲載** (2026-07-31 運営判断 — README「権利方針」が正)。
+   公式に許諾照会済み (一次返信: 調査中)。指摘があれば `js/tiles.js` の
+   `USE_CHAR_IMAGES = false` で**サイト全体が即時に自作タイル表示へ戻る**構造を必ず維持する。
+   画像は build (`scripts/build-characters.mjs`) が本家からコピーし hasImg を付与 —
+   手で character-images/ に画像を足さない。属性アイコン等のUI用ゲームアセットは引き続き自作のみ
 3. **書き込みは RPC `submit_measurements` 一本**。テーブルへの匿名直接 INSERT/SELECT を許す
    ポリシーを追加しない。集計RPCの最終定義は `supabase/05_seasons.sql`、submit_measurements の
    最終定義は `supabase/07_sanitize_errors.sql` (関数を seed で上書きしない)。
