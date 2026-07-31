@@ -80,19 +80,24 @@ export async function buildShareCard(results, canvas /*, opts */) {
     const segW = W / barColors.length;
     barColors.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(i * segW, 0, segW + 1, 14); });
 
-    // 右上: ユニオンロゴ (宣伝枠)。カード情報と重ならない位置に固定
-    const logo = await loadLogo();
-    if (logo) {
-        const lw = 380;
-        const lh = Math.round(lw * logo.height / logo.width);
-        ctx.drawImage(logo, W - 70 - lw, 38, lw, lh);
-    }
-
-    // ブランド + タイトル + 注記
+    // 上段を1行の意味のある帯に: 左 = サイト名 / 右 = Developed by 推しりをすこれ部 (ロゴ)。
+    // ロゴはユニオン名入りのワードマークなので、文字は「Developed by」だけ添える
     ctx.textAlign = 'left';
     ctx.fillStyle = '#8A9097';
     ctx.font = `800 28px ${F}`;
     ctx.fillText('SHIRISUKO PAD GB', 70, 90);
+    const logo = await loadLogo();
+    if (logo) {
+        const lh = 56;
+        const lw = Math.round(lh * logo.width / logo.height);
+        const lx = W - 70 - lw;
+        ctx.drawImage(logo, lx, 90 - lh + 14, lw, lh);   // ブランド行とベースラインを揃える
+        ctx.fillStyle = '#8A9097';
+        ctx.font = `700 22px ${F}`;
+        ctx.textAlign = 'right';
+        ctx.fillText('Developed by', lx - 16, 84);
+        ctx.textAlign = 'left';
+    }
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `800 46px ${F}`;
     const title = multi ? `測定結果 (${results.length}凸)` : '測定結果';
