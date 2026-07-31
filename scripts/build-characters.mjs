@@ -57,7 +57,7 @@ for (const b of ['B1', 'B2', 'B3', 'BΛ']) {
 }
 
 const res = await fetch(
-    `${url}/rest/v1/nikke_characters?select=canonical_name,burst,burst_alt,icon_paths&order=canonical_name.asc`,
+    `${url}/rest/v1/nikke_characters?select=canonical_name,burst,burst_alt,icon_paths,is_confirmed,sighting_count&order=canonical_name.asc`,
     { headers: { apikey: key, Authorization: `Bearer ${key}` } });
 if (!res.ok) {
     console.error(`nikke_characters の取得に失敗: ${res.status} ${await res.text()}`);
@@ -74,6 +74,13 @@ const seenName = new Map();     // norm(name) → 代表ID (名前重複の検�
 
 for (const row of rows) {
     const name = row.canonical_name;
+    // OCRゴースト除外: 未確認 + 観測1回以下 + バースト/アイコン情報ゼロ の行は
+    // スクショ誤読の自動登録である可能性が高い (例: 2026-07-31 の「テラ:クリリ」)。
+    // 本家キャラ管理で確認済みにするか情報が付けば次のビルドから取り込まれる
+    if (!row.is_confirmed && (row.sighting_count ?? 0) <= 1 && !row.burst && !(row.icon_paths?.length)) {
+        console.warn(`⚠ OCRゴースト疑いでスキップ: ${name} (未確認・観測${row.sighting_count ?? 0}回) — 実在キャラなら本家キャラ管理で確認済みに`);
+        continue;
+    }
     const icons = (row.icon_paths || [])
         .map(p => String(p).match(/character-images\/([0-9a-f]{32}\.webp)$/)?.[1])
         .filter(Boolean)
