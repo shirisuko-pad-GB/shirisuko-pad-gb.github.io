@@ -65,6 +65,17 @@ if (!res.ok) {
 }
 const rows = await res.json();
 
+// 既存IDの引き継ぎ (sticky ID): 代表IDを icon_paths の並び変化に依存させない。
+// 本家DBの icon_paths は OCR学習や図鑑アイコン差し込みで随時変わるが、
+// 代表IDが変わると同一シーズン内の comp_key が分裂するため、既知キャラは前回のIDを維持する
+const prevIdByName = new Map();
+try {
+    const prev = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
+    if (prev._format === 2) {
+        for (const [pid, c] of Object.entries(prev.chars)) prevIdByName.set(norm(c.name), pid);
+    }
+} catch { /* 初回・破損時は新規採番 */ }
+
 const characters = {};          // 代表ID → {name, burst, burstAlt, element, hasImg}
 const aliases = {};             // 旧アイコンID → 代表ID
 const iconCandidates = new Map();   // 代表ID → PADにあるかもしれないアイコンファイル名の候補列
@@ -85,7 +96,7 @@ for (const row of rows) {
         .map(p => String(p).match(/character-images\/([0-9a-f]{32}\.webp)$/)?.[1])
         .filter(Boolean)
         .sort();
-    const id = icons[0] ?? `${md5(name)}.webp`;
+    const id = prevIdByName.get(norm(name)) ?? icons[0] ?? `${md5(name)}.webp`;
     if (seenName.has(norm(name))) {
         console.warn(`⚠ 名前重複 (本家DBの整理推奨): ${name} — 後勝ちで上書きせずスキップ`);
         continue;
@@ -95,7 +106,7 @@ for (const row of rows) {
     const element = elementOfName.get(norm(name)) ?? null;
     characters[id] = { name, burst, burstAlt: row.burst_alt ?? null, element };
     iconCandidates.set(id, icons);   // 画像コピー候補 (代表→変種の順)
-    for (const icon of icons.slice(1)) aliases[icon] = id;
+    for (const icon of icons) if (icon !== id) aliases[icon] = id;   // 代表以外は全て別名 (sticky ID 対応)
     if (!element) noElement.push(name);
     if (!burst) noBurst.push(name);
 }
