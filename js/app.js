@@ -676,7 +676,7 @@ function renderResults() {
                 ${results.map((r, ri) => `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${ratios[ri] != null ? `${Math.round(ratios[ri] * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
             </div>
             <p class="dist-note">${totalPct != null
-                ? `総合 ${totalPct}% = みんなの真ん中 (100%) と比べた${results.length}凸の総合力。ボスごとのダメージの通りやすさは各属性の中央値で補正済みです。`
+                ? `総合 ${totalPct}% = 各凸を「その属性のみんなの中央値 = 100%」と比べ、${results.length}凸を同じ重みで平均した到達度です (合計ダメージの比ではありません)。ボスの通りやすさは各属性の中央値で補正済み。`
                 : `※ 総合 (各凸の中央値比の平均) は、凸した全属性の分布が解禁されると表示されます`}</p>
         </section>`;
     }

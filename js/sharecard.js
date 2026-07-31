@@ -135,7 +135,7 @@ export async function buildShareCard(results, canvas /*, opts */) {
             drawBigPct(ctx, x0, 262 + bigSize + 8, totalPct, bigSize, CREAM, iw);
             ctx.fillStyle = '#8A9097';
             ctx.font = `700 19px ${F}`;
-            ctx.fillText('各凸の中央値比の平均', x0, 262 + bigSize + 44);
+            ctx.fillText('各凸の中央値比を同じ重みで平均', x0, 262 + bigSize + 44);
             ctx.fillStyle = '#A4AAB0';
             ctx.font = `700 22px ${F}`;
             ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 470);
