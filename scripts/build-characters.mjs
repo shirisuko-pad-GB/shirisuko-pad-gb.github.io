@@ -109,13 +109,32 @@ if (existsSync(overridePath)) {
 }
 
 // ---- キャラ画像のコピー (掲載方針 2026-07-31: 公式へ許諾照会済み・削除対応前提で掲載) ----
-// 代表IDの画像が本家に無ければ変種アイコンで代用し、GB側は常に <代表ID>.webp の名前で持つ。
-// 画像が1枚も無いキャラは hasImg なし → 表示は自作タイルに自動フォールバック (js/tiles.js)。
+// 優先順: ① BlablaLINK 図鑑アイコン (assets/blabla-icons/<resource_id>.webp × data/blabla-map.json —
+//          透過128px統一・全所持キャラ分) → ② 本家PADのOCR由来アイコン (フォールバック)。
+// GB側は常に <代表ID>.webp の名前で持つ。画像が無いキャラは hasImg なし → 自作タイル表示。
 // 掲載を取りやめる場合は tiles.js の USE_CHAR_IMAGES を false に (画像削除はこのディレクトリごと)。
 const imgDir = join(ROOT, 'character-images');
 mkdirSync(imgDir, { recursive: true });
-let copied = 0;
+// blabla-map: resource_id → 日本語名 (str | 配列) を norm名→ridファイル に反転
+const blablaByName = new Map();
+const blablaPath = join(ROOT, 'data', 'blabla-map.json');
+if (existsSync(blablaPath)) {
+    const bm = JSON.parse(readFileSync(blablaPath, 'utf8'));
+    for (const [rid, e] of Object.entries(bm.icons ?? {})) {
+        const f = join(ROOT, 'assets', 'blabla-icons', `${rid}.webp`);
+        if (!existsSync(f)) { console.warn(`⚠ blabla-map の rid=${rid} (${e.en}) の画像がありません`); continue; }
+        for (const jp of (Array.isArray(e.jp) ? e.jp : [e.jp])) blablaByName.set(norm(jp), f);
+    }
+}
+let copied = 0, fromBlabla = 0;
 for (const [id, cands] of iconCandidates) {
+    const bl = blablaByName.get(norm(characters[id].name));
+    if (bl) {
+        copyFileSync(bl, join(imgDir, id));
+        characters[id].hasImg = true;
+        copied++; fromBlabla++;
+        continue;
+    }
     const src = cands.find(f => existsSync(join(padDir, 'character-images', f)));
     if (src) {
         copyFileSync(join(padDir, 'character-images', src), join(imgDir, id));
@@ -134,7 +153,7 @@ if (copied === 0) {
         if (f.endsWith('.webp') && !characters[f]?.hasImg) { unlinkSync(join(imgDir, f)); removed++; }
     }
 }
-console.log(`character-images: ${copied}キャラ分コピー (画像なし=タイル表示: ${Object.keys(characters).length - copied}) 掃除: ${removed}件`);
+console.log(`character-images: ${copied}キャラ分コピー (BlablaLINK図鑑: ${fromBlabla} / 本家OCR: ${copied - fromBlabla} / 画像なし=タイル表示: ${Object.keys(characters).length - copied}) 掃除: ${removed}件`);
 
 writeFileSync(join(ROOT, 'data', 'characters.json'), JSON.stringify({
     _format: 2,

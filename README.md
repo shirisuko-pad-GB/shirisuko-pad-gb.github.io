@@ -106,6 +106,8 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `data/element-map.json` | キャラ名 → 属性 (手動メンテ。出典: game8 属性別キャラ一覧) — タイル背景色用 |
 | `data/burst-map.json` | 非常用フォールバック (バーストの正は本家DB。DBが null のときだけ参照) |
 | `data/name-overrides.json` | 本家DBに紐付かない旧アイコンID → キャラ名 (過去データ互換レイヤー) |
+| `data/blabla-map.json` | BlablaLINK図鑑アイコン (resource_id) → 日本語キャラ名の対応表 — 手動メンテ |
+| `assets/blabla-icons/` | BlablaLINK図鑑アイコンの原本 (`<resource_id>.webp`・透過128px・180枚) |
 | `data/site.json` | 運用設定: 連絡先X・ユニオン募集カード (tools/ops.html で編集支援) |
 | `stats.html` + `js/stats.js` | みんなのデータページ (分布・キャラ採用率・編成ランキング) |
 | `tools/ops.html` | 運営用サイト設定パネル (閲覧専用ワークベンチ — site.json を生成して GitHub で commit) |
@@ -135,8 +137,11 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 - 表示は `js/tiles.js` の**ハイブリッド**: 画像があるキャラは「顔画像 + バースト帯 + 名前オーバーレイ」、
   無いキャラは従来の自作文字タイル。**`USE_CHAR_IMAGES = false` にするだけでサイト全体
   (シェアカード含む) が即時に自作タイル表示へ戻る** — この撤去レバーは必ず維持する
-- 画像は `scripts/build-characters.mjs` が本家PADから代表IDごとに1枚コピーし
-  `characters.json` に hasImg を付与 (手動で character-images/ を触らない)
+- 画像ソースの優先順: ① **BlablaLINK (公式コンパニオンアプリ) 図鑑アイコン**
+  (`assets/blabla-icons/<resource_id>.webp` × `data/blabla-map.json` — 透過128px統一) →
+  ② 本家PADのOCR由来アイコン。`scripts/build-characters.mjs` が代表IDごとに1枚コピーし
+  `characters.json` に hasImg を付与 (手動で character-images/ を触らない)。
+  新キャラは「図鑑アイコンを assets/blabla-icons へ + blabla-map.json に resource_id→日本語名を追記」
 - **著作権表記**: サイト footer とシェアカード最下部に
   「キャラクター画像・名称: 勝利の女神：NIKKE © SHIFT UP CORP. / 非公式ファンコンテンツ」を明記
 - 属性アイコン等のUI用ゲームアセットは引き続き同梱しない (絵文字/自作のまま)。
