@@ -25,6 +25,12 @@ delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8
   自動登録行)。GB ビルドに除外フィルタを実装済み (未確認+観測≤1+情報ゼロはスキップ)。
   本家DBの行削除は任意 (設定→キャラ管理から。残っていてもGBには入らない)
 
+## 🧪 技術負債メモ (Codexレビュー 2026-08-01)
+
+- build-characters.mjs の取得ロジック (blabla優先/ゴースト除外/sticky ID/改名警告) に
+  回帰テストが無い (現テストは characters.json スナップショット整合のみ)。
+  DB fetch をモック注入できる形に切ってからテスト追加するのが筋 — 余裕のある時に
+
 ## 📍 引き継ぎメモ (2026-07-31 職場PC作業終了時点)
 
 - **現在地**: main = c94ab12・全コミット監査済み (Codex 併用)・CI green・デプロイ済み。

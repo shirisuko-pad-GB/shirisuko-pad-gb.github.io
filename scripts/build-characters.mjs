@@ -72,7 +72,12 @@ const prevIdByName = new Map();
 try {
     const prev = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
     if (prev._format === 2) {
-        for (const [pid, c] of Object.entries(prev.chars)) prevIdByName.set(norm(c.name), pid);
+        for (const [pid, c] of Object.entries(prev.chars)) {
+            // 意味的に壊れた前回ファイルを弾く: ID形式・名前の存在・ID重複 (Codex指摘)
+            if (!/^[0-9a-f]{32}\.webp$/.test(pid) || !c?.name) continue;
+            if ([...prevIdByName.values()].includes(pid)) { console.warn(`⚠ 前回IDが重複: ${pid} — 後発をスキップ`); continue; }
+            prevIdByName.set(norm(c.name), pid);
+        }
     }
 } catch { /* 初回・破損時は新規採番 */ }
 
@@ -111,6 +116,15 @@ for (const row of rows) {
     if (!burst) noBurst.push(name);
 }
 
+// 改名検知: 前回いた名前がマスタから消えた場合、旧代表IDが宙に浮き comp_key 互換が切れる。
+// 自動解決は不可能なので大声で警告し、data/name-overrides.json での手動紐付けに誘導する (Codex指摘)
+for (const [pn, pid] of prevIdByName) {
+    if (!seenName.has(pn)) {
+        console.warn(`⚠ 前回いたキャラがマスタから消えました: 「${pn}」 (旧ID ${pid})。` +
+            `改名なら name-overrides.json で旧ID→新名を紐付けないと過去編成の comp_key 互換が切れます`);
+    }
+}
+
 // 手動オーバーライド (本家DBに紐付かない旧画像ID → 名前)。既知キャラの別IDなら alias に。
 const overridePath = join(ROOT, 'data', 'name-overrides.json');
 if (existsSync(overridePath)) {
@@ -141,7 +155,11 @@ if (existsSync(blablaPath)) {
     for (const [rid, e] of Object.entries(bm.icons ?? {})) {
         const f = join(ROOT, 'assets', 'blabla-icons', `${rid}.webp`);
         if (!existsSync(f)) { console.warn(`⚠ blabla-map の rid=${rid} (${e.en}) の画像がありません`); continue; }
-        for (const jp of (Array.isArray(e.jp) ? e.jp : [e.jp])) blablaByName.set(norm(jp), f);
+        for (const jp of (Array.isArray(e.jp) ? e.jp : [e.jp])) {
+            if (!seenName.has(norm(jp))) { console.warn(`⚠ blabla-map の「${jp}」(rid=${rid}) はマスタに居ません — アイコン未反映`); continue; }
+            if (blablaByName.has(norm(jp))) console.warn(`⚠ blabla-map で「${jp}」が複数 rid に対応 — rid=${rid} で上書き`);
+            blablaByName.set(norm(jp), f);
+        }
     }
 }
 let copied = 0, fromBlabla = 0;
