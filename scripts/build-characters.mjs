@@ -123,10 +123,16 @@ for (const [id, cands] of iconCandidates) {
         copied++;
     }
 }
-// 参照されなくなった旧ファイルを掃除 (キャラ削除・代表ID変更への追従)
+// 参照されなくなった旧ファイルを掃除 (キャラ削除・代表ID変更への追従)。
+// ただし今回1枚もコピーできていない場合は異常 (API空応答・本家画像ディレクトリ欠け) なので
+// 掃除しない — 破壊的な全削除を防ぐ (掲載中の画像を巻き込まない安全弁)
 let removed = 0;
-for (const f of readdirSync(imgDir)) {
-    if (f.endsWith('.webp') && !characters[f]?.hasImg) { unlinkSync(join(imgDir, f)); removed++; }
+if (copied === 0) {
+    console.warn('⚠ 画像を1枚もコピーできませんでした → 掃除をスキップ (本家 character-images/ とAPI応答を確認)');
+} else {
+    for (const f of readdirSync(imgDir)) {
+        if (f.endsWith('.webp') && !characters[f]?.hasImg) { unlinkSync(join(imgDir, f)); removed++; }
+    }
 }
 console.log(`character-images: ${copied}キャラ分コピー (画像なし=タイル表示: ${Object.keys(characters).length - copied}) 掃除: ${removed}件`);
 

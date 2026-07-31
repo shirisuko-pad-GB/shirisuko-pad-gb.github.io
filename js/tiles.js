@@ -15,9 +15,15 @@ import { escapeHtml, ATTR_INFO } from './shared.js';
 // キャラ画像を使うか (削除要請時の即時撤去レバー — false で全面自作タイルに戻る)
 export const USE_CHAR_IMAGES = true;
 
-// 画像パス (代表IDのみ画像を持つ。hasImg は build-characters.mjs が付与)
+// キャラID = 画像ファイル名の許容形式 (build 生成の 32hex.webp のみ)。
+// characters.json は実行時 fetch なので、壊れた id が src/onerror に混入しないよう再検証する
+const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
+
+// 画像パス (代表IDのみ画像を持つ。hasImg は build-characters.mjs が付与)。
+// id が許容形式でなければ画像なし扱い = 自作タイルにフォールバック (XSS の入口を塞ぐ)
 export function charImgSrc(info) {
-    return (USE_CHAR_IMAGES && info?.hasImg) ? `./character-images/${info.id}` : null;
+    if (!USE_CHAR_IMAGES || !info?.hasImg || !CHAR_ID_RE.test(info.id ?? '')) return null;
+    return `./character-images/${info.id}`;
 }
 
 // バースト固有色 (ゲームのバーストスキル色に準拠: B1=緑 / B2=黄 / B3=赤)。Λ は紫。
@@ -102,7 +108,7 @@ export function tileHTML(info, { strip = true, xs = false } = {}) {
             `</span>`;
         return `<span class="gb-tile gb-tile--img${xs ? ' gb-tile--xs' : ''}" style="--tile-ac:${attr};" title="${title}">` +
             stripHtml +
-            `<img class="gb-tile-img" src="${src}" alt="${title}" loading="lazy">` +
+            `<img class="gb-tile-img" src="${escapeHtml(src)}" alt="${title}" loading="lazy">` +
             overlay +
             (known ? `<span class="gb-tile-dot" style="background:${attr};"></span>` : '') +
             `</span>`;

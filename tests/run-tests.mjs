@@ -234,9 +234,21 @@ console.log('tiles.js (自作キャラタイル):');
 test('tileHTML: キャラ名のXSSペイロードが無害化される', () => {
     const evil = { id: 'a'.repeat(32) + '.webp', name: '<img src=x onerror=alert(1)>：<script>', burst: 'B3', burstAlt: null, element: 'FIRE' };
     const html = tileHTML(evil);
-    assert(!html.includes('<img'), 'imgタグが素通りしています');
     assert(!html.includes('<script'), 'scriptタグが素通りしています');
     assert(html.includes('&lt;'), 'エスケープされていません');
+});
+
+test('tileHTML: 画像タイルは正規の32hex.webp のときだけ img を出す (id経由XSSガード)', () => {
+    // 正規 id + hasImg → 画像タイル
+    const ok = tileHTML({ id: 'a'.repeat(32) + '.webp', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
+    assert(/<img class="gb-tile-img" src="\.\/character-images\/a{32}\.webp"/.test(ok), '正規idで画像タイルが出ていない');
+    // 壊れた id (属性インジェクション狙い) + hasImg → 画像を出さず自作タイルに落ちる
+    const evilId = tileHTML({ id: 'x" onerror="alert(1)', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
+    assert(!evilId.includes('<img'), '不正idで img タグが出てはいけない');
+    assert(!evilId.includes('onerror'), 'onerror が素通りしています');
+    // hasImg なし → 画像を出さない
+    assert(!tileHTML({ id: 'a'.repeat(32) + '.webp', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE' }).includes('<img'),
+        'hasImg なしで画像タイルになっている');
 });
 
 test('tileHTML: 未知キャラ・属性未分類はグレーの安全表示', () => {
@@ -359,9 +371,15 @@ test('キャラ画像の掲載方針 (2026-07-31 削除対応前提) の整合�
     for (const [id, c] of Object.entries(charData.chars)) {
         if (c.hasImg) assert(files.includes(id), `hasImg の ${c.name} (${id}) の画像ファイルがありません`);
     }
-    // シェアカード (SNS拡散面) に著作権表記が焼き込まれている
+    // 著作権 + 削除対応の表記: シェアカード (SNS拡散面) と 両ページの footer に焼き込まれている
     const sc = readFileSync(join(ROOT, 'js', 'sharecard.js'), 'utf8');
     assert(sc.includes('© SHIFT UP CORP.'), 'sharecard.js に著作権表記がありません');
+    assert(/削除対応|削除・修正/.test(sc), 'sharecard.js に削除対応の明記がありません');
+    for (const page of ['index.html', 'stats.html']) {
+        const h = readFileSync(join(ROOT, page), 'utf8');
+        assert(h.includes('© SHIFT UP CORP.'), `${page} の footer に著作権表記がありません`);
+        assert(/削除・修正|速やかに削除/.test(h), `${page} に削除対応の明記がありません`);
+    }
 });
 
 test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 08)', () => {
