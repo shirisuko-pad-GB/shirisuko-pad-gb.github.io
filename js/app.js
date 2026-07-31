@@ -748,6 +748,22 @@ function resultCardHTML(r, i, multi) {
 function distSectionHTML(r, info) {
     const d = r.dist;
     let html = '';
+    // 編成内% — シェアカードと同じ序列 (編成タイル直下・分布の上) と同じ格 (数字を主役に)。
+    // 属性%が「編成を問わない到達度」、こちらが「同じ5人 (並び不問) 同士の公平比較」
+    if (r.characters && r.compDist) {
+        const cd = r.compDist;
+        const cratio = ratioAgainst(cd, r.score);
+        if (cratio != null) {
+            html += `
+            <div class="comp-pct">
+                <span class="lbl">編成内</span>
+                <span class="val">${Math.round(cratio * 100)}<small>%</small></span>
+                <span class="lbl">同じ編成 ${cd.n}人の中央値 = 100%</span>
+            </div>`;
+        } else {
+            html += `<div class="comp-pct gated">🧩 編成内%は同じ編成 ${cd.need ?? THRESHOLDS.comp}人で解禁 (現在 ${cd.n}人)</div>`;
+        }
+    }
     const distReady = !d.gated && Array.isArray(d.bins);
     if (!distReady) {
         // 解禁前: 進捗を見せて送信を促す (必要人数はサーバーの need を優先)
@@ -769,16 +785,6 @@ function distSectionHTML(r, info) {
         <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
         <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。色の違うバーがあなたの位置。
             真ん中の人 (=100%) はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
-    }
-    // 同一編成 (サーバー閾値未満は gated)。こちらも中央値比 (単一源泉 ratioAgainst) で返す
-    if (r.characters && r.compDist) {
-        const cd = r.compDist;
-        const cratio = ratioAgainst(cd, r.score);
-        if (cratio != null) {
-            html += `<div class="comp-pos">🧩 同じ編成 ${cd.n}人の中央値と比べて <strong>${Math.round(cratio * 100)}%</strong> です</div>`;
-        } else {
-            html += `<div class="comp-pos">🧩 同じ編成の提出は ${cd.n}人 (${cd.need ?? THRESHOLDS.comp}人で編成内比較が解禁)</div>`;
-        }
     }
     return html;
 }
