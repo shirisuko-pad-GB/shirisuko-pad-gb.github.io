@@ -84,6 +84,14 @@ async function init() {
     renderRecallBanner();   // 前回測定があれば「最新の分布を見る」を出す
     applySiteConf();        // ユニオン募集カード + 連絡先X (data/site.json)
     setTimeout(preloadLoadingGif, 2000);   // 送信前にキャッシュされるよう裏で読んでおく
+    registerServiceWorker();               // ホーム画面に置けるように (PWA)
+}
+
+// Service Worker 登録 (PWA インストール用)。失敗しても機能は落ちないので静かに無視する。
+// SW はアセット (画像) しかキャッシュしない — HTML/JS/data は常に最新を取りに行く設計
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW登録失敗:', e));
 }
 
 // data/site.json (運用設定): 募集カードの出し入れと連絡先Xの埋め込み。

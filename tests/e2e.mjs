@@ -13,7 +13,8 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -23,6 +24,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8931;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
     '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon', '.css': 'text/css' };
+
+// E2E の測定票が実行のたびに増えないよう、端末IDを固定する。
+// IDは公開しない (公開すると第三者が名乗って集計を汚せる — base-vote と同じ理由)
+const idPath = join(ROOT, 'tests', 'e2e-client-id.local');
+let E2E_CLIENT_ID = existsSync(idPath) ? readFileSync(idPath, 'utf8').trim() : '';
+// 壊れた/不正な内容はハーネスHTMLへの注入経路になるので採用しない (Codex指摘)
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(E2E_CLIENT_ID)) {
+    E2E_CLIENT_ID = randomUUID();
+    writeFileSync(idPath, E2E_CLIENT_ID + '\n', 'utf8');
+}
 
 const HARNESS_HTML = `<!DOCTYPE html><meta charset="utf-8">
 <iframe id="f" src="/index.html" style="width:375px;height:2400px;border:0"></iframe>
@@ -35,8 +46,9 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
   const reload = () => new Promise(res => { f.onload = () => res(); f.contentWindow.location.reload(); });
   try {
     await wait(1800);
-    // 冪等化: 前回実行の保存結果を消す (client_id は残す → 本番の集計票を増やさない)。
+    // 冪等化: 前回結果を消し、端末IDを固定値に (実行のたびに新しい票が増えるのを防ぐ)
     f.contentWindow.localStorage.removeItem('spg_last_result');
+    f.contentWindow.localStorage.setItem('spg_client_id', '__E2E_CLIENT_ID__');
     await reload(); await wait(2000);
     let fw = f.contentWindow, fd = fw.document;
     check('横オーバーフローなし (375px)', fd.documentElement.scrollWidth <= 375);
@@ -56,11 +68,14 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       // SLv入力ゲート: 未入力の間は凸カードが出ず、ガイドカードが出る
       check('SLv未入力ゲート表示', !!fd.querySelector('.slv-gate') && fd.querySelectorAll('.atk-card').length === 0);
       const set = (el, v) => { el.value = v; el.dispatchEvent(new fw.Event('input', { bubbles: true })); };
-      set(fd.getElementById('slv'), 544);
+      // 基準値はシーズンで変わるので base.json から取る (ハードコードすると切替のたびに落ちる)
+      const baseJson = await (await fetch('/data/base.json')).json();
+      const baseFire = baseJson.bases.FIRE.damage / 1e9;
+      set(fd.getElementById('slv'), baseJson.baseSlv);
       check('属性ボタン5個 (SLv入力後に出現)', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
       fd.querySelectorAll('.atk-card')[0].querySelector('[data-attr="FIRE"]').click();
       await wait(250);
-      set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), '13.18');
+      set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), String(baseFire));
       await wait(150);
       check('送信ボタン有効化', fd.getElementById('submitBtn').disabled === false);
       fd.getElementById('submitBtn').click();
@@ -112,7 +127,10 @@ const server = createServer(async (req, res) => {
         req.on('end', () => { res.end('ok'); try { resolveResult(JSON.parse(body)); } catch { resolveResult(null); } });
         return;
     }
-    if (url === '/__harness__') { res.setHeader('content-type', 'text/html'); return res.end(HARNESS_HTML); }
+    if (url === '/__harness__') {
+        res.setHeader('content-type', 'text/html');
+        return res.end(HARNESS_HTML.replace('__E2E_CLIENT_ID__', E2E_CLIENT_ID));
+    }
     try {
         const p = join(ROOT, decodeURIComponent(url));
         if (!p.startsWith(ROOT) || !existsSync(p)) { res.statusCode = 404; return res.end('not found'); }
@@ -145,11 +163,12 @@ async function probeErrorLeak() {
         const key = src.match(/sb_publishable_[A-Za-z0-9_-]+/)?.[0];
         if (!url || !key) return { name, skip: true };
         const season = JSON.parse(await readFile(join(ROOT, 'data', 'raid.json'), 'utf8')).season;
+        const baseSlv = JSON.parse(await readFile(join(ROOT, 'data', 'base.json'), 'utf8')).baseSlv;
         const res = await fetch(`${url}/rest/v1/rpc/submit_measurements`, {
             method: 'POST',
             headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ p_rows: [{ attribute: 'FIRE', slv: 544, damage: 5e12, season,
-                characters: null, client_id: '00000000-0000-4000-8000-0000000e2e01', set_id: null, set_slot: null }] }),
+            body: JSON.stringify({ p_rows: [{ attribute: 'FIRE', slv: baseSlv, damage: 5e12, season,
+                characters: null, client_id: E2E_CLIENT_ID, set_id: null, set_slot: null }] }),
             signal: AbortSignal.timeout(15000),
         });
         const text = await res.text();
