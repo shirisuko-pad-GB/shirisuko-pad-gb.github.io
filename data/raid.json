@@ -4,19 +4,19 @@
     "season: base.json の version と一致させること。order: 属性パネルの表示順 (ボスの並び)。",
     "bosses: PT属性 → そのPTで殴る相手ボスの名前。"
   ],
-  "season": "2026-07",
+  "season": "2026-08",
   "order": [
-    "WATER",
-    "IRON",
     "ELECTRIC",
     "FIRE",
-    "WIND"
+    "WATER",
+    "WIND",
+    "IRON"
   ],
   "bosses": {
-    "WATER": "ドリアン",
-    "IRON": "ドクター",
-    "ELECTRIC": "アルトアイゼン",
-    "FIRE": "リビルドオベリスク",
-    "WIND": "クラーケン"
+    "ELECTRIC": "サンバス",
+    "FIRE": "プレート",
+    "WATER": "トーカティブ",
+    "WIND": "リビルドフィンガーズ",
+    "IRON": "マテリアルH"
   }
 }

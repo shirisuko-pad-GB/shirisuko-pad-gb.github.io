@@ -1,22 +1,26 @@
 {
-  "_readme": [
-    "本家 nikke_characters の icon_paths に紐付いていない旧アイコンID → キャラ名 の手動対応表。",
-    "build-characters.mjs が既知キャラの別名ID (aliases) として取り込む",
-    "(過去シーズンの編成データを名前解決するための互換レイヤー。新規追加は基本不要)。",
-    "名前は本家の canonical_name と一致させること。"
-  ],
-  "1675c806cc8f0bb7244a0d19b136d7e5.webp": "ペッパー",
-  "1ab318713febb51ec0a59ecdf74d5961.webp": "ロザンナ",
-  "29e8ef4e2d542947f8220ddf46aa38ef.webp": "メアリー:ベイゴッデス",
-  "310676eef79617f285bc8b7455406cc1.webp": "ルドミラ:ウィンターオーナー",
-  "42d9a7d53ad7c3871087d0f972f12ff9.webp": "式波・アスカ・ラングレー",
-  "48e2d0b41848d524f651eee9e81b44da.webp": "グレイブ",
-  "75cd454109aa4e98bba1ce0c26354234.webp": "マクスウェル",
-  "8ce431b15458c35f7382e7d7d9d213b7.webp": "ギロチン",
-  "a7454375ef26de7ab36031151ab2fe35.webp": "ミハラ",
-  "af2657ff5ffb44f70ed2db8d5de8985a.webp": "エクシア",
-  "d96d3a6d5c55ef7dd76f83181da11869.webp": "メアリー",
-  "e4bc33b9c6f01f42e9b1ee8ddbabacb5.webp": "錦木千束",
-  "ea134d0cd6c02ed9d3a02cec91d87dbd.webp": "ボリューム",
-  "f4d49f875b1e112f42c2daf410aa7aac.webp": "イサベル"
+ "_readme": [
+  "本家 nikke_characters の icon_paths に紐付いていない旧アイコンID → キャラ名 の手動対応表。",
+  "build-characters.mjs が既知キャラの別名ID (aliases) として取り込む",
+  "(過去シーズンの編成データを名前解決するための互換レイヤー。新規追加は基本不要)。",
+  "名前は本家の canonical_name と一致させること。"
+ ],
+ "1675c806cc8f0bb7244a0d19b136d7e5.webp": "ペッパー",
+ "1ab318713febb51ec0a59ecdf74d5961.webp": "ロザンナ",
+ "29e8ef4e2d542947f8220ddf46aa38ef.webp": "メアリー:ベイゴッデス",
+ "310676eef79617f285bc8b7455406cc1.webp": "ルドミラ:ウィンターオーナー",
+ "42d9a7d53ad7c3871087d0f972f12ff9.webp": "式波・アスカ・ラングレー",
+ "48e2d0b41848d524f651eee9e81b44da.webp": "グレイブ",
+ "75cd454109aa4e98bba1ce0c26354234.webp": "マクスウェル：オーディナリーメカニック",
+ "8ce431b15458c35f7382e7d7d9d213b7.webp": "ギロチン",
+ "a7454375ef26de7ab36031151ab2fe35.webp": "ミハラ",
+ "af2657ff5ffb44f70ed2db8d5de8985a.webp": "エクシア",
+ "d96d3a6d5c55ef7dd76f83181da11869.webp": "メアリー",
+ "e4bc33b9c6f01f42e9b1ee8ddbabacb5.webp": "錦木千束",
+ "ea134d0cd6c02ed9d3a02cec91d87dbd.webp": "ボリューム",
+ "f4d49f875b1e112f42c2daf410aa7aac.webp": "イサベル",
+ "_readme_alias_names": "下の _name_aliases は本家DBの表記ゆれ重複行を正式名へ寄せる (画像IDではなく名前の別名)",
+ "_name_aliases": {
+  "マクスウェルオーディナリー": "マクスウェル：オーディナリーメカニック"
+ }
 }

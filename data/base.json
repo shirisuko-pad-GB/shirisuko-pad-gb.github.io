@@ -1,32 +1,32 @@
 {
-  "version": "2026-07",
+  "version": "2026-08",
   "description": "ふるり値の基準データ (scripts/new-season.mjs の生成物)。基準者(ふるり)の属性別ダメージ @ 基準SLv。模擬登録がある属性は模擬値を採用",
   "basePlayer": "ふるり",
-  "baseSlv": 544,
+  "baseSlv": 558,
   "bases": {
-    "WATER": {
-      "bossCode": "H.S.T.A.",
-      "damage": 15520000000,
-      "source": "simulation"
-    },
-    "IRON": {
-      "bossCode": "Z.E.U.S.",
-      "damage": 16740000000,
-      "source": "simulation"
-    },
     "ELECTRIC": {
       "bossCode": "P.S.I.D.",
-      "damage": 18990000000,
+      "damage": 20029000000,
       "source": "simulation"
     },
     "FIRE": {
       "bossCode": "A.N.M.I.",
-      "damage": 13181319006,
-      "source": "actual"
+      "damage": 13660000000,
+      "source": "simulation"
+    },
+    "WATER": {
+      "bossCode": "H.S.T.A.",
+      "damage": 14340000000,
+      "source": "simulation"
     },
     "WIND": {
       "bossCode": "D.M.T.R.",
-      "damage": 14730000000,
+      "damage": 17670000000,
+      "source": "simulation"
+    },
+    "IRON": {
+      "bossCode": "Z.E.U.S.",
+      "damage": 19250000000,
       "source": "simulation"
     }
   }

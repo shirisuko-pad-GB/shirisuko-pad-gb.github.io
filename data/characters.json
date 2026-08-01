@@ -937,18 +937,12 @@
    "burstAlt": null,
    "element": "WATER"
   },
-  "a5c70b677371c1769e79a9bf47232734.webp": {
-   "name": "マクスウェル",
-   "burst": "B3",
-   "burstAlt": null,
-   "element": "IRON",
-   "hasImg": true
-  },
   "3d94199d6b4105c60db3324d34d63273.webp": {
    "name": "マクスウェル：オーディナリーメカニック",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "99737a30cba00f176d679d76cf6a43f1.webp": {
    "name": "マスト",
@@ -1510,7 +1504,6 @@
   "6f0020371a1c110d6583c98a15947b39.webp": "b3d85160f40d5914217e8b17c0d5d454.webp",
   "42ea2d2663fa25524d7fd2d75b8bde78.webp": "be513be1e96b2958420408845e682117.webp",
   "dcc826b8a5b98f007790a934e01323f6.webp": "a7a911b23d0b6ccbf775b1dd07ee46f6.webp",
-  "436047daf7f8f4f5eec73b6e17dc6891.webp": "a5c70b677371c1769e79a9bf47232734.webp",
   "0591a627cb5e66afd8c633ed538c54e9.webp": "99737a30cba00f176d679d76cf6a43f1.webp",
   "47a643f136e656fc17bf620c58aa772d.webp": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
   "ce3b833cd35960c9bf06fce4351e8812.webp": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
@@ -1589,7 +1582,7 @@
   "310676eef79617f285bc8b7455406cc1.webp": "621008d892598aa5ba1fb3ecdeff95be.webp",
   "42d9a7d53ad7c3871087d0f972f12ff9.webp": "cdb92e5e9f92780dda2fcba1f02744f4.webp",
   "48e2d0b41848d524f651eee9e81b44da.webp": "63d53b92567aba6aeb1368a2c6c5e420.webp",
-  "75cd454109aa4e98bba1ce0c26354234.webp": "a5c70b677371c1769e79a9bf47232734.webp",
+  "75cd454109aa4e98bba1ce0c26354234.webp": "3d94199d6b4105c60db3324d34d63273.webp",
   "8ce431b15458c35f7382e7d7d9d213b7.webp": "c6f747fdea1aa4d105061de5c68d2162.webp",
   "a7454375ef26de7ab36031151ab2fe35.webp": "8a12c722fa52bcc3cec19ea6eea31d2f.webp",
   "af2657ff5ffb44f70ed2db8d5de8985a.webp": "9d9abf5bd1cc5da1473d20ea47190c11.webp",

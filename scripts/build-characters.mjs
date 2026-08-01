@@ -88,13 +88,20 @@ const noElement = [];
 const noBurst = [];
 const seenName = new Map();     // norm(name) → 代表ID (名前重複の検出)
 
+// 本家DBの表記ゆれ重複を正式名へ寄せる (data/name-overrides.json の _name_aliases)
+const nameAliases = new Map();
+try {
+    const ov = JSON.parse(readFileSync(join(ROOT, 'data', 'name-overrides.json'), 'utf8'));
+    for (const [from, to] of Object.entries(ov._name_aliases ?? {})) nameAliases.set(norm(from), to);
+} catch { /* 無ければ素通し */ }
+
 for (const row of rows) {
-    const name = row.canonical_name;
-    // OCRゴースト除外: 未確認 + 観測1回以下 + バースト/アイコン情報ゼロ の行は
-    // スクショ誤読の自動登録である可能性が高い (例: 2026-07-31 の「テラ:クリリ」)。
-    // 本家キャラ管理で確認済みにするか情報が付けば次のビルドから取り込まれる
-    if (!row.is_confirmed && (row.sighting_count ?? 0) <= 1 && !row.burst && !(row.icon_paths?.length)) {
-        console.warn(`⚠ OCRゴースト疑いでスキップ: ${name} (未確認・観測${row.sighting_count ?? 0}回) — 実在キャラなら本家キャラ管理で確認済みに`);
+    const name = nameAliases.get(norm(row.canonical_name)) ?? row.canonical_name;
+    // OCRゴースト除外: 未確認 (is_confirmed=false) かつ バースト・アイコン情報がゼロ の行は
+    // スクショ誤読の自動登録とみなす (例: 2026-07-31 の「テラ:クリリ」— 誤読は再発して観測数が
+    // 伸びるので回数では判別できない)。本家キャラ管理で確認済みにするか情報が付けば取り込まれる
+    if (!row.is_confirmed && !row.burst && !(row.icon_paths?.length)) {
+        console.warn(`⚠ OCRゴースト疑いでスキップ: ${name} (未確認・観測${row.sighting_count ?? 0}回・バースト/アイコン情報なし) — 実在キャラなら本家キャラ管理で確認済みに`);
         continue;
     }
     const icons = (row.icon_paths || [])

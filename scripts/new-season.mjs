@@ -152,7 +152,7 @@ try {
     console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
 
     console.log('--- gen-seed (seed.local.sql 生成) ---');
-    execFileSync(process.execPath, [join(ROOT, 'scripts', 'gen-seed.mjs')], { stdio: 'inherit' });
+    execFileSync(process.execPath, [join(ROOT, 'scripts', 'gen-seed.mjs'), join(padDir, 'data', 'slv-ratio.json')], { stdio: 'inherit' });   // 本家パスを引き継ぐ (フォルダ名が既定と違う環境対応)
     console.log('--- update-roster (キャラ・使用率の更新) ---');
     execFileSync(process.execPath, [join(ROOT, 'scripts', 'update-roster.mjs'), padDir], { stdio: 'inherit' });
 } catch (e) {
