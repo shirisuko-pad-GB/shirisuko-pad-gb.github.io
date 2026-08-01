@@ -1356,6 +1356,13 @@
    "burstAlt": null,
    "element": "IRON",
    "hasImg": true
+  },
+  "97a6f2563228cf8ad68238ca9efe6a0f.webp": {
+   "name": "マクスウェル",
+   "burst": "B3",
+   "burstAlt": null,
+   "element": "IRON",
+   "hasImg": true
   }
  },
  "aliases": {
@@ -1581,6 +1588,7 @@
   "310676eef79617f285bc8b7455406cc1.webp": "621008d892598aa5ba1fb3ecdeff95be.webp",
   "42d9a7d53ad7c3871087d0f972f12ff9.webp": "cdb92e5e9f92780dda2fcba1f02744f4.webp",
   "48e2d0b41848d524f651eee9e81b44da.webp": "63d53b92567aba6aeb1368a2c6c5e420.webp",
+  "75cd454109aa4e98bba1ce0c26354234.webp": "97a6f2563228cf8ad68238ca9efe6a0f.webp",
   "8ce431b15458c35f7382e7d7d9d213b7.webp": "c6f747fdea1aa4d105061de5c68d2162.webp",
   "a7454375ef26de7ab36031151ab2fe35.webp": "8a12c722fa52bcc3cec19ea6eea31d2f.webp",
   "af2657ff5ffb44f70ed2db8d5de8985a.webp": "9d9abf5bd1cc5da1473d20ea47190c11.webp",

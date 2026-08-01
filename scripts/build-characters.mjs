@@ -87,6 +87,7 @@ const iconCandidates = new Map();   // 代表ID → PADにあるかもしれな�
 const noElement = [];
 const noBurst = [];
 const seenName = new Map();     // norm(name) → 代表ID (名前重複の検出)
+const ghostNames = new Set();   // OCRゴーストとしてスキップした名前 (補完対象から外す)
 
 // 本家DBの表記ゆれ重複を正式名へ寄せる (data/name-overrides.json の _name_aliases)
 const nameAliases = new Map();
@@ -101,6 +102,7 @@ for (const row of rows) {
     // スクショ誤読の自動登録とみなす (例: 2026-07-31 の「テラ:クリリ」— 誤読は再発して観測数が
     // 伸びるので回数では判別できない)。本家キャラ管理で確認済みにするか情報が付けば取り込まれる
     if (!row.is_confirmed && !row.burst && !(row.icon_paths?.length)) {
+        ghostNames.add(norm(name));
         console.warn(`⚠ OCRゴースト疑いでスキップ: ${name} (未確認・観測${row.sighting_count ?? 0}回・バースト/アイコン情報なし) — 実在キャラなら本家キャラ管理で確認済みに`);
         continue;
     }
@@ -154,8 +156,26 @@ if (existsSync(overridePath)) {
         if (canonId) {
             aliases[img] = canonId;
             iconCandidates.get(canonId)?.push(img);   // 手動紐付けの旧画像もコピー候補に
+            continue;
         }
-        else console.warn(`⚠ name-overrides の「${name}」は本家DBに存在しません (削除推奨)`);
+        // 本家DBに行が無いキャラ (例: 誰も使っていない通常マクスウェル)。
+        // 過去に送信された編成がこのIDを持っていると「？」タイルになるため、
+        // 名前だけの最小エントリを作って名前解決だけは通す (画像なし=自作タイル表示)。
+        if (!ghostNames.has(norm(name))) {
+            const stubId = `${md5(name)}.webp`;
+            if (!characters[stubId]) {
+                characters[stubId] = {
+                    name,
+                    burst: fallbackBurst.get(norm(name)) ?? null,
+                    burstAlt: null,
+                    element: elementOfName.get(norm(name)) ?? null,
+                };
+                seenName.set(norm(name), stubId);
+                iconCandidates.set(stubId, []);   // 図鑑アイコンのコピー対象に含める
+                console.warn(`ℹ 本家DB未登録のため name-overrides から補完: ${name} (過去編成の名前解決用)`);
+            }
+            if (stubId !== img) aliases[img] = stubId;
+        }
     }
 }
 
