@@ -81,6 +81,7 @@ async function init() {
     $('submitBtn').addEventListener('click', onSubmit);
     $('shareBtn').addEventListener('click', onShare);
     $('saveBtn').addEventListener('click', onSave);
+    renderSlvNote();
     renderAttacks();
     updateSubmitState();
     applyMode();            // open 以外は測定UIを隠して告知を出す
@@ -320,19 +321,36 @@ function stepSlv(d) {
     const el = $('slv');
     const v = parseInt(el.value);
     if (Number.isNaN(v) && d < 0) return;   // 空欄で「−」はゲート解除しない (Codex指摘)
-    el.value = Math.max(1, Math.min(1000, (Number.isNaN(v) ? 0 : v) + d));
+    el.value = Math.max(1, Math.min(SLV_MAX, (Number.isNaN(v) ? 0 : v) + d));
     onSlvChanged();
 }
 
-const slvValid = () => { const v = parseInt($('slv').value); return v >= 1 && v <= 1000; };
+// 対応SLvの上限。SLv補正テーブル (めいでん+ふるりの実測) が 1〜1000 までのため。
+// ⚠ 1000超に対応するときは、この定数・input[max]・サーバー側 (01_schema の CHECK と
+//    slv_ratio の行) を揃えて広げること
+const SLV_MAX = 1000;
+const slvOf = () => parseInt($('slv').value);
+const slvValid = () => { const v = slvOf(); return v >= 1 && v <= SLV_MAX; };
+const slvOver = () => slvOf() > SLV_MAX;   // 上限超 (未入力と区別して案内するため)
 
 // SLv の入力状態が変わったら、凸入力の出し入れを判定してから状態更新
 // (「測定が押せない」の原因第1位が SLv 未入力だったため、SLv を入れるまで凸カードを出さない)
 let slvWasValid = null;
 function onSlvChanged() {
     const ok = slvValid();
+    renderSlvNote();
     if (ok !== slvWasValid) { slvWasValid = ok; renderAttacks(); }
     else updateSubmitState();
+}
+
+// SLv 欄の直下の注記。上限超のときだけ理由を出す (入力中に気づけるように)
+function renderSlvNote() {
+    const el = $('slvNote');
+    if (!el) return;
+    el.textContent = slvOver()
+        ? `🙏 現在は SLv ${SLV_MAX} まで対応しています (補正データを検証中です)`
+        : '';
+    el.style.color = slvOver() ? 'var(--warn)' : '';
 }
 
 function updateSubmitState() {
@@ -347,7 +365,12 @@ function renderAttacks() {
     const area = $('attacksArea');
     if (!slvValid()) {
         // STEP1 が済むまで凸入力は出さない (ガイドだけ表示)
-        area.innerHTML = `
+        area.innerHTML = slvOver() ? `
+        <section class="card slv-gate">
+            <p class="slv-gate-txt">🙏 <strong>SLv ${SLV_MAX} を超える方はもう少しお待ちください</strong><br>
+            現在の SLv 補正データが <strong>SLv ${SLV_MAX} まで</strong>のため、それより上は正確に測れません。
+            超上位帯の補正値を検証中で、揃い次第対応します。</p>
+        </section>` : `
         <section class="card slv-gate">
             <p class="slv-gate-txt">⬆️ まず <strong>STEP 1 の SLv (シンクロレベル)</strong> を入力してください。<br>
             入力すると凸の入力があらわれます。</p>
@@ -692,7 +715,7 @@ async function onSubmit() {
         damage: parseDamageInput(a.damage),
         characters: selChars(a).length === 5 ? selChars(a).sort() : null,
     }));
-    if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !(slv >= 1 && slv <= 1000)) {
+    if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !(slv >= 1 && slv <= SLV_MAX)) {
         toast('入力内容を確認してください');
         return;
     }
