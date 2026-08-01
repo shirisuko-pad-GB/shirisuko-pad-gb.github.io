@@ -41,3 +41,49 @@ export function sanitizeCharacters(chars) {
     if (!chars.every(c => typeof c === 'string' && CHAR_IMG_RE.test(c))) return null;
     return chars;
 }
+
+// 引っぱって更新 (Pull to Refresh)。ホーム画面から起動した PWA (standalone) には
+// ブラウザの再読み込みボタンが無く、iOS Safari の standalone は既定のPTRも効かないため自前で用意する。
+// 発動条件: ページ最上部 (scrollY<=0) から下方向に 70px 以上引く + 縦方向の動き優先。
+// 送信中 (オーバーレイ表示中) は誤発動させない
+export function enablePullToRefresh() {
+    const el = document.getElementById('ptr');
+    if (!el) return;
+    let startY = null, startX = 0, pulling = false, dy = 0;
+    const MAX = 96, TRIGGER = 70;
+    const reset = () => { el.style.transform = ''; el.classList.remove('ready', 'on'); pulling = false; startY = null; dy = 0; };
+
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        if (document.getElementById('loadingOverlay')?.style.display === 'flex') return;   // 送信中は無効
+        if (window.scrollY > 0) return;
+        startY = e.touches[0].clientY;
+        startX = e.touches[0].clientX;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (startY == null) return;
+        const t = e.touches[0];
+        const d = t.clientY - startY;
+        // 横スワイプ (画像の横送り等) と取り違えない
+        if (!pulling && Math.abs(t.clientX - startX) > Math.abs(d)) { startY = null; return; }
+        if (d <= 0 || window.scrollY > 0) { if (pulling) reset(); return; }
+        pulling = true;
+        dy = Math.min(MAX, d * 0.5);   // 引く量は減衰させる (ゴムの手触り)
+        el.classList.add('on');
+        el.style.transform = `translateY(${dy}px)`;
+        el.classList.toggle('ready', dy >= TRIGGER * 0.5);
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        if (!pulling) { startY = null; return; }
+        const fire = dy >= TRIGGER * 0.5;
+        if (fire) {
+            el.classList.add('ready');
+            el.textContent = '更新中…';
+            location.reload();
+            return;   // reload するので状態は戻さない
+        }
+        reset();
+    }, { passive: true });
+}

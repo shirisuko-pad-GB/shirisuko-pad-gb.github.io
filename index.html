@@ -424,7 +424,10 @@
         .partner-row:first-of-type { border-top: none; padding-top: 2px; }
         .partner-name { font-size: 13px; font-weight: 800; }
         .partner-note { font-size: 11.5px; color: var(--sub); margin: 2px 0 10px; }
-        .partner-banner { width: 100%; height: auto; display: block; border-radius: 14px; margin-bottom: 10px; border: 1px solid var(--line); }
+        .partner-link { display: block; text-decoration: none; margin-bottom: 10px; }
+        .partner-link:active .partner-banner { transform: scale(0.985); }
+        .partner-banner { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--line); transition: transform 0.12s; }
+        .partner-tap { display: block; font-size: 11px; font-weight: 800; color: var(--sub); text-align: center; margin-top: 6px; }
         .partner-host { font-size: 10.5px; color: var(--faint); margin-top: 2px; }
         .partner-btn {
             display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px;
@@ -454,6 +457,17 @@
         footer { text-align: center; padding: 20px 0 8px; font-size: 10.5px; color: var(--faint); line-height: 1.7; }
         footer a { color: var(--sub2); }
 
+        /* 引っぱって更新 (PWA standalone にはブラウザの更新ボタンが無いため) */
+        .ptr {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+            text-align: center; padding: 10px 0; font-size: 12px; font-weight: 800;
+            color: var(--sub); background: var(--card); border-bottom: 1px solid var(--line);
+            transform: translateY(-100%); opacity: 0; pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .ptr.on { opacity: 1; }
+        .ptr.ready { color: var(--ink); }
+
         .toast {
             position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
             transform: translateX(-50%); background: var(--ink); color: var(--onink);
@@ -481,6 +495,7 @@
     </style>
 </head>
 <body>
+<div class="ptr" id="ptr">↓ 引っぱって更新</div>
 <div class="wrap">
     <header>
         <div class="brand-dot">📊</div>

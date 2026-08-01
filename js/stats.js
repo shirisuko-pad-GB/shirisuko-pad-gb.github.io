@@ -1,6 +1,6 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured } from './backend.js';
-import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO } from './shared.js';
+import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO, enablePullToRefresh } from './shared.js';
 import { makeCharResolver, tileHTML, sortForDisplay } from './tiles.js';
 
 let infoOf = () => null;
@@ -42,6 +42,7 @@ async function init() {
         if (el) el.insertAdjacentHTML('beforeend',
             `<p class="hint" style="margin-top:6px;color:var(--sub2);">${status === 'between' ? '⏳ 次シーズン準備中' : '🚧 工事中'} — 表示中: ${escapeHtml(viewSeason)} シーズン (確定分)</p>`);
     }
+    enablePullToRefresh();   // PWA standalone にはブラウザの更新ボタンが無いので自前で
     current = orderedAttrs()[0];
     renderTabs();
     if (!viewSeason) {

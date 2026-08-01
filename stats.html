@@ -121,12 +121,22 @@
            「採用 9人」「中央値 1.05」の途中では割れず、収まらないときだけ行が増える */
         .comp-meta { display:flex; gap:4px 12px; flex-wrap:wrap; flex:1; min-width:0; font-size:11px; color:var(--sub); font-weight:700; word-break:keep-all; overflow-wrap:normal; }
         .comp-meta strong { color:var(--ink); font-variant-numeric:tabular-nums; }
+        .ptr {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+            text-align: center; padding: 10px 0; font-size: 12px; font-weight: 800;
+            color: var(--sub); background: var(--card); border-bottom: 1px solid var(--line);
+            transform: translateY(-100%); opacity: 0; pointer-events: none; transition: opacity 0.15s;
+        }
+        .ptr.on { opacity: 1; }
+        .ptr.ready { color: var(--ink); }
+
         footer { text-align:center; padding:20px 0 8px; font-size:10.5px; color:var(--faint); line-height:1.7; }
         .contact-x a { color:var(--sub); font-weight:800; }
         .err { font-size:12px; color:var(--sub); }
     </style>
 </head>
 <body>
+<div class="ptr" id="ptr">↓ 引っぱって更新</div>
 <div class="wrap">
     <header>
         <div class="brand-dot">📊</div>

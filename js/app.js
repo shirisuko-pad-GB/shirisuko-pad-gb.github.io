@@ -3,7 +3,7 @@
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights } from './backend.js';
-import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL } from './shared.js';
+import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh } from './shared.js';
 import { buildShareCard } from './sharecard.js';
 import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML, sortForDisplay } from './tiles.js';
 
@@ -88,6 +88,7 @@ async function init() {
     applySiteConf();        // ユニオン募集カード + 連絡先X (data/site.json)
     setTimeout(preloadLoadingGif, 2000);   // 送信前にキャッシュされるよう裏で読んでおく
     registerServiceWorker();               // ホーム画面に置けるように (PWA)
+    enablePullToRefresh();                 // standalone だとブラウザの更新操作が無いので自前で
 }
 
 // Service Worker 登録 (PWA インストール用)。失敗しても機能は落ちないので静かに無視する。
@@ -145,20 +146,27 @@ function renderPartners() {
             // 画像は width/height を持たせて読み込み前から場所を確保 (レイアウトシフト防止)
             const w = Number.isFinite(p.bannerW) ? p.bannerW : 800;
             const h = Number.isFinite(p.bannerH) ? p.bannerH : 624;
+            // 導線はロゴのクリックに一本化 (バナーが無いときだけ名前ボタンで代替)
             return `
         <div class="partner-row">
-            ${bannerOk
-                ? `<a href="${url}" target="_blank" rel="noopener noreferrer"><img class="partner-banner" src="${escapeHtml(p.banner)}" alt="${escapeHtml(p.name)}" width="${w}" height="${h}" loading="lazy"></a>`
-                : `<p class="partner-name">${escapeHtml(p.name)}</p>`}
+            ${bannerOk ? `
+            <a class="partner-link" href="${url}" target="_blank" rel="noopener noreferrer">
+                <img class="partner-banner" src="${escapeHtml(p.banner)}" alt="${escapeHtml(p.name)}" width="${w}" height="${h}" loading="lazy">
+                <span class="partner-tap">👆 ロゴをタップでサイトへ${host ? ` (${escapeHtml(host)})` : ''}</span>
+            </a>`
+                : `<a class="partner-btn" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.name)} を見る →</a>
+                   ${host ? `<p class="partner-host">遷移先: ${escapeHtml(host)}</p>` : ''}`}
             ${p.note ? `<p class="partner-note">${escapeHtml(p.note)}</p>` : ''}
-            <a class="partner-btn" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.name)} を見る →</a>
-            ${host ? `<p class="partner-host">遷移先: ${escapeHtml(host)}</p>` : ''}
         </div>`;
         }).join('')}
     </section>`;
-    // バナー画像が読めなければ画像だけ消してテキスト+ボタンで続行
-    host.querySelectorAll('.partner-banner').forEach(img =>
-        img.addEventListener('error', () => { img.style.display = 'none'; }));
+    // バナーが読めない環境ではロゴ導線が消えるので、名前ボタンに置き換える
+    host.querySelectorAll('.partner-banner').forEach(img => img.addEventListener('error', () => {
+        const link = img.closest('.partner-link');
+        if (!link) { img.style.display = 'none'; return; }
+        link.className = 'partner-btn';
+        link.innerHTML = `${escapeHtml(img.alt)} を見る →`;
+    }));
     host.style.display = 'block';
 }
 
