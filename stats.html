@@ -99,21 +99,13 @@
         .char-cell { text-align:center; }
         .char-cell .gb-tile { margin-bottom:3px; }
         .char-cell .pct { font-size:10px; font-weight:800; color:var(--sub); font-variant-numeric:tabular-nums; }
-        /* 編成行: 1行目 = 順位+採用/中央値(+▼)、2行目 = 5列フル幅の大タイル (flex-wrap で折る) */
+        /* 編成行: 1行目 = 順位+採用/中央値、2行目 = 5列フル幅の大タイル (flex-wrap で折る) */
         .comp-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:12px; border-radius:18px; border:1px solid var(--line); background:var(--card); margin-top:8px; }
         .sec-label { font-size:11px; font-weight:800; color:var(--sub2); letter-spacing:0.5px; margin-top:4px; }
         .comp-row.strong-comp { background:var(--cream); border-color:transparent; }
         .comp-row.strong-comp .comp-meta, .comp-row.strong-comp .comp-meta strong { color:var(--cream-ink); }
-        details.comp-x > summary { list-style:none; cursor:pointer; -webkit-tap-highlight-color:transparent; }
-        details.comp-x > summary::-webkit-details-marker { display:none; }
-        details.comp-x .chev { margin-left:auto; color:var(--faint); font-size:11px; transition:transform 0.2s; }
-        details.comp-x[open] .chev { transform:rotate(180deg); }
-        .arr-list { padding:2px 12px 12px; }
-        .arr-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin-top:8px; }
-        .arr-n { font-size:10.5px; font-weight:800; color:var(--sub); white-space:nowrap; }
         .comp-row .rank { width:24px; height:24px; border-radius:999px; background:var(--cream); color:var(--cream-ink); font-size:11.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
-        /* 大タイル: 測定ページの配置選択 (.arr-faces) と同じ 5列グリッド + 名前2行折返し。
-           order で常に行末へ (▼chev は1行目の右端に残す) */
+        /* 大タイル: 5列グリッド + 名前2行折返し。order で常に行末へ */
         .comp-faces { width:100%; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:4px; order:10; }
         .comp-faces .gb-tile-base {
             white-space:normal; word-break:break-all;

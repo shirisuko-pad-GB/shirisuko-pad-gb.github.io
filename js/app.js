@@ -403,7 +403,6 @@ function compBodyHTML(a) {
     const moreCount = allComps.length - 3;
     const presetRows = visComps.map((c, pi) => {
         const isSel = sel.length === 5 && c.chars.every(x => sel.includes(x));
-        const expand = '';   // 「並び (配置) を選ぶ」は廃止 — 編成順は評価に影響しないため
         return `
         <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
             <span class="preset-faces">${sortForDisplay(c.chars, infoOf).map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
@@ -411,7 +410,7 @@ function compBodyHTML(a) {
                 <span class="pill">今シーズンTOP${pi + 1}</span>
                 <span class="hint">${c.count}人が使用${Number.isFinite(c.median) ? ` · 中央値 ${Number(c.median).toFixed(2)}` : ''}</span>
             </span>
-        </button>${expand}`;
+        </button>`;
     }).join('') + (moreCount > 0 && !a.presetMore ? `
         <button type="button" class="preset-more">▼ もっと見る (使用率TOP4〜${3 + moreCount})</button>` : '');
     const presetHead = ap.topComps.length
@@ -576,11 +575,14 @@ function bindCompBody(card, a) {
     card.querySelectorAll('.sort-chip').forEach(btn => {
         btn.addEventListener('click', () => {
             const ordered = sortForDisplay(selChars(a), infoOf);
-            const slots = templateById(a.template).slots;
-            // 今のテンプレの枠に収まるならその配置で、収まらないなら順に詰める
-            const fit = reslotChars(ordered, burstsOfId, slots);
-            a.slots = fit.dropped.length === 0 ? fit.slots
-                : [...ordered, null, null, null, null, null].slice(0, 5);
+            const fit = reslotChars(ordered, burstsOfId, templateById(a.template).slots);
+            if (fit.dropped.length === 0) {
+                a.slots = fit.slots;
+            } else {
+                // 今のテンプレ枠に収まらない構成 → 枠ラベルと中身が食い違うので「自由」に切り替える
+                a.template = 'free';
+                a.slots = [...ordered, null, null, null, null, null].slice(0, 5);
+            }
             a.activeSlot = Math.max(0, a.slots.indexOf(null));
             renderCompBody(card, a);
         });

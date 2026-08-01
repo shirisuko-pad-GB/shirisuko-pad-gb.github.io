@@ -209,11 +209,18 @@ export async function buildShareCard(results, canvas, opts = {}) {
         ctx.fillStyle = '#8A9097';
         ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
         if (multi) {
-            // 2行だったふるり値・実ダメージを1行に (空いた分を % の拡大に回す)
-            const sub = mp != null
-                ? [`ふるり値 ${r.score.toFixed(2)}`, dmgB].filter(Boolean).join(' · ')
-                : ['ふるり値', dmgB].filter(Boolean).join(' · ');
-            ctx.fillText(sub, x0, bigY + 34);
+            // 2行だったふるり値・実ダメージを1行に (空いた分を % の拡大に回す)。
+            // 列幅 iw を超えると隣列に食い込むので、縮小 → それでも無理なら実ダメージを落とす
+            const head = mp != null ? `ふるり値 ${r.score.toFixed(2)}` : 'ふるり値';
+            const fitLine = (txt, startPx) => {
+                let px = startPx;
+                ctx.font = `700 ${px}px ${F}`;
+                while (px > 13 && ctx.measureText(txt).width > iw) { px -= 1; ctx.font = `700 ${px}px ${F}`; }
+                return ctx.measureText(txt).width <= iw;
+            };
+            const full = [head, dmgB].filter(Boolean).join(' · ');
+            if (!fitLine(full, 19)) fitLine(head, 19);   // 収まらなければ実ダメージを省く
+            ctx.fillText(ctx.measureText(full).width <= iw ? full : head, x0, bigY + 34);
         } else {
             // 単発は列幅が広いので1行にまとめる (SLv は総合列が無いのでここに出す)
             const parts = [mp != null ? `ふるり値 ${r.score.toFixed(2)}` : 'ふるり値',

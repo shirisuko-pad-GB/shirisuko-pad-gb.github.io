@@ -214,36 +214,11 @@
             -webkit-tap-highlight-color: transparent; width: 100%; font-family: inherit; text-align: left;
         }
         .preset-row.active { background: var(--cream); border-color: transparent; }
-        .preset-row.active .pill, .preset-row.open-a .pill { color: var(--cream-ink); border-color: color-mix(in srgb, var(--cream-ink) 25%, transparent); }
-        .preset-row.active .hint, .preset-row.open-a .hint { color: var(--cream-ink); opacity: 0.75; }
+        .preset-row.active .pill { color: var(--cream-ink); border-color: color-mix(in srgb, var(--cream-ink) 25%, transparent); }
+        .preset-row.active .hint { color: var(--cream-ink); opacity: 0.75; }
         .preset-faces { display: flex; gap: 3px; flex-shrink: 0; }
         .preset-faces .gb-tile { width: 36px; }
         .preset-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        /* 展開中の行: クリーム + 下の展開部と一体化 (角丸を接続) */
-        .preset-row.open-a { background: var(--cream); border-color: transparent; border-radius: 16px 16px 0 0; }
-        .arr-expand {
-            background: var(--card2);   /* color-mix 非対応環境のフォールバック */
-            background: color-mix(in srgb, var(--cream) 45%, var(--card));
-            border-radius: 0 0 16px 16px; padding: 10px 12px 12px; margin-bottom: 2px;
-        }
-        .arr-lbl { font-size: 10.5px; font-weight: 800; color: var(--cream-ink); margin-bottom: 2px; }
-        .arr-opt {
-            display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px;
-            border: 1px solid var(--line); background: var(--card); cursor: pointer; margin-top: 6px;
-            -webkit-tap-highlight-color: transparent; width: 100%; font-family: inherit; text-align: left;
-        }
-        .arr-faces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-        .arr-faces .gb-tile-base {
-            white-space: normal; word-break: break-all;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-            overflow: hidden; font-size: 9.5px; line-height: 1.15;
-        }
-        .arr-faces .gb-tile-var {
-            white-space: normal; word-break: break-all;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-            overflow: hidden; font-size: 8px; line-height: 1.15;
-        }
-        .arr-n { font-size: 10px; font-weight: 800; color: var(--sub); white-space: nowrap; align-self: flex-end; }
         .preset-more {
             width: 100%; padding: 9px; border-radius: 999px; margin-top: 8px;
             border: 1px dashed var(--faint); background: transparent; color: var(--sub);
