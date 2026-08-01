@@ -110,7 +110,19 @@ for (const row of rows) {
         .sort();
     const id = prevIdByName.get(norm(name)) ?? icons[0] ?? `${md5(name)}.webp`;
     if (seenName.has(norm(name))) {
-        console.warn(`⚠ 名前重複 (本家DBの整理推奨): ${name} — 後勝ちで上書きせずスキップ`);
+        // 名寄せ・表記ゆれで同名になった行: 採用済みの行に情報をマージする (Codex指摘)。
+        // 取得順 (canonical_name.asc) 依存で「先に来た方だけ採用」だと、後の行にしか無い
+        // バースト・アイコンを取りこぼすため
+        const keptId = seenName.get(norm(name));
+        const kept = characters[keptId];
+        if (kept) {
+            kept.burst ??= row.burst ?? fallbackBurst.get(norm(name)) ?? null;
+            kept.burstAlt ??= row.burst_alt ?? null;
+            const extra = icons.filter(i => i !== keptId && !iconCandidates.get(keptId)?.includes(i));
+            if (extra.length) iconCandidates.get(keptId)?.push(...extra);
+            for (const icon of icons) if (icon !== keptId) aliases[icon] = keptId;
+            console.warn(`⚠ 名前重複 (本家DBの整理推奨): ${row.canonical_name} → 「${name}」に情報をマージ (icon+${extra.length}件)`);
+        }
         continue;
     }
     seenName.set(norm(name), id);
