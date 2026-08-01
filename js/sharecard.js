@@ -186,7 +186,7 @@ export async function buildShareCard(results, canvas, opts = {}) {
                 x0, 252 + bigSize + 36);
             ctx.fillStyle = '#A4AAB0';
             ctx.font = `700 22px ${F}`;
-            ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 500);
+            ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 514);   // 属性列の編成内%と同じ高さ
             ctx.fillStyle = '#6B7178';
             ctx.font = `700 16px ${F}`;
             ctx.fillText('ボスの通りやすさは属性ごとの', x0, 596);
@@ -257,9 +257,23 @@ export async function buildShareCard(results, canvas, opts = {}) {
             ctx.font = `700 17px ${F}`;
             ctx.fillText(`中央値 ${r.dist.median.toFixed(2)} · ${r.dist.n}人`, x0, histY + histH + 30);
         } else {
+            // 未解禁: 分布の領域が空くと間延びするので、解禁までの進捗を描く
+            // (「あと◯人」が見えると拡散の動機にもなる)
+            // need は 0 や欠損でも 0除算にならないよう下限1 (実運用はサーバー既定の50)
+            const need = Math.max(1, Number.isFinite(r.dist?.need) ? r.dist.need : THRESHOLDS.dist);
+            const now = Math.max(0, Math.min(need, Number.isFinite(r.dist?.n) ? r.dist.n : 0));
+            const barH = 14, barY = histY + histH - barH - 4;
+            ctx.fillStyle = '#8A9097';
+            ctx.font = `700 ${multi ? 17 : 20}px ${F}`;
+            ctx.fillText(`みんなの分布まで あと${Math.max(0, need - now)}人`, x0, barY - 16);
+            ctx.fillStyle = 'rgba(255,255,255,0.13)';
+            ctx.beginPath(); ctx.roundRect(x0, barY, iw, barH, barH / 2); ctx.fill();
+            const w = Math.max(barH, iw * (now / need));
+            ctx.fillStyle = info.color;
+            ctx.beginPath(); ctx.roundRect(x0, barY, w, barH, barH / 2); ctx.fill();
             ctx.fillStyle = '#6B7178';
-            ctx.font = `700 17px ${F}`;
-            ctx.fillText(`みんなの分布は${r.dist?.need ?? 50}人で解禁`, x0, histY + histH + 30);
+            ctx.font = `700 16px ${F}`;
+            ctx.fillText(`現在 ${now} / ${need}人`, x0, histY + histH + 30);
         }
     });
 

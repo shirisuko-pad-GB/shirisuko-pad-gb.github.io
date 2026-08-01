@@ -994,17 +994,17 @@ function shareText() {
         if (ratios.every(x => x != null)) {
             const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
             const parts = results.map((r, i) => `${ATTR_INFO[r.attribute].jp}${Math.round(ratios[i] * 100)}%`).join('/');
-            return `総合 ${totalPct}% (${parts}) — みんなの中央値=100% #ふるり値チェッカー #NIKKE`;
+            return `総合 ${totalPct}% (${parts}) — みんなの中央値=100% #しりすこPADグローバル #NIKKE`;
         }
         const parts = results.map(r => `${ATTR_INFO[r.attribute].jp}${r.score.toFixed(2)}`).join('/');
-        return `ふるり値 ${parts} を測定! #ふるり値チェッカー #NIKKE`;
+        return `ふるり値 ${parts} を測定! #しりすこPADグローバル #NIKKE`;
     }
     const r = results[0];
     const ratio = medianRatioOf(r);
     if (ratio != null) {
-        return `中央値比 ${Math.round(ratio * 100)}% (${ATTR_INFO[r.attribute].jp}PT・みんなの真ん中=100%) — ふるり値 ${r.score.toFixed(2)} #ふるり値チェッカー #NIKKE`;
+        return `中央値比 ${Math.round(ratio * 100)}% (${ATTR_INFO[r.attribute].jp}PT・みんなの真ん中=100%) — ふるり値 ${r.score.toFixed(2)} #しりすこPADグローバル #NIKKE`;
     }
-    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT) を測定! #ふるり値チェッカー #NIKKE`;
+    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT) を測定! #しりすこPADグローバル #NIKKE`;
 }
 
 async function onShare() {
