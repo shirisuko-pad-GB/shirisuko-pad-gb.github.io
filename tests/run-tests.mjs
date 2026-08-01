@@ -352,6 +352,12 @@ test('site.json: xAccount の形式と recruit の構造', () => {
     assert(typeof site.recruit?.enabled === 'boolean', 'recruit.enabled が boolean ではありません');
     assert(typeof site.recruit?.title === 'string', 'recruit.title がありません');
     assert(typeof site.recruit?.note === 'string', 'recruit.note がありません');
+    // partners (任意): name 必須・url は https のみ・banner は assets/ 配下のみ
+    for (const p of site.partners ?? []) {
+        assert(typeof p.name === 'string' && p.name, 'partners[].name がありません');
+        assert(/^https:\/\//.test(p.url ?? ''), `partners「${p.name}」の url が https ではありません`);
+        if (p.banner != null) assert(/^\.\/assets\//.test(p.banner), `partners「${p.name}」の banner が assets 配下ではありません`);
+    }
 });
 
 test('キャラ画像の掲載方針 (2026-07-31 削除対応前提) の整合ガード', () => {

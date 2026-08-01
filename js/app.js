@@ -121,6 +121,37 @@ function applySiteConf() {
     const banner = host.querySelector('.recruit-banner');
     if (banner) banner.addEventListener('error', () => { banner.style.display = 'none'; });
     host.style.display = 'block';
+    renderPartners();
+}
+
+// 提携ユニオン掲載枠 (site.json の partners)。他ユニオンさんへの配慮枠 —
+// 募集カードの下に「素晴らしいユニオンさんたちが掲載中!」として並べる。
+// url は https のみ許可・banner はリポジトリ内 (./assets/) の画像のみ (外部URLの画像は不可)
+function renderPartners() {
+    const host = $('partnerArea');
+    const list = (Array.isArray(siteConf?.partners) ? siteConf.partners : [])
+        .filter(p => typeof p?.url === 'string' && /^https:\/\//.test(p.url) && p?.name);
+    if (!host || list.length === 0) return;
+    host.innerHTML = `
+    <section class="card partner-card">
+        <h2>✨ 素晴らしいユニオンさんたちが掲載中!</h2>
+        ${list.map(p => {
+            const url = escapeHtml(p.url);
+            const bannerOk = typeof p.banner === 'string' && /^\.\/assets\/[\w./-]+\.(png|webp|jpg|jpeg)$/.test(p.banner);
+            return `
+        <div class="partner-row">
+            ${bannerOk
+                ? `<a href="${url}" target="_blank" rel="noopener"><img class="partner-banner" src="${escapeHtml(p.banner)}" alt="${escapeHtml(p.name)}" loading="lazy"></a>`
+                : `<p class="partner-name">${escapeHtml(p.name)}</p>`}
+            ${p.note ? `<p class="partner-note">${escapeHtml(p.note)}</p>` : ''}
+            <a class="partner-btn" href="${url}" target="_blank" rel="noopener">${escapeHtml(p.name)} を見る →</a>
+        </div>`;
+        }).join('')}
+    </section>`;
+    // バナー画像が読めなければ画像だけ消してテキスト+ボタンで続行
+    host.querySelectorAll('.partner-banner').forEach(img =>
+        img.addEventListener('error', () => { img.style.display = 'none'; }));
+    host.style.display = 'block';
 }
 
 // 今シーズンの提出データから「使用率TOP編成・よく使われるキャラ」を取得する。

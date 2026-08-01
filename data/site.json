@@ -2,12 +2,21 @@
   "_readme": [
     "サイト運用設定 (ユニオン募集・連絡先X)。変更は Git 経由のみ — サイト内に管理UIは作らない。",
     "tools/ops.html を開くとフォームでこのファイルを編集→コピー→GitHubで commit できる。",
-    "xAccount は @ なしの ID。recruit.enabled を false にすると募集カードが消える。"
+    "xAccount は @ なしの ID。recruit.enabled を false にすると募集カードが消える。",
+    "partners は「素晴らしいユニオンさんたちが掲載中!」枠。url は https のみ・banner は assets/ 配下の画像 (任意)。"
   ],
   "xAccount": "FururiNIKKE",
   "recruit": {
     "enabled": true,
     "title": "ユニオン「推しりをすこれ部」メンバー募集中",
     "note": "しりすこPADを作成しているユニオン。ユニオンレイドでダイヤ帯入りを目標に活動中! 詳しくは X へ!"
-  }
+  },
+  "partners": [
+    {
+      "name": "シフティーサーチ",
+      "note": "ふるり値の算出方法を一緒に検討した「めいでん」さんが運営するユニオン掲載サイト",
+      "url": "https://script.google.com/macros/s/AKfycbyxUazacPCvClqxuo-bQfStSrKCTYx-mi5lm5RLjaZJIKQK2jjdiADdPt11oogS-DjV/exec",
+      "banner": null
+    }
+  ]
 }

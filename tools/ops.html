@@ -60,13 +60,18 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const FIELDS = ['xAccount', 'recruitEnabled', 'recruitTitle', 'recruitNote'];
+// フォームが管理しない設定 (partners 等) は読み込んだ site.json から引き継ぐ (消さない)
+let carryOver = {};
+const MANAGED = new Set(['_readme', 'xAccount', 'recruit']);
 
 function currentJson() {
     return {
+        ...carryOver,
         _readme: [
             'サイト運用設定 (ユニオン募集・連絡先X)。変更は Git 経由のみ — サイト内に管理UIは作らない。',
             'tools/ops.html を開くとフォームでこのファイルを編集→コピー→GitHubで commit できる。',
             'xAccount は @ なしの ID。recruit.enabled を false にすると募集カードが消える。',
+            'partners は「素晴らしいユニオンさんたちが掲載中!」枠。url は https のみ・banner は assets/ 配下の画像 (任意)。',
         ],
         xAccount: $('xAccount').value.trim(),
         recruit: {
@@ -87,6 +92,7 @@ function update() {
 async function init() {
     try {
         const cur = await fetch('../data/site.json').then(r => r.json());
+        carryOver = Object.fromEntries(Object.entries(cur).filter(([k]) => !MANAGED.has(k)));
         $('xAccount').value = cur.xAccount ?? '';
         $('recruitEnabled').checked = !!cur.recruit?.enabled;
         $('recruitTitle').value = cur.recruit?.title ?? '';
