@@ -268,6 +268,8 @@ function loadLastResult() {
         // 基準版が変わった (月次更新) 前回結果は比較できないので出さない
         // 今見ているシーズン (viewSeason) と一致する保存だけ復元 (シーズンが変わったら出さない)
         if (!v || v.savedAt !== viewSeason || !Array.isArray(v.items) || v.items.length === 0) return null;
+        // 対応範囲外の SLv を含む保存 (旧版・改変) は復元しない — 誤った結果を再表示しないため
+        if (v.items.some(it => !Number.isInteger(it.slv) || it.slv < 1 || it.slv > SLV_MAX)) return null;
         return v;
     } catch { return null; }
 }
@@ -329,9 +331,19 @@ function stepSlv(d) {
 // ⚠ 1000超に対応するときは、この定数・input[max]・サーバー側 (01_schema の CHECK と
 //    slv_ratio の行) を揃えて広げること
 const SLV_MAX = 1000;
-const slvOf = () => parseInt($('slv').value);
-const slvValid = () => { const v = slvOf(); return v >= 1 && v <= SLV_MAX; };
-const slvOver = () => slvOf() > SLV_MAX;   // 上限超 (未入力と区別して案内するため)
+// 「1000.5」「1e3」を parseInt で拾うと実際と違う SLv で測定してしまうため、整数表記のみ受理する
+function slvOf() {
+    const raw = String($('slv').value ?? '').trim();
+    return /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
+}
+const slvValid = () => { const v = slvOf(); return Number.isInteger(v) && v >= 1 && v <= SLV_MAX; };
+// 上限超 (未入力・不正入力と区別して案内するため)
+const slvOver = () => { const v = slvOf(); return Number.isInteger(v) && v > SLV_MAX; };
+// 整数でない入力 (小数・指数・記号) — 何が問題か分かるよう専用の案内を出す
+const slvMalformed = () => {
+    const raw = String($('slv').value ?? '').trim();
+    return raw !== '' && !/^\d+$/.test(raw);
+};
 
 // SLv の入力状態が変わったら、凸入力の出し入れを判定してから状態更新
 // (「測定が押せない」の原因第1位が SLv 未入力だったため、SLv を入れるまで凸カードを出さない)
@@ -347,10 +359,10 @@ function onSlvChanged() {
 function renderSlvNote() {
     const el = $('slvNote');
     if (!el) return;
-    el.textContent = slvOver()
-        ? `🙏 現在は SLv ${SLV_MAX} まで対応しています (補正データを検証中です)`
+    el.textContent = slvOver() ? `🙏 現在は SLv ${SLV_MAX} まで対応しています (補正データを検証中です)`
+        : slvMalformed() ? 'SLv は整数で入力してください (例: 558)'
         : '';
-    el.style.color = slvOver() ? 'var(--warn)' : '';
+    el.style.color = (slvOver() || slvMalformed()) ? 'var(--warn)' : '';
 }
 
 function updateSubmitState() {
@@ -709,13 +721,13 @@ let submitting = false;   // 多重送信ガード (updateSubmitState がボタ�
 
 async function onSubmit() {
     if (submitting) return;
-    const slv = parseInt($('slv').value);
+    const slv = slvOf();   // 整数表記のみ (小数・指数は NaN → 下のガードで弾く)
     const items = attacks.map(a => ({
         attribute: a.attribute, slv,
         damage: parseDamageInput(a.damage),
         characters: selChars(a).length === 5 ? selChars(a).sort() : null,
     }));
-    if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !(slv >= 1 && slv <= SLV_MAX)) {
+    if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !Number.isInteger(slv) || slv < 1 || slv > SLV_MAX) {
         toast('入力内容を確認してください');
         return;
     }
@@ -739,11 +751,17 @@ async function onSubmit() {
         } catch (e) {
             console.warn('送信失敗:', e);
             await hideLoading();
+            // サーバーが理由つきで拒否した場合は、通信障害と混同させない案内にする
+            const msg = String(e?.message ?? '');
+            const reason = /unknown slv/.test(msg)
+                ? `現在の SLv 補正データは SLv ${SLV_MAX} までです。超上位帯の補正値が揃い次第、対応します。`
+                : /closed|season not open/.test(msg)
+                    ? '現在この期間の測定は受け付けていません (シーズン切替中の可能性があります)。'
+                    : 'サーバーに接続できませんでした。ふるり値の計算はサーバー側で行うため、通信が復活してから再度お試しください。';
             $('resultsArea').innerHTML = `
             <section class="card">
                 <h2>⚠️ 測定できませんでした</h2>
-                <p class="score-detail">サーバーに接続できませんでした。ふるり値の計算はサーバー側で行うため、
-                通信が復活してから再度お試しください。入力内容はそのまま残っています。</p>
+                <p class="score-detail">${escapeHtml(reason)} 入力内容はそのまま残っています。</p>
             </section>`;
             $('shareCard').style.display = 'none';
             $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
