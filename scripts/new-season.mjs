@@ -41,6 +41,9 @@ const url = clientSrc.match(/https:\/\/[a-z]+\.supabase\.co/)?.[0];
 const key = clientSrc.match(/sb_publishable_[A-Za-z0-9_-]+/)?.[0];
 if (!url || !key) { console.error('本家の接続情報を読み取れませんでした'); process.exit(1); }
 
+// キャラ名の表記ゆれ吸収 (build-characters.mjs の norm と同じ規則)
+const normName = (v) => String(v).replace(/：/g, ':').replace(/\s+/g, '').trim();
+
 async function padGet(path) {
     const res = await fetch(`${url}/rest/v1/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
     if (!res.ok) throw new Error(`${path} → ${res.status} ${await res.text()}`);
@@ -78,6 +81,29 @@ const raid = {
 // ---- 3) ふるり基準: 模擬 (優先) → 月次JSONの実凸 ----
 const sims = await padGet(`fururi_simulation_scores?select=boss_code,damage_raw&season_id=eq.${target.id}`);
 const simByCode = new Map(sims.map(s => [s.boss_code, Number(s.damage_raw)]));
+
+// 基準編成 (ふるりの模擬編成) — 「どの編成で出した基準値か」をサイトで小さく開示する。
+// 本家は player_damages.characters にキャラ名で保存しているので、GB の characters.json で
+// 代表IDへ解決する (解決できない名前は落とす = 5体揃わなければ編成なし扱い)
+const teamByAttr = {};
+try {
+    const fururiId = (await padGet(`players?select=id&name=eq.${encodeURIComponent('ふるり')}`))[0]?.id;
+    if (fururiId) {
+        const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
+        const idByName = new Map();
+        if (charData._format === 2) {
+            for (const [cid, c] of Object.entries(charData.chars)) idByName.set(normName(c.name), cid);
+        }
+        const dmgs = await padGet(`player_damages?select=attribute,slot,characters&player_id=eq.${fururiId}`);
+        for (const d of dmgs) {
+            if ((d.slot ?? 1) !== 1) continue;   // 基準は slot1 (主編成)
+            const ids = (d.characters || []).map(n => idByName.get(normName(String(n).split('/').pop()))).filter(Boolean);
+            if (ids.length === 5) teamByAttr[String(d.attribute).toUpperCase()] = ids.sort();
+        }
+    }
+} catch (e) {
+    console.warn('(基準編成の取得に失敗 — 編成表示なしで続行)', e?.message ?? e);
+}
 const monthPath = join(padDir, 'data', `${seasonKey}.json`);
 let actualByCode = new Map(), monthSlv = null;
 if (existsSync(monthPath)) {
@@ -111,6 +137,7 @@ for (const b of bosses) {
     const damage = sim ?? act;   // 模擬優先 (本家 buildFururiBaseMap と同じ運用ルール)
     if (!(damage > 0)) { missing.push(`${attr} (${b.boss_code} / ${b.name})`); continue; }
     bases[attr] = { bossCode: b.boss_code, damage, source: sim != null ? 'simulation' : 'actual' };
+    if (teamByAttr[attr]) bases[attr].team = teamByAttr[attr];   // 基準編成 (キャラID×5・順不同)
 }
 if (missing.length > 0) {
     console.error(`❌ ふるり基準が揃っていません: ${missing.join(', ')}`);
@@ -147,7 +174,7 @@ try {
     writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
     writeFileSync(outFiles[2], JSON.stringify(bossCatalog, null, 1) + '\n', 'utf8');
     console.log(`raid.json:  ${order.map(a => `${a}→${raid.bosses[a]}`).join(' / ')}`);
-    console.log(`base.json:  SLv ${baseSlv} / ` +
+    console.log(`base.json:  SLv ${baseSlv} / 基準編成 ${Object.values(bases).filter(b => b.team).length}/5属性 / ` +
         Object.entries(bases).map(([a, v]) => `${a}=${(v.damage / 1e9).toFixed(2)}B(${v.source === 'simulation' ? '模擬' : '実凸'})`).join(' '));
     console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
 

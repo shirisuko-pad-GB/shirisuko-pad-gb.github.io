@@ -63,6 +63,7 @@ async function init() {
     mode = site?.status ?? 'open';   // site_state が読めない (05未適用/未設定) 時は open 扱い
     viewSeason = (mode === 'open') ? season : (site?.display_season ?? null);
     $('baseVersionLabel').textContent = `${base.version} (基準者${base.basePlayer} SLv ${base.baseSlv})`;
+    renderBaseTeams();
     $('thresholdAllLabel').textContent = THRESHOLDS.dist;
     $('thresholdCompLabel').textContent = THRESHOLDS.comp;
     $('slvMinus').addEventListener('click', () => stepSlv(-1));
@@ -109,6 +110,28 @@ function applySiteConf() {
     const banner = host.querySelector('.recruit-banner');
     if (banner) banner.addEventListener('error', () => { banner.style.display = 'none'; });
     host.style.display = 'block';
+}
+
+// 基準記録の開示: 属性ごとに「基準ダメージ + 基準編成 (5体タイル)」を小さく出す。
+// 「何を基準に測られているか」を隠さないための説明パネル (data/base.json の bases[].team)
+function renderBaseTeams() {
+    const host = $('baseTeams');
+    if (!host || !base?.bases) return;
+    host.innerHTML = orderedAttrs().map(attr => {
+        const b = base.bases[attr];
+        if (!b) return '';
+        const info = ATTR_INFO[attr];
+        const boss = raid?.bosses?.[attr];
+        const team = (compReady() && Array.isArray(b.team) && b.team.length === 5)
+            ? `<span class="base-team">${sortForDisplay(b.team, infoOf).map(id => tileHTML(infoOf(id))).join('')}</span>` : '';
+        return `
+        <div class="base-row" style="--ac:${info.color};">
+            <span class="base-attr">${info.jp}PT</span>
+            <span class="base-dmg">${(b.damage / 1e9).toFixed(2)} B</span>
+            ${boss ? `<span class="hint">vs ${escapeHtml(boss)}</span>` : ''}
+            ${team}
+        </div>`;
+    }).join('');
 }
 
 // 運用モードで測定UIを出し分け (between/maintenance は送信不可)

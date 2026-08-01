@@ -417,6 +417,17 @@
         .recall-btn:disabled { opacity: 0.5; cursor: default; }
 
         /* ===== ユニオン募集カード (クリームのカード面) ===== */
+        /* 基準記録 (ふるりの属性別ダメージ + 編成) */
+        .base-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+        .base-row:first-child { border-top: none; }
+        .base-attr { font-size: 11.5px; font-weight: 800; color: var(--ac, var(--sub)); min-width: 74px; }
+        .base-dmg { font-size: 11.5px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+        .base-team { width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+        .base-team .gb-tile-base { font-size: 9px; line-height: 1.15; white-space: normal; word-break: break-all;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .base-team .gb-tile-var { font-size: 7.5px; line-height: 1.1; white-space: normal; word-break: break-all;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
         .recruit-card { background: var(--cream); border-color: transparent; color: var(--cream-ink); }
         .recruit-card h2 { color: inherit; }
         .recruit-banner {
@@ -527,15 +538,18 @@
         <p>ふるり値 = あなたのダメージ ÷ (基準ダメージ × SLv補正[あなた] ÷ SLv補正[基準])</p>
         <h3>📊 みんなの分布 (シーズンごと)</h3>
         <p>送信されたデータは匿名で蓄積され、<strong>今シーズン</strong>の提出が属性ごとに<strong id="thresholdAllLabel"></strong>人を超えると「みんなの真ん中 (中央値) を100%としたときのあなたの%」が見られるようになります。集計は1端末につきベスト1件で行い、極端な値の影響を受けにくい方法 (中央値・パーセンタイル) を使っています。編成を登録した提出が同一編成で<strong id="thresholdCompLabel"></strong>人を超えると「同じ編成の中での位置」も開放されます。<strong>シーズンが変わると分布はリセット</strong>されます (新キャラ・ボスの違いを公平に扱うため)。</p>
+        <h3>📐 基準はこの記録です</h3>
+        <p class="hint" style="margin-bottom:8px;">基準者「ふるり」が今シーズンに出した属性別のダメージと編成です (模擬戦の記録)。あなたのふるり値は、これを自分の SLv 相当に換算した値との比率です。</p>
+        <div id="baseTeams"></div>
         <h3>⚠️ 注意</h3>
         <p>ふるり値は育成効率を可視化する<strong>参考指標</strong>です。ボスのギミック相性・締め凸・戦闘時間などの条件差は考慮されません。基準データ: <span id="baseVersionLabel"></span></p>
         <h3>🏷️ このサイトについて</h3>
-        <p>本サイトは、ユニオン「しりすこ」のメンバーが個人で運営する『勝利の女神：NIKKE』の<strong>非公式・非営利のファンコンテンツ</strong>です (広告掲載・収益化は一切していません)。ゲーム本編の開発・運営 (SHIFT UP CORP. / Level Infinite) とは関係ありません。キャラクター画像・名称等の権利は SHIFT UP CORP. をはじめ各権利者に帰属します (公式サポートへ掲載可否を照会中)。掲載内容について権利者からの削除・修正のご要望には<strong>速やかに対応します</strong> (連絡先: <span class="contact-x">X</span>)。</p>
+        <p>本サイトは、ユニオン「推しりをすこれ部」のメンバーが個人で運営する『勝利の女神：NIKKE』の<strong>非公式・非営利のファンコンテンツ</strong>です (広告掲載・収益化は一切していません)。ゲーム本編の開発・運営 (SHIFT UP CORP. / Level Infinite) とは関係ありません。キャラクター画像・名称等の権利は SHIFT UP CORP. をはじめ各権利者に帰属します (公式サポートへ掲載可否を照会済み)。掲載内容について権利者からの削除・修正のご要望には<strong>速やかに対応します</strong> (連絡先: <span class="contact-x">X</span>)。</p>
     </section>
 
     <footer>
         <p>『勝利の女神：NIKKE』キャラクター画像・名称: © SHIFT UP CORP. — 本サイトは非公式・非営利のファンコンテンツです。<br>掲載に問題がある場合はご連絡ください。速やかに削除・修正いたします。</p>
-        <p style="margin-top:4px;">運営: ユニオン「しりすこ」(連絡先: <span class="contact-x">X</span>) / © しりすこPAD GB</p>
+        <p style="margin-top:4px;">運営: ユニオン「推しりをすこれ部」(連絡先: <span class="contact-x">X</span>) / © しりすこPAD GB</p>
     </footer>
 </div>
 
