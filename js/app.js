@@ -106,6 +106,7 @@ function applySiteConf() {
             el.innerHTML = `<a href="https://x.com/${xid}" target="_blank" rel="noopener">X @${xid}</a>`;
         });
     }
+    renderPartners();   // 掲載枠は募集カードの設定と独立 (募集を消しても掲載は残る)
     const r = siteConf?.recruit;
     const host = $('recruitArea');
     if (!host || !r?.enabled || !xid) return;
@@ -121,7 +122,6 @@ function applySiteConf() {
     const banner = host.querySelector('.recruit-banner');
     if (banner) banner.addEventListener('error', () => { banner.style.display = 'none'; });
     host.style.display = 'block';
-    renderPartners();
 }
 
 // 提携ユニオン掲載枠 (site.json の partners)。他ユニオンさんへの配慮枠 —
@@ -137,7 +137,8 @@ function renderPartners() {
         <h2>✨ 素晴らしいユニオンさんたちが掲載中!</h2>
         ${list.map(p => {
             const url = escapeHtml(p.url);
-            const bannerOk = typeof p.banner === 'string' && /^\.\/assets\/[\w./-]+\.(png|webp|jpg|jpeg)$/.test(p.banner);
+            const bannerOk = typeof p.banner === 'string' && !p.banner.includes('..')
+                && /^\.\/assets\/[\w./-]+\.(png|webp|jpg|jpeg)$/.test(p.banner);
             return `
         <div class="partner-row">
             ${bannerOk

@@ -97,7 +97,13 @@ async function init() {
         $('recruitEnabled').checked = !!cur.recruit?.enabled;
         $('recruitTitle').value = cur.recruit?.title ?? '';
         $('recruitNote').value = cur.recruit?.note ?? '';
-    } catch { /* 初回や直開きでは空のまま */ }
+    } catch {
+        // 現行 site.json を読めていない = partners 等の管理外キーを引き継げない。
+        // このまま生成すると既存設定を消すコピペを作ってしまうので、出力を無効化する
+        $('out').textContent = '⚠ 現行の data/site.json を読み込めませんでした。サイト上でこのページを開き直してください (直開き・オフラインでは生成できません)';
+        FIELDS.forEach(id => { $(id).disabled = true; });
+        return;
+    }
     FIELDS.forEach(id => $(id).addEventListener('input', update));
     update();
 }

@@ -355,8 +355,13 @@ test('site.json: xAccount の形式と recruit の構造', () => {
     // partners (任意): name 必須・url は https のみ・banner は assets/ 配下のみ
     for (const p of site.partners ?? []) {
         assert(typeof p.name === 'string' && p.name, 'partners[].name がありません');
-        assert(/^https:\/\//.test(p.url ?? ''), `partners「${p.name}」の url が https ではありません`);
-        if (p.banner != null) assert(/^\.\/assets\//.test(p.banner), `partners「${p.name}」の banner が assets 配下ではありません`);
+        assert(typeof p.url === 'string' && /^https:\/\//.test(p.url), `partners「${p.name}」の url が https 文字列ではありません`);
+        if (p.banner != null) {
+            // 実装 (js/app.js renderPartners) と同じ許可条件
+            assert(typeof p.banner === 'string' && !p.banner.includes('..')
+                && /^\.\/assets\/[\w./-]+\.(png|webp|jpg|jpeg)$/.test(p.banner),
+                `partners「${p.name}」の banner が許可形式ではありません (./assets/ 配下の png/webp/jpg のみ・.. 禁止)`);
+        }
     }
 });
 
