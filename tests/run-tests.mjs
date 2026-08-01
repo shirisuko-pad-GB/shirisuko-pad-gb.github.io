@@ -432,5 +432,24 @@ test('07: submit の INSERT が例外ハンドラで包まれている (エラ�
     assert(check.includes("'07_sanitize_errors'"), '99_check_applied.sql に 07 の判定行がありません');
 });
 
+test('サイト名の整合 (manifest ↔ title ↔ apple-title ↔ h1)', () => {
+    const mf = JSON.parse(readFileSync(join(ROOT, 'manifest.webmanifest'), 'utf8'));
+    const SITE = 'しりすこPAD GB';
+    assertEq(mf.name, SITE, 'manifest.name');
+    assertEq(mf.short_name, SITE, 'manifest.short_name');
+    for (const page of ['index.html', 'stats.html']) {
+        const h = readFileSync(join(ROOT, page), 'utf8');
+        const appleTitle = h.match(/name="apple-mobile-web-app-title" content="([^"]+)"/)?.[1];
+        assertEq(appleTitle, SITE, `${page} apple-mobile-web-app-title`);
+        const title = h.match(/<title>([^<]+)<\/title>/)?.[1] ?? '';
+        assert(title.includes('しりすこPAD'), `${page} の <title> にサイト名がありません: ${title}`);
+    }
+    // トップの主役はサイト名・「ふるり値チェッカー」はサブ (h1 に入れない)
+    const idx = readFileSync(join(ROOT, 'index.html'), 'utf8');
+    const h1 = idx.match(/<h1>([\s\S]*?)<\/h1>/)?.[1]?.replace(/<[^>]+>/g, '') ?? '';
+    assert(h1.includes('しりすこPAD'), `h1 がサイト名になっていません: ${h1}`);
+    assert(!h1.includes('ふるり値'), `h1 に「ふるり値」が入っています (サブタイトルに置くこと): ${h1}`);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

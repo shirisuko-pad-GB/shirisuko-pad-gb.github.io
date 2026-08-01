@@ -2,7 +2,7 @@
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
-import { backendConfigured, submitSet, fetchDistribution, fetchSiteState } from './backend.js';
+import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL } from './shared.js';
 import { buildShareCard } from './sharecard.js';
 import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML, sortForDisplay } from './tiles.js';
@@ -14,6 +14,9 @@ const LAST_KEY = 'spg_last_result';   // 前回の測定 (localStorage) — 再�
 const $ = (id) => document.getElementById(id);
 
 let base = null, presets = null, characters = null, raid = null, site = null, siteConf = null;
+// 使用率・編成ランキングは **今シーズンの提出データ** (get_comp_insights) から作る。
+// 属性ごとに1回だけ取得してキャッシュ (null=未取得 / {chars,comps}=取得済み / 'none'=データ不足)
+const insightsCache = new Map();
 let season = null;       // 送信・open時表示のシーズン (= base.version)
 let viewSeason = null;   // 分布を見るシーズン (open→season / between・maintenance→display_season)
 let mode = 'open';       // 'open' | 'between' | 'maintenance'
@@ -51,7 +54,7 @@ const compReady = () => characters?._format === 2;
 async function init() {
     const [b, p, c, rd, st, sc] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
-        fetch('./data/presets.json').then(x => x.json()).catch(() => null),
+        Promise.resolve(null),   // presets.json (過去シーズンのユニオン実績) は使わない — 今シーズンの提出データを使う
         fetch('./data/characters.json').then(x => x.json()).catch(() => null),
         fetch('./data/raid.json').then(x => x.json()).catch(() => null),
         fetchSiteState().catch(() => null),
@@ -118,6 +121,40 @@ function applySiteConf() {
     const banner = host.querySelector('.recruit-banner');
     if (banner) banner.addEventListener('error', () => { banner.style.display = 'none'; });
     host.style.display = 'block';
+}
+
+// 今シーズンの提出データから「使用率TOP編成・よく使われるキャラ」を取得する。
+// サーバー側でしきい値ゲート (10人未満は gated) がかかるので、少数データは自然に出ない
+async function ensureInsights(attribute, onLoaded) {
+    if (!attribute || insightsCache.has(attribute)) return;
+    insightsCache.set(attribute, 'loading');
+    try {
+        const ins = await fetchCompInsights({ attribute, season: viewSeason ?? season });
+        insightsCache.set(attribute, (ins && !ins.gated && ins.chars) ? ins : 'none');
+    } catch { insightsCache.set(attribute, 'none'); }
+    onLoaded?.();
+}
+
+// 属性の insights を「presets 互換の形」に変換 (topChars/topComps) — 未取得・不足なら空
+function insightsOf(attribute) {
+    const ins = insightsCache.get(attribute);
+    if (!ins || ins === 'loading' || ins === 'none') return { topChars: [], topComps: [], n: 0, loading: ins === 'loading' };
+    // DB は別名IDのまま保存されていることがあるので代表IDへ正規化してから使う
+    // (未知IDは解決できないのでそのまま = 「？」タイル表示になる)
+    const canon = (id) => infoOf(id)?.id ?? id;
+    return {
+        topChars: (ins.chars || []).map(c => ({ img: canon(c.img), count: c.count })),
+        topComps: (ins.comps || []).map(c => ({
+            chars: (c.chars || []).map(canon),
+            count: c.n,
+            median: c.median,
+            // 並び順の内訳 (どの配置が多いか) も RPC が返すので引き継ぐ
+            arr: (Array.isArray(c.arr) ? c.arr : [])
+                .filter(x => Array.isArray(x.chars) && x.chars.length === 5)
+                .map(x => ({ chars: x.chars.map(canon), n: x.n })),
+        })),
+        n: ins.n ?? 0,
+    };
 }
 
 // 基準記録の開示: 属性ごとに「基準ダメージ + 基準編成 (5体タイル)」を小さく出す。
@@ -317,7 +354,7 @@ function attackCardHTML(a, i) {
 function compBodyHTML(a) {
     if (!a.attribute) return `<p class="hint" style="margin-top:8px;">先にPT属性を選ぶと編成を選択できます</p>`;
     if (!compReady()) return `<p class="hint" style="margin-top:8px;">キャラデータを読み込めなかったため、今回は編成なしで送信できます</p>`;
-    const ap = presets?.attributes?.[a.attribute] ?? { topChars: [], topComps: [] };
+    const ap = insightsOf(a.attribute);
     const sel = selChars(a);
     // 使用率TOP: 一覧は小タイルでコンパクトに (TOP3 + もっと見る)。
     // 行をタップすると「行内展開 (案A)」— 行がクリームになりそのまま下に膨らんで
@@ -342,14 +379,17 @@ function compBodyHTML(a) {
         <button type="button" class="preset-row${isSel ? ' active' : ''}${open ? ' open-a' : ''}" data-preset="${pi}">
             <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
-                <span class="pill">使用率TOP${pi + 1}</span>
-                <span class="hint">使用 ${c.count}回 (〜${c.lastMonth})</span>
+                <span class="pill">今シーズンTOP${pi + 1}</span>
+                <span class="hint">${c.count}人が使用${Number.isFinite(c.median) ? ` · 中央値 ${Number(c.median).toFixed(2)}` : ''}</span>
             </span>
         </button>${expand}`;
     }).join('') + (moreCount > 0 && !a.presetMore ? `
         <button type="button" class="preset-more">▼ もっと見る (使用率TOP4〜${3 + moreCount})</button>` : '');
+    const presetHead = ap.topComps.length
+        ? `<p class="hint" style="margin-top:8px;">👥 今シーズンの提出データから、よく使われている編成です (タップで選択)</p>`
+        : `<p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります${ap.loading ? '' : '。今シーズンの提出が集まると「よく使われる編成」もここに出ます'}</p>`;
     return `
-        <p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります</p>
+        ${presetHead}
         ${presetRows}
         <div class="tmpl-chips">${BURST_TEMPLATES.map(t =>
             `<button type="button" class="tmpl-chip${a.template === t.id ? ' active' : ''}" data-tmpl="${t.id}">${t.label}</button>`).join('')}
@@ -368,10 +408,10 @@ function compBodyHTML(a) {
 }
 
 // アクティブ枠のバーストに合う候補を表示 (Λ・未分類はどの枠にも出す)。
-// 全キャラが対象。ユニオンでの使用実績が多い順 → 名前順に並べる。
+// 全キャラが対象。今シーズンの採用数が多い順 → 名前順 (提出が無いうちは名前順)。
 function pickerGridHTML(a, ap) {
     const slotBurst = templateById(a.template).slots[a.activeSlot];
-    // 使用実績 (presets の topChars) を代表IDに集計して並び順に使う
+    // 今シーズンの採用数 (get_comp_insights の chars) を代表IDに集計して並び順に使う
     const usage = new Map();
     for (const { img, count } of (ap.topChars || [])) {
         const cid = charKeyOf(img);
@@ -435,6 +475,14 @@ function bindAttackCard(card) {
             a.arrPick = null;      // 配置候補の開閉状態も属性ごとにリセット (Codex指摘)
             a.presetMore = false;  // 「もっと見る」もTOP3表示に戻す (Codex指摘)
             renderAttacks();
+            // 今シーズンの提出データ (使用率・編成TOP) は属性ごとに遅延取得 → 届いたら編成欄だけ差し替え
+            ensureInsights(a.attribute, () => {
+                // 添字ではなく state の同一性で対象カードを探す (途中で凸カードを消しても追随する)
+                const idx = attacks.indexOf(a);
+                if (idx < 0 || a.attribute !== btn.dataset.attr) return;
+                const cardNow = document.querySelector(`.atk-card[data-i="${idx}"]`);
+                if (cardNow) renderCompBody(cardNow, a);
+            });
         });
     });
     // ダメージ入力 (再描画せず state とプレビューだけ更新 — フォーカス維持)
@@ -470,7 +518,7 @@ function renderCompBody(card, a) {
 }
 
 function bindCompBody(card, a) {
-    const ap = presets?.attributes?.[a.attribute];
+    const ap = insightsOf(a.attribute);   // 描画と同じ供給元 (今シーズンの提出データ)
     // 指定の並び (配置) をそのまま枠に入れる。並び順がテンプレに順番どおり合うなら
     // そのテンプレで、合わなければ「自由」で順序を保存する (並びの情報を壊さない)
     const applyArrangement = (chars) => {
@@ -485,7 +533,8 @@ function bindCompBody(card, a) {
     card.querySelectorAll('.preset-row').forEach(row => {
         row.addEventListener('click', () => {
             const pi = Number(row.dataset.preset);
-            const c = ap.topComps[pi];
+            const c = ap.topComps?.[pi];
+            if (!c) return;   // 再描画で行が入れ替わった直後などの保険
             const sel = selChars(a);
             if (sel.length === 5 && c.chars.every(x => sel.includes(x))) {
                 a.slots = [null, null, null, null, null];

@@ -1,7 +1,7 @@
 {
-  "name": "しりすこPAD GB — ふるり値チェッカー",
-  "short_name": "ふるり値",
-  "description": "NIKKEユニオンレイドのダメージをSLv補正して実力を測る「ふるり値」チェッカー。みんなの分布の中での自分の位置がわかる。",
+  "name": "しりすこPAD GB",
+  "short_name": "しりすこPAD GB",
+  "description": "NIKKEユニオンレイドの「ふるり値チェッカー」。ダメージをSLv補正して、みんなの分布の中での自分の位置がわかる。",
   "id": "/",
   "start_url": "./",
   "scope": "./",
@@ -11,11 +11,30 @@
   "theme_color": "#0C0C0A",
   "lang": "ja",
   "icons": [
-    { "src": "./assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "./assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "みんなのデータ", "short_name": "分布", "url": "./stats.html" }
+    {
+      "name": "みんなのデータ",
+      "short_name": "分布",
+      "url": "./stats.html"
+    }
   ]
 }
