@@ -45,6 +45,8 @@
             }
         }
         * { box-sizing:border-box; margin:0; padding:0; }
+        /* 自前の「引っぱって更新」と ブラウザ既定のPTR が二重に発動しないようにする */
+        html, body { overscroll-behavior-y: contain; }
         body { font-family:'Poppins','Noto Sans JP',system-ui,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; padding:0 16px calc(28px + env(safe-area-inset-bottom)); }
         .wrap { max-width:560px; margin:0 auto; }
         header { padding:26px 4px 12px; display:flex; align-items:flex-start; gap:11px; }
@@ -136,7 +138,7 @@
     </style>
 </head>
 <body>
-<div class="ptr" id="ptr">↓ 引っぱって更新</div>
+<div class="ptr" id="ptr" aria-live="polite" aria-hidden="true">↓ 引っぱって更新</div>
 <div class="wrap">
     <header>
         <div class="brand-dot">📊</div>

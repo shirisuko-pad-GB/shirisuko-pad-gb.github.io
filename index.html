@@ -74,6 +74,8 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { -webkit-text-size-adjust: 100%; }
+        /* 自前の「引っぱって更新」と ブラウザ既定のPTR が二重に発動しないようにする */
+        html, body { overscroll-behavior-y: contain; }
         body {
             font-family: 'Poppins', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
             background: var(--bg); color: var(--ink);
@@ -495,7 +497,7 @@
     </style>
 </head>
 <body>
-<div class="ptr" id="ptr">↓ 引っぱって更新</div>
+<div class="ptr" id="ptr" aria-live="polite" aria-hidden="true">↓ 引っぱって更新</div>
 <div class="wrap">
     <header>
         <div class="brand-dot">📊</div>
