@@ -1,7 +1,7 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured } from './backend.js';
 import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO } from './shared.js';
-import { makeCharResolver, tileHTML } from './tiles.js';
+import { makeCharResolver, tileHTML, sortForDisplay } from './tiles.js';
 
 let infoOf = () => null;
 
@@ -175,38 +175,27 @@ function renderInsights(ins, info) {
             <span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>
             <span>採用 <strong>${cp.n}人</strong></span>
         </span>
-        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img)).join('')}</span>
+        <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>
     </div>`).join('');
     const medianTopHtml = medianTop
         ? `<p class="sec-label">💪 中央値が高い編成 (採用5人以上)</p>${medianTop}
            <p class="sec-label" style="margin-top:14px;">📊 よく使われる編成 (使用率順)</p>` : '';
 
     // 編成ランキング (使用率順)。median は採用5人未満だと null (プライバシー下限)。
-    // ▼ を開くと「並び順 (配置) の内訳」— 順不同5人の中でどの並びが多いか
+    // 編成は「同じ5人」で1つ (並び順は評価に無関係なので内訳は出さない — 2026-08-01 運営判断)
     $('compsArea').innerHTML = medianTopHtml + ((ins.comps || []).map((cp, i) => {
         const stats = Number.isFinite(cp.median)
             ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>`
             : `<span style="color:var(--faint);">スコアは5人以上で表示</span>`;
-        const arrs = (Array.isArray(cp.arr) ? cp.arr : []).filter(a => Array.isArray(a.chars));
-        const arrHtml = arrs.length >= 2 ? `
-        <div class="arr-list">
-            <p class="hint" style="margin:6px 0 2px;">並び順の内訳 (左から配置スロット順):</p>
-            ${arrs.map(a => `
-            <div class="arr-row">
-                <span class="arr-n">${a.n}人</span>
-                <span class="comp-faces">${a.chars.map(img => charTileTag(img)).join('')}</span>
-            </div>`).join('')}
-        </div>` : '';
+
         const row = `
         <span class="rank">${i + 1}</span>
         <span class="comp-meta">
             <span>採用 <strong>${cp.n}人</strong></span>
             ${stats}
         </span>
-        <span class="comp-faces">${(Array.isArray(cp.chars) ? cp.chars : []).map(img => charTileTag(img)).join('')}</span>`;
-        return arrHtml
-            ? `<details class="comp-x"><summary class="comp-row">${row}<span class="chev">▼</span></summary>${arrHtml}</details>`
-            : `<div class="comp-row">${row}</div>`;
+        <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>`;
+        return `<div class="comp-row">${row}</div>`;
     }).join('') || '<p class="hint">まだ編成つきの提出がありません</p>');
 }
 

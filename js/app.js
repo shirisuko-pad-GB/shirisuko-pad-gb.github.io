@@ -403,20 +403,10 @@ function compBodyHTML(a) {
     const moreCount = allComps.length - 3;
     const presetRows = visComps.map((c, pi) => {
         const isSel = sel.length === 5 && c.chars.every(x => sel.includes(x));
-        const arrs = (Array.isArray(c.arr) ? c.arr : []).filter(x => Array.isArray(x.chars) && x.chars.length === 5);
-        const open = a.arrPick === pi && arrs.length > 1;
-        const expand = open ? `
-        <div class="arr-expand">
-            <p class="arr-lbl">▼ 使用率TOP${pi + 1} の並び (配置) を選ぶ — 左から配置スロット順</p>
-            ${arrs.map((x, xi) => `
-            <button type="button" class="arr-opt" data-preset="${pi}" data-arr="${xi}">
-                <span class="arr-faces">${x.chars.map(img => tileHTML(infoOf(img))).join('')}</span>
-                <span class="arr-n">この並び ${x.n}回</span>
-            </button>`).join('')}
-        </div>` : '';
+        const expand = '';   // 「並び (配置) を選ぶ」は廃止 — 編成順は評価に影響しないため
         return `
-        <button type="button" class="preset-row${isSel ? ' active' : ''}${open ? ' open-a' : ''}" data-preset="${pi}">
-            <span class="preset-faces">${c.chars.map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
+        <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
+            <span class="preset-faces">${sortForDisplay(c.chars, infoOf).map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
                 <span class="pill">今シーズンTOP${pi + 1}</span>
                 <span class="hint">${c.count}人が使用${Number.isFinite(c.median) ? ` · 中央値 ${Number(c.median).toFixed(2)}` : ''}</span>
@@ -432,7 +422,9 @@ function compBodyHTML(a) {
         ${presetRows}
         <div class="tmpl-chips">${BURST_TEMPLATES.map(t =>
             `<button type="button" class="tmpl-chip${a.template === t.id ? ' active' : ''}" data-tmpl="${t.id}">${t.label}</button>`).join('')}
+            ${selChars(a).length >= 2 ? `<button type="button" class="sort-chip">⇅ バースト順に整える</button>` : ''}
         </div>
+        <p class="hint" style="margin-top:6px;">並び順は評価に影響しません (同じ5人なら同じ編成として集計されます)</p>
         <div class="slot-row">${templateById(a.template).slots.map((sb, si) => {
             const img = a.slots[si];
             const color = sb ? BURST_COLORS[sb] : '#8A9097';
@@ -511,7 +503,6 @@ function bindAttackCard(card) {
             a.attribute = btn.dataset.attr;
             a.slots = [null, null, null, null, null];
             a.activeSlot = 0;
-            a.arrPick = null;      // 配置候補の開閉状態も属性ごとにリセット (Codex指摘)
             a.presetMore = false;  // 「もっと見る」もTOP3表示に戻す (Codex指摘)
             renderAttacks();
             // 今シーズンの提出データ (使用率・編成TOP) は属性ごとに遅延取得 → 届いたら編成欄だけ差し替え
@@ -558,43 +549,39 @@ function renderCompBody(card, a) {
 
 function bindCompBody(card, a) {
     const ap = insightsOf(a.attribute);   // 描画と同じ供給元 (今シーズンの提出データ)
-    // 指定の並び (配置) をそのまま枠に入れる。並び順がテンプレに順番どおり合うなら
-    // そのテンプレで、合わなければ「自由」で順序を保存する (並びの情報を壊さない)
-    const applyArrangement = (chars) => {
+    // 編成の並び順は評価に一切影響しない (集計は順不同の comp_key)。
+    // 「どの順で入れるか」を悩ませないため、5人が決まったら常にバースト順 (B1→B2→B3→Λ)
+    // に自動整列して枠へ入れる (2026-08-01 運営判断: 編成順は考慮しない)
+    const applyComp = (chars) => {
+        const ordered = sortForDisplay(chars, infoOf);
         const tmpl = BURST_TEMPLATES.find(t => t.id !== 'free' &&
-            chars.every((id, k) => burstMatchesSlot(burstsOfId(id), t.slots[k])));
+            reslotChars(ordered, burstsOfId, t.slots).dropped.length === 0);
         a.template = tmpl ? tmpl.id : 'free';
-        a.slots = [...chars];
+        a.slots = tmpl ? reslotChars(ordered, burstsOfId, tmpl.slots).slots : [...ordered];
         a.activeSlot = 0;
-        a.arrPick = null;
     };
-    // プリセット: 押すと配置 (並び順) の選択肢を開く。1種類なら即適用。再タップで解除
+    // プリセット: 押すとその5人をそのまま採用 (並びは自動)。再タップで解除
     card.querySelectorAll('.preset-row').forEach(row => {
         row.addEventListener('click', () => {
             const pi = Number(row.dataset.preset);
             const c = ap.topComps?.[pi];
             if (!c) return;   // 再描画で行が入れ替わった直後などの保険
             const sel = selChars(a);
-            if (sel.length === 5 && c.chars.every(x => sel.includes(x))) {
-                a.slots = [null, null, null, null, null];
-                a.arrPick = null;
-            } else {
-                const arrs = (Array.isArray(c.arr) ? c.arr : []).filter(x => Array.isArray(x.chars) && x.chars.length === 5);
-                if (arrs.length > 1) {
-                    a.arrPick = a.arrPick === pi ? null : pi;   // 配置の選択肢を開閉
-                } else {
-                    applyArrangement(arrs[0]?.chars ?? c.chars);
-                }
-            }
+            if (sel.length === 5 && c.chars.every(x => sel.includes(x))) a.slots = [null, null, null, null, null];
+            else applyComp(c.chars);
             renderCompBody(card, a);
         });
     });
-    // 配置 (並び順) の選択
-    card.querySelectorAll('.arr-opt').forEach(btn => {
+    // ⇅ バースト順に整える (自由枠でも使える。並び順は評価に影響しないが見やすさのため)
+    card.querySelectorAll('.sort-chip').forEach(btn => {
         btn.addEventListener('click', () => {
-            const c = ap.topComps[Number(btn.dataset.preset)];
-            const x = c.arr[Number(btn.dataset.arr)];
-            applyArrangement(x.chars);
+            const ordered = sortForDisplay(selChars(a), infoOf);
+            const slots = templateById(a.template).slots;
+            // 今のテンプレの枠に収まるならその配置で、収まらないなら順に詰める
+            const fit = reslotChars(ordered, burstsOfId, slots);
+            a.slots = fit.dropped.length === 0 ? fit.slots
+                : [...ordered, null, null, null, null, null].slice(0, 5);
+            a.activeSlot = Math.max(0, a.slots.indexOf(null));
             renderCompBody(card, a);
         });
     });
@@ -603,9 +590,9 @@ function bindCompBody(card, a) {
         btn.addEventListener('click', () => { a.presetMore = true; renderCompBody(card, a); });
     });
     // バースト構成テンプレート切替 (選択済みキャラは合う枠に詰め直す)
-    card.querySelectorAll('.tmpl-chip').forEach(chip => {
+    card.querySelectorAll('.tmpl-chip[data-tmpl]').forEach(chip => {
         chip.addEventListener('click', () => {
-            if (a.template === chip.dataset.tmpl) return;
+            if (!chip.dataset.tmpl || a.template === chip.dataset.tmpl) return;
             a.template = chip.dataset.tmpl;
             const { slots, dropped } = reslotChars(selChars(a), burstsOfId, templateById(a.template).slots);
             a.slots = slots;

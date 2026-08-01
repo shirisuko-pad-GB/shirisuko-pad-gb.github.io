@@ -63,21 +63,23 @@ function drawMini(ctx, { x, y, w, h, bins, myBin, color }) {
     }
 }
 
-// 大きい% (単位の%だけ小さく)。桁が多いときは列幅に収まるまで縮小 (荒らし自認スコア対策)
-function drawBigPct(ctx, x, y, pct, size, color, maxW) {
-    const t = pct != null ? String(pct) : '—';
+// 大きい数字 (単位は小さく添える)。桁が多いときは列幅に収まるまで縮小 (荒らし自認スコア対策)。
+// unit を渡すと「123 %」のように単位付き、null なら数字だけ (ふるり値の主役表示)
+function drawBigNum(ctx, x, y, text, size, color, maxW, unit = '%') {
+    const t = String(text);
     let px = size;
     ctx.font = `800 ${px}px ${F}`;
-    while (px > 20 && maxW && ctx.measureText(t).width + px * 0.42 > maxW) {
+    const unitW = unit ? px * 0.42 : 0;
+    while (px > 20 && maxW && ctx.measureText(t).width + unitW > maxW) {
         px -= 4;
         ctx.font = `800 ${px}px ${F}`;
     }
     ctx.fillStyle = color;
     ctx.fillText(t, x, y);
-    if (pct != null) {
+    if (unit) {
         const w = ctx.measureText(t).width;
         ctx.font = `800 ${Math.round(px * 0.42)}px ${F}`;
-        ctx.fillText('%', x + w + 6, y);
+        ctx.fillText(unit, x + w + 6, y);
     }
 }
 
@@ -164,18 +166,24 @@ export async function buildShareCard(results, canvas, opts = {}) {
         ctx.stroke();
     }
 
-    const bigSize = multi ? (cols.length >= 4 ? 62 : 72) : 104;
+    // % がSNSでの主役。行 (ふるり値・実ダメージ・編成タイル) を詰めた分だけ数字を大きく取る
+    const bigSize = multi ? (cols.length >= 4 ? 84 : 96) : 128;
     cols.forEach((c, i) => {
         const x0 = left + i * cw + (i > 0 ? pad : 0);
         const iw = cw - (i > 0 ? pad : 0) - pad;
         if (c.type === 'sum') {
             ctx.fillStyle = CREAM;
-            ctx.font = `800 24px ${F}`;
-            ctx.fillText('総合', x0, 262);
-            drawBigPct(ctx, x0, 262 + bigSize + 8, totalPct, bigSize, CREAM, iw);
+            ctx.font = `800 26px ${F}`;
+            ctx.fillText('総合', x0, 252);
+            // 未解禁 (分布50人未満) の間は % が出せないので、平均ふるり値を主役にする
+            // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)
+            const avgScore = results.reduce((s2, r2) => s2 + r2.score, 0) / results.length;
+            if (totalPct != null) drawBigNum(ctx, x0, 252 + bigSize + 4, totalPct, bigSize, CREAM, iw);
+            else drawBigNum(ctx, x0, 252 + bigSize + 4, avgScore.toFixed(2), bigSize, CREAM, iw, null);
             ctx.fillStyle = '#8A9097';
-            ctx.font = `700 19px ${F}`;
-            ctx.fillText('各凸の中央値比を同じ重みで平均', x0, 262 + bigSize + 44);
+            ctx.font = `700 18px ${F}`;
+            ctx.fillText(totalPct != null ? '各凸の中央値比を同じ重みで平均' : `平均ふるり値 (${results.length}凸)`,
+                x0, 252 + bigSize + 36);
             ctx.fillStyle = '#A4AAB0';
             ctx.font = `700 22px ${F}`;
             ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 500);
@@ -183,37 +191,37 @@ export async function buildShareCard(results, canvas, opts = {}) {
             ctx.font = `700 16px ${F}`;
             ctx.fillText('ボスの通りやすさは属性ごとの', x0, 596);
             ctx.fillText('中央値で補正済み。編成内%は', x0, 622);
-            ctx.fillText('同じ5人 (並び不問) との比較', x0, 648);
+            ctx.fillText('同じ5人との比較 (並び順は不問)', x0, 648);
             return;
         }
         const { r, ratio } = c;
         const info = ATTR_INFO[r.attribute];
         const mp = ratio != null ? Math.round(ratio * 100) : null;
         ctx.fillStyle = info.color;
-        ctx.font = `800 ${multi ? 24 : 30}px ${F}`;
-        ctx.fillText(`${info.jp}PT`, x0, multi ? 262 : 270);
-        const bigY = (multi ? 262 : 270) + bigSize + 8;
-        drawBigPct(ctx, x0, bigY, mp, bigSize, info.color, iw);
-        ctx.fillStyle = '#8A9097';
-        ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
+        ctx.font = `800 ${multi ? 26 : 30}px ${F}`;
+        ctx.fillText(`${info.jp}PT`, x0, multi ? 252 : 270);
+        const bigY = (multi ? 252 : 270) + bigSize + 4;
         // damage/slv は localStorage 復元の古い保存に無いことがある → 欠けは静かに省く (NaN対策)
         const dmgB = Number.isFinite(r.damage) ? `${(r.damage / 1e9).toFixed(2)} B` : null;
+        // 解禁前は % が無いのでふるり値を主役に (結果カードと同じ主従)
+        if (mp != null) drawBigNum(ctx, x0, bigY, mp, bigSize, info.color, iw);
+        else drawBigNum(ctx, x0, bigY, r.score.toFixed(2), bigSize, info.color, iw, null);
+        ctx.fillStyle = '#8A9097';
+        ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
         if (multi) {
-            ctx.fillText(`ふるり値 ${r.score.toFixed(2)}`, x0, bigY + 36);
-            // 実ダメージ (見る人が一番イメージしやすい生の数字)
-            if (dmgB) {
-                ctx.fillStyle = '#A4AAB0';
-                ctx.font = `700 19px ${F}`;
-                ctx.fillText(dmgB, x0, bigY + 64);
-            }
+            // 2行だったふるり値・実ダメージを1行に (空いた分を % の拡大に回す)
+            const sub = mp != null
+                ? [`ふるり値 ${r.score.toFixed(2)}`, dmgB].filter(Boolean).join(' · ')
+                : ['ふるり値', dmgB].filter(Boolean).join(' · ');
+            ctx.fillText(sub, x0, bigY + 34);
         } else {
             // 単発は列幅が広いので1行にまとめる (SLv は総合列が無いのでここに出す)
-            const parts = [`ふるり値 ${r.score.toFixed(2)}`,
+            const parts = [mp != null ? `ふるり値 ${r.score.toFixed(2)}` : 'ふるり値',
                 Number.isFinite(r.slv) ? `SLv ${r.slv}` : null, dmgB].filter(Boolean);
             ctx.fillText(parts.join(' · '), x0, bigY + 44);
         }
-        // 使った編成 (5人・順不同保存なのでバースト順) + 編成内% (同一編成の中央値比)
-        const tilesY = multi ? 430 : 448;
+        // 使った編成 (順不同で保存 — 表示はバースト順に揃える) + 編成内% (同一編成の中央値比)
+        const tilesY = multi ? 442 : 448;
         const gapT = 4;
         const ts = Math.min(multi ? 42 : 58, Math.floor((iw - gapT * 4) / 5));
         const canTiles = infoOf && r.characters?.length;
