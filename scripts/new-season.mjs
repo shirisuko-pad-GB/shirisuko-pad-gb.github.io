@@ -82,28 +82,6 @@ const raid = {
 const sims = await padGet(`fururi_simulation_scores?select=boss_code,damage_raw&season_id=eq.${target.id}`);
 const simByCode = new Map(sims.map(s => [s.boss_code, Number(s.damage_raw)]));
 
-// 基準編成 (ふるりの模擬編成) — 「どの編成で出した基準値か」をサイトで小さく開示する。
-// 本家は player_damages.characters にキャラ名で保存しているので、GB の characters.json で
-// 代表IDへ解決する (解決できない名前は落とす = 5体揃わなければ編成なし扱い)
-const teamByAttr = {};
-try {
-    const fururiId = (await padGet(`players?select=id&name=eq.${encodeURIComponent('ふるり')}`))[0]?.id;
-    if (fururiId) {
-        const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
-        const idByName = new Map();
-        if (charData._format === 2) {
-            for (const [cid, c] of Object.entries(charData.chars)) idByName.set(normName(c.name), cid);
-        }
-        const dmgs = await padGet(`player_damages?select=attribute,slot,characters&player_id=eq.${fururiId}`);
-        for (const d of dmgs) {
-            if ((d.slot ?? 1) !== 1) continue;   // 基準は slot1 (主編成)
-            const ids = (d.characters || []).map(n => idByName.get(normName(String(n).split('/').pop()))).filter(Boolean);
-            if (ids.length === 5) teamByAttr[String(d.attribute).toUpperCase()] = ids.sort();
-        }
-    }
-} catch (e) {
-    console.warn('(基準編成の取得に失敗 — 編成表示なしで続行)', e?.message ?? e);
-}
 const monthPath = join(padDir, 'data', `${seasonKey}.json`);
 let actualByCode = new Map(), monthSlv = null;
 if (existsSync(monthPath)) {
@@ -137,7 +115,6 @@ for (const b of bosses) {
     const damage = sim ?? act;   // 模擬優先 (本家 buildFururiBaseMap と同じ運用ルール)
     if (!(damage > 0)) { missing.push(`${attr} (${b.boss_code} / ${b.name})`); continue; }
     bases[attr] = { bossCode: b.boss_code, damage, source: sim != null ? 'simulation' : 'actual' };
-    if (teamByAttr[attr]) bases[attr].team = teamByAttr[attr];   // 基準編成 (キャラID×5・順不同)
 }
 if (missing.length > 0) {
     console.error(`❌ ふるり基準が揃っていません: ${missing.join(', ')}`);
@@ -174,7 +151,7 @@ try {
     writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
     writeFileSync(outFiles[2], JSON.stringify(bossCatalog, null, 1) + '\n', 'utf8');
     console.log(`raid.json:  ${order.map(a => `${a}→${raid.bosses[a]}`).join(' / ')}`);
-    console.log(`base.json:  SLv ${baseSlv} / 基準編成 ${Object.values(bases).filter(b => b.team).length}/5属性 / ` +
+    console.log(`base.json:  SLv ${baseSlv} / ` +
         Object.entries(bases).map(([a, v]) => `${a}=${(v.damage / 1e9).toFixed(2)}B(${v.source === 'simulation' ? '模擬' : '実凸'})`).join(' '));
     console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
 
@@ -182,6 +159,44 @@ try {
     execFileSync(process.execPath, [join(ROOT, 'scripts', 'gen-seed.mjs'), join(padDir, 'data', 'slv-ratio.json')], { stdio: 'inherit' });   // 本家パスを引き継ぐ (フォルダ名が既定と違う環境対応)
     console.log('--- update-roster (キャラ・使用率の更新) ---');
     execFileSync(process.execPath, [join(ROOT, 'scripts', 'update-roster.mjs'), padDir], { stdio: 'inherit' });
+
+    // --- 基準編成 (ふるりの模擬編成) を base.json に追記 ---
+    // 「どの編成で出した基準値か」をサイトで開示するため。update-roster の後に実行するのは
+    // 最新の characters.json (新キャラ込み) で名前→代表ID を解決するため (順序依存の回避)。
+    // player_damages はシーズン列を持たない「現在の模擬」テーブルなので、
+    // ⚠ 採用は damage_b が今回の基準ダメージと一致する属性だけ (古い模擬の混入を構造的に排除)
+    try {
+        const fururiId = (await padGet(`players?select=id&name=eq.${encodeURIComponent(base.basePlayer)}`))[0]?.id;
+        const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
+        const idByName = new Map();
+        if (charData._format === 2) for (const [cid, c] of Object.entries(charData.chars)) idByName.set(normName(c.name), cid);
+        const dmgs = fururiId ? await padGet(`player_damages?select=attribute,slot,damage_b,characters&player_id=eq.${fururiId}`) : [];
+        let attached = 0;
+        for (const d of dmgs) {
+            if ((d.slot ?? 1) !== 1) continue;                    // 基準は slot1 (主編成)
+            const attr = String(d.attribute).toUpperCase();
+            const b = bases[attr];
+            if (!b) continue;
+            if (Math.round(Number(d.damage_b) * 1e9) !== Math.round(b.damage)) {
+                console.warn(`⚠ ${attr}: 模擬の値 (${d.damage_b}B) が基準 (${(b.damage / 1e9).toFixed(3)}B) と一致しないため編成を採用しません`);
+                continue;
+            }
+            const names = (d.characters || []).map(n => String(n).split('/').pop());
+            const ids = names.map(n => idByName.get(normName(n))).filter(Boolean);
+            if (ids.length !== 5) {
+                console.warn(`⚠ ${attr}: 編成の名前解決に失敗 (${names.filter(n => !idByName.has(normName(n))).join(', ') || '5体未満'})`);
+                continue;
+            }
+            b.team = ids.sort();
+            attached++;
+        }
+        if (attached > 0) {
+            writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
+            console.log(`base.json: 基準編成 ${attached}/5属性 を追記`);
+        }
+    } catch (e) {
+        console.warn('(基準編成の取得に失敗 — 編成表示なしで続行)', e?.message ?? e);
+    }
 } catch (e) {
     outFiles.forEach((p, i) => { if (backups[i] !== null) writeFileSync(p, backups[i]); });
     console.error('❌ 後続処理が失敗したため raid.json / base.json / boss-catalog.json を元に戻しました。');

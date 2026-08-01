@@ -128,7 +128,7 @@ function renderBaseTeams() {
         <div class="base-row" style="--ac:${info.color};">
             <span class="base-attr">${info.jp}PT</span>
             <span class="base-dmg">${(b.damage / 1e9).toFixed(2)} B</span>
-            ${boss ? `<span class="hint">vs ${escapeHtml(boss)}</span>` : ''}
+            <span class="hint">${b.source === 'actual' ? '実凸' : '模擬'}${boss ? ` · vs ${escapeHtml(boss)}` : ''}</span>
             ${team}
         </div>`;
     }).join('');

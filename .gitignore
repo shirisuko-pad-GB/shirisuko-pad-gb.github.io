@@ -2,3 +2,4 @@
 data/slv-ratio.json
 supabase/02_stats.local.sql
 supabase/seed.local.sql
+supabase/base-vote-id.local
