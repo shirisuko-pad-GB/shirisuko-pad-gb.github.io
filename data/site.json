@@ -3,7 +3,8 @@
     "サイト運用設定 (ユニオン募集・連絡先X)。変更は Git 経由のみ — サイト内に管理UIは作らない。",
     "tools/ops.html を開くとフォームでこのファイルを編集→コピー→GitHubで commit できる。",
     "xAccount は @ なしの ID。recruit.enabled を false にすると募集カードが消える。",
-    "partners は「素晴らしいユニオンさんたちが掲載中!」枠。url は https のみ・banner は assets/ 配下の画像 (任意)。"
+    "partners は「素晴らしいユニオンさんたちが掲載中!」枠。url は https のみ・banner は assets/ 配下の画像 (任意)。",
+    "partners[].banner は提供元の許諾を得た素材のみ (credit に提供元と許諾日を記録する)。bannerW/bannerH は実寸 (レイアウトシフト防止)。"
   ],
   "xAccount": "FururiNIKKE",
   "recruit": {
@@ -15,8 +16,11 @@
     {
       "name": "シフティーサーチ",
       "note": "ふるり値の算出方法を一緒に検討した「めいでん」さんが運営するユニオン掲載サイト",
-      "url": "https://script.google.com/macros/s/AKfycbyxUazacPCvClqxuo-bQfStSrKCTYx-mi5lm5RLjaZJIKQK2jjdiADdPt11oogS-DjV/exec",
-      "banner": null
+      "url": "https://x.gd/0y7j8",
+      "banner": "./assets/partner-shifty.webp",
+      "bannerW": 800,
+      "bannerH": 624,
+      "credit": "ロゴは運営者「めいでん」さん提供 (2026-08-01 掲載許諾済み)"
     }
   ]
 }

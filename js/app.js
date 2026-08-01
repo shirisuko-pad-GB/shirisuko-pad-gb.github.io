@@ -139,13 +139,20 @@ function renderPartners() {
             const url = escapeHtml(p.url);
             const bannerOk = typeof p.banner === 'string' && !p.banner.includes('..')
                 && /^\.\/assets\/[\w./-]+\.(png|webp|jpg|jpeg)$/.test(p.banner);
+            // 遷移先ホストを併記する (短縮URLでも「どこへ飛ぶか」が事前に分かるように)
+            let host = '';
+            try { host = new URL(p.url).host; } catch { /* 検証済みなので通常来ない */ }
+            // 画像は width/height を持たせて読み込み前から場所を確保 (レイアウトシフト防止)
+            const w = Number.isFinite(p.bannerW) ? p.bannerW : 800;
+            const h = Number.isFinite(p.bannerH) ? p.bannerH : 624;
             return `
         <div class="partner-row">
             ${bannerOk
-                ? `<a href="${url}" target="_blank" rel="noopener"><img class="partner-banner" src="${escapeHtml(p.banner)}" alt="${escapeHtml(p.name)}" loading="lazy"></a>`
+                ? `<a href="${url}" target="_blank" rel="noopener noreferrer"><img class="partner-banner" src="${escapeHtml(p.banner)}" alt="${escapeHtml(p.name)}" width="${w}" height="${h}" loading="lazy"></a>`
                 : `<p class="partner-name">${escapeHtml(p.name)}</p>`}
             ${p.note ? `<p class="partner-note">${escapeHtml(p.note)}</p>` : ''}
-            <a class="partner-btn" href="${url}" target="_blank" rel="noopener">${escapeHtml(p.name)} を見る →</a>
+            <a class="partner-btn" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.name)} を見る →</a>
+            ${host ? `<p class="partner-host">遷移先: ${escapeHtml(host)}</p>` : ''}
         </div>`;
         }).join('')}
     </section>`;

@@ -148,6 +148,8 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
   整合ガード: tests/run-tests.mjs (撤去レバーの存在・hasImg と実ファイルの一致・表記の焼き込み)
 - 撤去要請が来たら: `USE_CHAR_IMAGES = false` → commit&push (即日)。その後
   character-images/ を削除して build を回せば hasImg も消える
+- `assets/partner-*.webp` は**提携先から提供を受けたロゴ** (site.json の credit に提供元と許諾日を記録)。
+  掲載中止の連絡が来たら partners から該当エントリを消す (画像も削除)
 - `assets/loading.gif` (送信中オーバーレイ)・`assets/recruit-banner.jpg` (募集バナー)・
   `assets/union-logo.png` (シェアカード右上のユニオンロゴ — バナーから切り出し背景透過) は
   **ユニオンメンバー作のオリジナルファンアート** (本人の提供・掲載了承済み)。
