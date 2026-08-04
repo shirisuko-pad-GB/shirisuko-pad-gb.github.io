@@ -44,6 +44,10 @@ delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8
 
 ## 🧪 技術負債メモ (Codexレビュー 2026-08-01)
 
+- (2026-08-04 追記) 匿名 write RPC (submit / own-edits) にレート制限が無い —
+  Supabase 側の設定か Edge Function 化で絞れるが、現状は shadow 集計 +
+  「correct は既存行のみ」ガードで実害を抑えている。荒らしの実弾が観測されたら着手
+
 - build-characters.mjs の取得ロジック (blabla優先/ゴースト除外/sticky ID/改名警告) に
   回帰テストが無い (現テストは characters.json スナップショット整合のみ)。
   DB fetch をモック注入できる形に切ってからテスト追加するのが筋 — 余裕のある時に
