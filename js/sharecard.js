@@ -211,19 +211,23 @@ export async function buildShareCard(results, canvas, opts = {}) {
             ctx.font = `800 26px ${F}`;
             ctx.fillText('総合', x0, 252);
             // 未解禁 (分布50人未満) の間は % が出せないので、平均ふるり値を主役にする
-            // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)
-            const avgBase = scored.length ? scored : results;
+            // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)。
+            // 全凸締め凸のときも平均ふるり値だが「参考」を明示 (Codex指摘 — 総合を装わない)
+            const allFinish = scored.length === 0;
+            const avgBase = allFinish ? results : scored;
             const avgScore = avgBase.reduce((s2, r2) => s2 + r2.score, 0) / avgBase.length;
             if (totalPct != null) drawBigNum(ctx, x0, 252 + bigSize + 4, totalPct, bigSize, CREAM, iw);
             else drawBigNum(ctx, x0, 252 + bigSize + 4, avgScore.toFixed(2), bigSize, CREAM, iw, null);
             ctx.fillStyle = '#8A9097';
             ctx.font = `700 18px ${F}`;
-            ctx.fillText(totalPct != null ? '各凸の中央値比を同じ重みで平均' : `平均ふるり値 (${avgBase.length}凸)`,
+            ctx.fillText(totalPct != null ? '各凸の中央値比を同じ重みで平均'
+                : allFinish ? `平均ふるり値 (全て締め凸・参考)` : `平均ふるり値 (${avgBase.length}凸)`,
                 x0, 252 + bigSize + 36);
             ctx.fillStyle = '#A4AAB0';
             ctx.font = `700 22px ${F}`;
-            const sumLabel = anyFinish ? `${scored.length}凸 (締め凸除く) / SLv ${results[0].slv}`
-                                       : `${results.length}凸 / SLv ${results[0].slv}`;
+            const sumLabel = allFinish ? `締め凸${results.length}凸 / SLv ${results[0].slv}`
+                : anyFinish ? `${scored.length}凸 (締め凸除く) / SLv ${results[0].slv}`
+                            : `${results.length}凸 / SLv ${results[0].slv}`;
             ctx.fillText(sumLabel, x0, 514);   // 属性列の編成内%と同じ高さ
             // のべ比較人数 = 各属性分布の n の合計 (どれだけの提出と比べたかが一目で分かる)
             const totalN = results.filter(r2 => distReady(r2.dist)).reduce((s2, r2) => s2 + r2.dist.n, 0);

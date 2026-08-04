@@ -446,9 +446,10 @@ test('09_finish_flag: 締め凸の除外・互換・データ保全', () => {
     const ins = sql.slice(defIns);
     for (const [part, label, anchor] of [[dist, 'get_distribution', 'group by client_id'],
                                          [ins, 'get_comp_insights', 'order by client_id, norm_damage desc']]) {
-        const f = part.indexOf('not is_finish');
-        assert(f >= 0, `${label}: 締め凸除外が無い`);
-        assert(f < part.indexOf(anchor), `${label}: 締め凸除外が per-client 選抜より後にある`);
+        // 行頭の実述語のみマッチ (コメント中の言及では通らないように — Codex指摘)
+        const m = /^\s*and not is_finish\b/m.exec(part);
+        assert(m, `${label}: 締め凸除外の述語 (and not is_finish) が無い`);
+        assert(m.index < part.indexOf(anchor), `${label}: 締め凸除外が per-client 選抜より後にある`);
     }
     // submit は is_finish 省略時 false (旧クライアント互換)
     assert(/coalesce\(\(v_row ->> 'is_finish'\)::boolean, false\)/.test(sql),

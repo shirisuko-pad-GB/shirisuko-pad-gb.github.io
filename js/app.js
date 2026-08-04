@@ -1017,24 +1017,29 @@ async function showShareCardPreview() {
     }
 }
 
-// シェア文もカードと同じ主従: 中央値比%が主役、ふるり値はサブ (未解禁時のみふるり値が主役)
+// シェア文もカードと同じ主従: 中央値比%が主役、ふるり値はサブ (未解禁時のみふるり値が主役)。
+// 総合は締め凸を除いて平均 (画面・カードと同じ数字になること — Codex指摘)
 function shareText() {
     if (results.length > 1) {
-        const ratios = results.map(medianRatioOf);
-        if (ratios.every(x => x != null)) {
+        const scored = results.filter(r => !r.isFinish);
+        const ratios = scored.map(medianRatioOf);
+        const partOf = (r) => r.isFinish
+            ? `${ATTR_INFO[r.attribute].jp}締め凸`
+            : (medianRatioOf(r) != null ? `${ATTR_INFO[r.attribute].jp}${Math.round(medianRatioOf(r) * 100)}%`
+                                        : `${ATTR_INFO[r.attribute].jp}${r.score.toFixed(2)}`);
+        if (scored.length > 0 && ratios.every(x => x != null)) {
             const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
-            const parts = results.map((r, i) => `${ATTR_INFO[r.attribute].jp}${Math.round(ratios[i] * 100)}%`).join('/');
-            return `総合 ${totalPct}% (${parts}) — みんなの中央値=100% #しりすこPADグローバル #NIKKE`;
+            return `総合 ${totalPct}% (${results.map(partOf).join('/')}) — みんなの中央値=100% #しりすこPADグローバル #NIKKE`;
         }
-        const parts = results.map(r => `${ATTR_INFO[r.attribute].jp}${r.score.toFixed(2)}`).join('/');
-        return `ふるり値 ${parts} を測定! #しりすこPADグローバル #NIKKE`;
+        return `ふるり値 ${results.map(partOf).join('/')} を測定! #しりすこPADグローバル #NIKKE`;
     }
     const r = results[0];
     const ratio = medianRatioOf(r);
+    const finishTag = r.isFinish ? '・締め凸につき参考' : '';
     if (ratio != null) {
-        return `中央値比 ${Math.round(ratio * 100)}% (${ATTR_INFO[r.attribute].jp}PT・みんなの真ん中=100%) — ふるり値 ${r.score.toFixed(2)} #しりすこPADグローバル #NIKKE`;
+        return `中央値比 ${Math.round(ratio * 100)}% (${ATTR_INFO[r.attribute].jp}PT・みんなの真ん中=100%${finishTag}) — ふるり値 ${r.score.toFixed(2)} #しりすこPADグローバル #NIKKE`;
     }
-    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT) を測定! #しりすこPADグローバル #NIKKE`;
+    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT${finishTag}) を測定! #しりすこPADグローバル #NIKKE`;
 }
 
 async function onShare() {
