@@ -94,29 +94,29 @@ function compLineOf(r) {
 }
 
 // 締め凸列のマーキング (打ち切りダメージ = 参考値、を視覚で伝える)。
-// style: 'frame' = 属性色の枠囲い / 'dashed' = ニュートラル破線枠 / 'tint' = 属性色の薄い面
-function drawFinishMark(ctx, { style, fx, fy, fw, fh, color }) {
+// 確定デザイン (ユーザー選定 2026-08-04): グレー破線枠 + 控えめな「締め凸」表記
+// (暗背景・グレー細枠・グレー文字の小ピル — 主張しすぎない)
+function drawFinishMark(ctx, { fx, fy, fw, fh }) {
+    const GRAY = '#8A9097';
     ctx.save();
-    if (style === 'tint') {
-        ctx.fillStyle = color + '14';   // 属性色 8%
-        ctx.beginPath(); ctx.roundRect(fx, fy, fw, fh, 18); ctx.fill();
-    } else {
-        ctx.strokeStyle = style === 'dashed' ? '#8A9097' : color;
-        ctx.lineWidth = 3;
-        if (style === 'dashed') ctx.setLineDash([9, 7]);
-        ctx.beginPath(); ctx.roundRect(fx, fy, fw, fh, 18); ctx.stroke();
-        ctx.setLineDash([]);
-    }
-    // 「締め凸」ピル (枠の上辺右に載せる)
-    ctx.font = `800 17px ${F}`;
+    ctx.strokeStyle = GRAY;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([9, 7]);
+    ctx.beginPath(); ctx.roundRect(fx, fy, fw, fh, 18); ctx.stroke();
+    ctx.setLineDash([]);
+    // 「締め凸」小ピル (枠の上辺右に載せる — 破線を隠すため暗背景で塗ってから細枠)
+    ctx.font = `700 15px ${F}`;
     const label = '締め凸';
-    const pw = ctx.measureText(label).width + 26, ph = 32;
+    const pw = ctx.measureText(label).width + 22, ph = 26;
     const px = fx + fw - pw - 14, py = fy - ph / 2;
-    ctx.fillStyle = color;
+    ctx.fillStyle = INK;
     ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = GRAY;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.stroke();
+    ctx.fillStyle = GRAY;
     ctx.textAlign = 'center';
-    ctx.fillText(label, px + pw / 2, py + 22);
+    ctx.fillText(label, px + pw / 2, py + 18.5);
     ctx.textAlign = 'left';
     ctx.restore();
 }
@@ -124,7 +124,6 @@ function drawFinishMark(ctx, { style, fx, fy, fw, fh, color }) {
 export async function buildShareCard(results, canvas, opts = {}) {
     if (!Array.isArray(results) || results.length === 0) return null;
     const infoOf = typeof opts.infoOf === 'function' ? opts.infoOf : null;
-    const finishStyle = opts.finishStyle ?? 'frame';
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const multi = results.length > 1;
@@ -247,12 +246,9 @@ export async function buildShareCard(results, canvas, opts = {}) {
         const { r, ratio } = c;
         const info = ATTR_INFO[r.attribute];
         const mp = ratio != null ? Math.round(ratio * 100) : null;
-        // 締め凸マーキング (コンテンツより先に描く — tint は背景面のため)
+        // 締め凸マーキング (グレー破線枠 — コンテンツと重ならないので先に描いてよい)
         if (r.isFinish) {
-            drawFinishMark(ctx, {
-                style: finishStyle, color: info.color,
-                fx: x0 - 14, fy: 224, fw: iw + 28, fh: multi ? 442 : 502,
-            });
+            drawFinishMark(ctx, { fx: x0 - 14, fy: 224, fw: iw + 28, fh: multi ? 442 : 502 });
         }
         ctx.fillStyle = info.color;
         ctx.font = `800 ${multi ? 26 : 30}px ${F}`;
