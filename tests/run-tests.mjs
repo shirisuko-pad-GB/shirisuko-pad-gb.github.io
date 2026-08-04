@@ -460,6 +460,29 @@ test('09_finish_flag: 締め凸の除外・互換・データ保全', () => {
         '07のエラーDETAIL落としが 09 の submit に引き継がれていない');
 });
 
+test('10_own_edits: 自分の行しか触れない (client_idスコープ) + 原子的置き換え', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '10_own_edits.sql'), 'utf8');
+    // 新規RPCのみ (スキーマ変更・既存RPCの上書きを含まない)
+    assert(!/\b(alter table|drop |truncate)\b/i.test(sql), '10 にスキーマ変更が含まれている');
+    assert(!/create or replace function public\.(submit_measurements|get_distribution|get_comp_insights)\b/.test(sql),
+        '10 が既存RPCを上書きしている');
+    // UPDATE (mark_own_finish) は client_id + season + attribute の3条件必須
+    const upd = /update public\.measurements[\s\S]*?where([\s\S]*?);/.exec(sql);
+    assert(upd && ['client_id = p_client_id', 'season = p_season', 'attribute = p_attribute']
+        .every(c => upd[1].includes(c)), 'mark_own_finish の UPDATE が3条件で絞られていない');
+    // DELETE (correct) も3条件必須 — これが欠けると他人の行を消せてしまう
+    const del = /delete from public\.measurements[\s\S]*?where([\s\S]*?);/.exec(sql);
+    assert(del && ['client_id = v_client', 'season = v_active', 'attribute = v_attr']
+        .every(c => del[1].includes(c)), 'correct の DELETE が3条件で絞られていない');
+    // シーズン open チェックが両RPCにある
+    assert((sql.match(/submissions are closed/g) || []).length >= 2, 'open チェックが両RPCに揃っていない');
+    // INSERT は 07 と同じ例外ハンドラ (DETAIL漏洩ガード + 失敗時ロールバックで元の行が残る)
+    assert(/exception when others then[\s\S]*?sqlerrm/.test(sql), 'correct の INSERT が例外ハンドラで包まれていない');
+    // grant は anon への execute のみ
+    assert((sql.match(/grant execute on function/g) || []).length === 2 && !/grant\s+(all|insert|update|delete)\s+on\s+table/i.test(sql),
+        'grant が RPC execute 以外に及んでいる');
+});
+
 test('07: submit の INSERT が例外ハンドラで包まれている (エラーDETAILの行内容漏洩ガード)', () => {
     const sql = readFileSync(join(ROOT, 'supabase', '07_sanitize_errors.sql'), 'utf8');
     // INSERT → exception ハンドラ → sqlerrm 再送出 (DETAIL を落とす) の並びがあること

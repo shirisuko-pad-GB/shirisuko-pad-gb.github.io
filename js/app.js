@@ -2,7 +2,7 @@
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
-import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights } from './backend.js';
+import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh } from './shared.js';
 import { buildShareCard } from './sharecard.js';
 import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML, sortForDisplay } from './tiles.js';
@@ -23,6 +23,7 @@ let mode = 'open';       // 'open' | 'between' | 'maintenance'
 let attacks = [newAttack()];
 let results = null;        // シェア用の測定結果
 let shareBlob = null;
+let correcting = null;     // 修正モード: {attribute} — 自分の過去提出をその属性ごと置き換える
 
 // 属性パネルの表示順 (raid.order があればそれ、なければ既定)
 function orderedAttrs() {
@@ -393,7 +394,7 @@ function renderAttacks() {
         $('submitBtn').disabled = true;
         return;
     }
-    $('addAtkBtn').style.display = '';
+    $('addAtkBtn').style.display = correcting ? 'none' : '';   // 修正は1属性ずつ
     area.innerHTML = attacks.map((a, i) => attackCardHTML(a, i)).join('');
     area.querySelectorAll('.atk-card').forEach(card => bindAttackCard(card));
     updateSubmitState();
@@ -401,13 +402,17 @@ function renderAttacks() {
 
 function attackCardHTML(a, i) {
     const info = a.attribute ? ATTR_INFO[a.attribute] : null;
-    const title = attacks.length > 1 ? `凸${i + 1}` : '今回の凸';
-    const delBtn = attacks.length > 1 ? `<button type="button" class="atk-del">✕ 削除</button>` : '';
+    // 修正モード: 属性は置き換え先を固定 (変えると別属性の行を消してしまうため)
+    const title = correcting ? `✏️ ${info ? info.jp + 'PT' : ''} の提出を修正`
+        : attacks.length > 1 ? `凸${i + 1}` : '今回の凸';
+    const delBtn = correcting
+        ? `<button type="button" class="atk-del corr-cancel">✕ 修正をやめる</button>`
+        : attacks.length > 1 ? `<button type="button" class="atk-del">✕ 削除</button>` : '';
     const attrBtns = orderedAttrs().map(attr => {
         const ai = ATTR_INFO[attr];
         return `
         <button type="button" class="attr-btn${a.attribute === attr ? ' active' : ''}" data-attr="${attr}"
-                style="--ac:${ai.color};">
+                style="--ac:${ai.color};"${correcting ? ' disabled' : ''}>
             <span class="ico">${ai.jp[0]}</span>
             <span class="name">${ai.jp}PT</span>
         </button>`;
@@ -575,9 +580,12 @@ function bindAttackCard(card) {
     // 締め凸チェック (再描画して説明文を出し入れする — 離散操作なのでフォーカス問題なし)
     const finishCb = card.querySelector('.atk-finish');
     if (finishCb) finishCb.addEventListener('change', () => { a.isFinish = finishCb.checked; renderAttacks(); });
-    // 削除
+    // 削除 (修正モードでは「修正をやめる」として通常フォームへ戻す)
     const del = card.querySelector('.atk-del');
-    if (del) del.addEventListener('click', () => { attacks.splice(i, 1); renderAttacks(); });
+    if (del) del.addEventListener('click', () => {
+        if (correcting) { cancelCorrection(); return; }
+        attacks.splice(i, 1); renderAttacks();
+    });
     // 編成の開閉状態を保持
     const details = card.querySelector('details.comp');
     details.addEventListener('toggle', () => { a.compOpen = details.open; });
@@ -730,8 +738,65 @@ async function hideLoading() {
 
 let submitting = false;   // 多重送信ガード (updateSubmitState がボタンを再有効化しないように)
 
+// 修正モードの送信: 新規INSERTではなく「その属性の自分の行を置き換える」RPC。
+// 成功したら localStorage の前回結果も差し替え、再確認フローで結果を出し直す
+async function onSubmitCorrection() {
+    const slv = slvOf();
+    const a = attacks[0];
+    const item = {
+        attribute: a.attribute, slv,
+        damage: parseDamageInput(a.damage),
+        characters: selChars(a).length === 5 ? selChars(a).sort() : null,
+        isFinish: a.isFinish === true,
+    };
+    if (!ATTRS.includes(item.attribute) || !(item.damage > 0) || !Number.isInteger(slv) || slv < 1 || slv > SLV_MAX) {
+        toast('入力内容を確認してください');
+        return;
+    }
+    const btn = $('submitBtn');
+    try {
+        submitting = true;
+        btn.disabled = true;
+        btn.textContent = '送信中…';
+        showLoading();
+        const { score } = await correctOwnMeasurement(item, season);
+        // 前回結果の該当属性を置き換え (保存が無い・別シーズンなら単品で作り直す)
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(LAST_KEY) || 'null'); } catch { saved = null; }
+        const newItem = { attribute: item.attribute, slv, damage: item.damage, score,
+                          characters: item.characters, isFinish: item.isFinish };
+        if (saved?.savedAt === season && Array.isArray(saved.items)) {
+            const idx = saved.items.findIndex(it => it.attribute === item.attribute);
+            if (idx >= 0) saved.items[idx] = newItem; else saved.items.push(newItem);
+        } else {
+            saved = { savedAt: season, items: [newItem] };
+        }
+        try { localStorage.setItem(LAST_KEY, JSON.stringify(saved)); } catch { /* 非致命 */ }
+        await hideLoading();
+        correcting = null;
+        attacks = [newAttack()];
+        renderAttacks();
+        btn.textContent = '送信して測定する';
+        toast('修正を保存しました (前の提出は置き換えられました)');
+        renderRecallBanner();
+        const last = loadLastResult();
+        if (last) await showRecalledDistribution(last);
+    } catch (e) {
+        console.warn('修正失敗:', e);
+        await hideLoading();
+        toast('修正を保存できませんでした。通信環境を確認して再度お試しください');
+    } finally {
+        forceCloseLoading();
+        submitting = false;
+        btn.disabled = false;
+        if (correcting) btn.textContent = '修正して送り直す';   // 失敗時は修正モードのまま再試行できる
+        updateSubmitState();
+    }
+}
+
 async function onSubmit() {
     if (submitting) return;
+    if (correcting) return onSubmitCorrection();   // 修正モードは置き換えRPCへ
     const slv = slvOf();   // 整数表記のみ (小数・指数は NaN → 下のガードで弾く)
     const items = attacks.map(a => ({
         attribute: a.attribute, slv,
@@ -877,6 +942,85 @@ function renderResults() {
         </div>
     </details>`;
     area.innerHTML = html;
+    area.querySelectorAll('.res-finish-toggle').forEach(b =>
+        b.addEventListener('click', () => onToggleFinish(parseInt(b.dataset.i, 10))));
+    area.querySelectorAll('.res-correct').forEach(b =>
+        b.addEventListener('click', () => startCorrection(parseInt(b.dataset.i, 10))));
+}
+
+// 提出後の締め凸トグル: 自分の行のフラグだけサーバーで書き換え、分布を取り直す
+let editBusy = false;
+async function onToggleFinish(i) {
+    const r = results?.[i];
+    if (!r || editBusy) return;
+    editBusy = true;
+    try {
+        const next = !r.isFinish;
+        await markOwnFinish({ attribute: r.attribute, season, isFinish: next });
+        r.isFinish = next;
+        updateSavedItem(r.attribute, { isFinish: next });
+        // 自分の票の出入りで n・中央値が動くので分布は取り直す
+        try {
+            const compKey = r.characters ? [...r.characters].sort().join('|') : null;
+            const [dist, compDist] = await Promise.all([
+                fetchDistribution({ attribute: r.attribute, season, score: r.score }),
+                compKey ? fetchDistribution({ attribute: r.attribute, season, score: r.score, compKey })
+                        : Promise.resolve(null),
+            ]);
+            r.dist = dist; r.compDist = compDist; r.fetchError = false;
+        } catch { /* 分布だけ失敗してもフラグ自体は反映済み */ }
+        renderResults();
+        showShareCardPreview();
+        toast(next ? '締め凸として集計から外しました' : '締め凸を取り消しました (集計に戻ります)');
+    } catch (e) {
+        console.warn('締め凸トグル失敗:', e);
+        toast('変更できませんでした。通信環境を確認して再度お試しください');
+    } finally {
+        editBusy = false;
+    }
+}
+
+// ✏️ 修正モード: 前回の内容をフォームへ再充填し、送信を「置き換え」に切り替える
+function startCorrection(i) {
+    const r = results?.[i];
+    if (!r) return;
+    correcting = { attribute: r.attribute };
+    const a = newAttack();
+    a.attribute = r.attribute;
+    a.damage = Number.isFinite(r.damage) ? String(+(r.damage / 1e9).toFixed(4)) : '';
+    a.isFinish = r.isFinish === true;
+    if (Array.isArray(r.characters) && r.characters.length === 5 && compReady()) {
+        a.template = detectTemplate(r.characters, burstsOfId);
+        a.slots = reslotChars(r.characters, burstsOfId, templateById(a.template).slots).slots;
+        a.compOpen = true;
+    }
+    attacks = [a];
+    if (Number.isFinite(r.slv)) { $('slv').value = r.slv; onSlvChanged(); }
+    renderAttacks();
+    updateSubmitState();
+    $('submitBtn').textContent = '修正して送り直す';
+    toast(`${ATTR_INFO[r.attribute].jp}PT の提出を修正します (送信で置き換え)`);
+    $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelCorrection() {
+    correcting = null;
+    attacks = [newAttack()];
+    renderAttacks();
+    updateSubmitState();
+    $('submitBtn').textContent = '送信して測定する';
+}
+
+// localStorage の前回結果を部分更新 (属性単位)。保存が無ければ何もしない
+function updateSavedItem(attribute, patch) {
+    try {
+        const raw = localStorage.getItem(LAST_KEY);
+        if (!raw) return;
+        const v = JSON.parse(raw);
+        if (!Array.isArray(v?.items)) return;
+        v.items = v.items.map(it => it.attribute === attribute ? { ...it, ...patch } : it);
+        localStorage.setItem(LAST_KEY, JSON.stringify(v));
+    } catch { /* localStorage 不可でも致命ではない */ }
 }
 
 function resultCardHTML(r, i, multi) {
@@ -916,6 +1060,14 @@ function resultCardHTML(r, i, multi) {
         ? `<p class="dist-note">🏁 締め凸 (ボス撃破で戦闘が途中終了) のため、この凸はみんなの分布・
            編成集計・総合には入れていません。%は「打ち切られたダメージでもここまで出た」という参考値です。</p>`
         : '';
+    // 提出の後編集 (シーズン開催中のみ): 締め凸トグルは自分の行のフラグだけ書き換え、
+    // ✏️修正はフォームに再充填して「その属性の自分の行を置き換える」送信になる
+    const actions = (mode === 'open' && backendConfigured())
+        ? `<div class="res-actions">
+            <button type="button" class="res-act res-finish-toggle" data-i="${i}">${r.isFinish ? '↩️ 締め凸を取り消す' : '🏁 締め凸として除外'}</button>
+            <button type="button" class="res-act res-correct" data-i="${i}">✏️ ダメージ/編成を修正</button>
+        </div>`
+        : '';
 
     return `
     <section class="card result-card${r.isFinish ? ' finish-card' : ''}">
@@ -929,6 +1081,7 @@ function resultCardHTML(r, i, multi) {
         ${finishNote}
         ${compRow}
         ${distHtml}
+        ${actions}
     </section>`;
 }
 

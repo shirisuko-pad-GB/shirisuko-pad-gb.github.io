@@ -81,6 +81,36 @@ export async function submitSet(attacks, season) {
 // score = 送信の返事で得た自分のふるり値。返り値もすべてふるり値単位:
 //   閾値以上: {n, above, median, lo, hi, bins[], my_bin}
 //   閾値未満: {n, gated:true, need} (分布本体なし) / データ0件: {n: 0}
+// 自分の (属性, シーズン) の行の締め凸フラグを後から更新する (行の追加・削除なし)。
+// 対象は自分の client_id の行のみ (サーバー側で強制)。戻り値 = 更新行数
+export async function markOwnFinish({ attribute, season, isFinish }) {
+    if (!backendConfigured()) throw new Error('backend not configured');
+    return callRpc('mark_own_finish', {
+        p_client_id: getClientId(),
+        p_season: season,
+        p_attribute: attribute,
+        p_is_finish: isFinish === true,
+    });
+}
+
+// 自分の (属性, シーズン) の提出を新しい内容で置き換える (桁間違い・編成間違いの修正)。
+// サーバー側で 削除→挿入 を原子的に行う (失敗時は元の行が残る)。
+export async function correctOwnMeasurement(a, season) {
+    if (!backendConfigured()) throw new Error('backend not configured');
+    const r = await callRpc('correct_own_measurement', {
+        p_row: {
+            attribute: a.attribute,
+            slv: a.slv,
+            damage: a.damage,
+            season,
+            characters: sanitizeCharacters(a.characters),
+            client_id: getClientId(),
+            is_finish: a.isFinish === true,
+        },
+    });
+    return { score: Number(r?.score), compKey: r?.comp_key ?? null, replaced: r?.replaced ?? 0 };
+}
+
 export async function fetchDistribution({ attribute, season, score, compKey = null }) {
     if (!backendConfigured()) return null;
     return callRpc('get_distribution', {

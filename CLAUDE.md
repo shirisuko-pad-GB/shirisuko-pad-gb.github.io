@@ -19,9 +19,12 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
    `USE_CHAR_IMAGES = false` で**サイト全体が即時に自作タイル表示へ戻る**構造を必ず維持する。
    画像は build (`scripts/build-characters.mjs`) が本家からコピーし hasImg を付与 —
    手で character-images/ に画像を足さない。属性アイコン等のUI用ゲームアセットは引き続き自作のみ
-3. **書き込みは RPC `submit_measurements` 一本**。テーブルへの匿名直接 INSERT/SELECT を許す
-   ポリシーを追加しない。集計RPCの最終定義は `supabase/05_seasons.sql`、submit_measurements の
-   最終定義は `supabase/07_sanitize_errors.sql` (関数を seed で上書きしない)。
+3. **書き込みRPCは「新規提出 = `submit_measurements`」+「自分の行の後編集 =
+   `mark_own_finish` / `correct_own_measurement` (10)」のみ**。後編集は必ず
+   client_id + season + attribute の3条件スコープ (他人の行に触れない)。
+   テーブルへの匿名直接 INSERT/SELECT を許すポリシーを追加しない。
+   最終定義: submit/集計RPC = `09_finish_flag.sql`、後編集 = `10_own_edits.sql`
+   (05/07/08 は歴史。関数を seed で上書きしない)。
    **エラーで行内容を返さない**: INSERT は例外ハンドラで包む (DETAIL に norm_damage が入り slv_ratio が漏れる)
 4. **DB由来・ユーザー入力由来の文字列は必ず `escapeHtml` を通して DOM へ**。キャラ名も本家DB由来
    なので信頼しない (tiles.js は textContent/escape 済みの経路のみ使う)

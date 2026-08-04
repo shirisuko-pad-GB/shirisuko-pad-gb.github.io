@@ -68,6 +68,13 @@ SELECT * FROM (
                        AND p.prosrc LIKE '%is_finish%')),
         '締め凸フラグ (is_finish) + 集計から除外 + 中央値TOP10'
 
+    UNION ALL SELECT '10_own_edits',
+        (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                 WHERE n.nspname = 'public' AND p.proname = 'mark_own_finish')
+         AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                     WHERE n.nspname = 'public' AND p.proname = 'correct_own_measurement')),
+        '自分の提出の後編集 (締め凸トグル + ダメージ/編成の修正RPC)'
+
     UNION ALL SELECT '05_seasons',
         (to_regclass('public.site_state') IS NOT NULL
          AND EXISTS (SELECT 1 FROM information_schema.columns
