@@ -987,11 +987,10 @@ function startCorrection(i) {
     correcting = { attribute: r.attribute };
     const a = newAttack();
     a.attribute = r.attribute;
-    // 生値をそのまま入れる (B換算の丸めで送信値が変わらないように — Codex指摘。
-    // parseDamageInput は 1e6 以上をフル桁として扱うので往復が正確。
-    // 1e6 未満の極小値だけはフル桁扱いされないため B 単位に変換して入れる)
-    a.damage = Number.isFinite(r.damage)
-        ? (r.damage >= 1e6 ? String(r.damage) : String(r.damage / 1e9)) : '';
+    // B 単位で再充填する (生の桁のままだと「20000000000 B」に見える — 実機FB)。
+    // String(x) は最短往復表現なので toFixed のような丸め損失はない
+    // (20e9 → "20"、13.123456789B → "13.123456789")。二重丸めの誤差は 1e-15 相対で無視できる
+    a.damage = Number.isFinite(r.damage) ? String(r.damage / 1e9) : '';
     a.isFinish = r.isFinish === true;
     if (Array.isArray(r.characters) && r.characters.length === 5 && compReady()) {
         a.template = detectTemplate(r.characters, burstsOfId);
