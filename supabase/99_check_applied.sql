@@ -75,6 +75,11 @@ SELECT * FROM (
                      WHERE n.nspname = 'public' AND p.proname = 'correct_own_measurement')),
         '自分の提出の後編集 (締め凸トグル + ダメージ/編成の修正RPC)'
 
+    UNION ALL SELECT '11_total_distribution',
+        EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                WHERE n.nspname = 'public' AND p.proname = 'get_total_distribution'),
+        '総合 (中央値比の平均) の全体分布 + ユニーク利用者数'
+
     UNION ALL SELECT '05_seasons',
         (to_regclass('public.site_state') IS NOT NULL
          AND EXISTS (SELECT 1 FROM information_schema.columns

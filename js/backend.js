@@ -125,6 +125,14 @@ export async function fetchDistribution({ attribute, season, score, compKey = nu
 //   閾値以上: {n, chars: [{img, count}], comps: [{chars, n, best, median}]}
 //     ※ best/median は採用5人未満の編成では null (プライバシー下限)
 //   閾値未満: {n, gated:true, need} / 0件: {n: 0}
+// 総合 (各凸の中央値比の平均) の全体分布 + ユニーク利用者数。
+// total = 閲覧者の総合 (割合。1〜2凸の参考位置も可)。11未適用のサーバーではエラー →
+// 呼び出し側で null 扱いにして静かに劣化させる
+export async function fetchTotalDistribution({ season, total = null }) {
+    if (!backendConfigured()) return null;
+    return callRpc('get_total_distribution', { p_season: season, p_total: total });
+}
+
 export async function fetchCompInsights({ attribute, season }) {
     if (!backendConfigured()) return null;
     return callRpc('get_comp_insights', {

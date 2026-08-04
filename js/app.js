@@ -2,7 +2,7 @@
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from './calc.js';
-import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement } from './backend.js';
+import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh } from './shared.js';
 import { buildShareCard } from './sharecard.js';
 import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML, sortForDisplay } from './tiles.js';
@@ -24,6 +24,7 @@ let attacks = [newAttack()];
 let results = null;        // シェア用の測定結果
 let shareBlob = null;
 let correcting = null;     // 修正モード: {attribute} — 自分の過去提出をその属性ごと置き換える
+let totalDist = null;      // 総合の全体分布 (3凸完走勢) + ユニーク利用者数 (11未適用なら null)
 
 // 属性パネルの表示順 (raid.order があればそれ、なければ既定)
 function orderedAttrs() {
@@ -316,6 +317,7 @@ async function showRecalledDistribution(last) {
         }
     }));
     results = items.map((it, i) => ({ ...it, ...dists[i] }));
+    await refreshTotalDist();
     renderResults();
     showShareCardPreview();
     $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -863,6 +865,7 @@ async function onSubmit() {
         }));
 
         results = items.map((it, i) => ({ ...it, score: returned[i].score, ...dists[i] }));
+        await refreshTotalDist();
         await hideLoading();
         renderResults();
         saveLastResult(results);   // 再訪時に分布だけ見直せるよう保存
@@ -880,6 +883,23 @@ async function onSubmit() {
         submitting = false;
         btn.textContent = '送信して測定する';
         updateSubmitState();
+    }
+}
+
+// 総合の全体分布を取り直す (renderResults の前に呼ぶ)。閲覧者の総合 (1〜2凸の
+// 参考値含む) を渡すと my_bin が返る。11未適用・通信失敗は null で静かに劣化
+async function refreshTotalDist() {
+    totalDist = null;
+    if (!results?.length) return;
+    try {
+        const scored = results.filter(r => !r.isFinish);
+        const ratios = scored.map(medianRatioOf);
+        const total = scored.length > 0 && ratios.every(x => x != null)
+            ? ratios.reduce((s, x) => s + x, 0) / ratios.length : null;
+        totalDist = await fetchTotalDistribution({ season: viewSeason ?? season, total });
+    } catch (e) {
+        console.warn('総合分布の取得失敗:', e);
+        totalDist = null;
     }
 }
 
@@ -905,6 +925,22 @@ function renderResults() {
             ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
         const finishNote = scored.length < results.length
             ? ` 締め凸 ${results.length - scored.length}凸は打ち切りダメージのため総合に含めていません。` : '';
+        // 総合の全体分布 (3凸完走勢)。有効3凸未満の人は数えられず「参考位置」だけ見せる
+        let totalHist = '';
+        const td = totalDist;
+        if (td && !td.gated && Array.isArray(td.bins) && Number.isFinite(td.median) && td.median > 0) {
+            const maxBin = Math.max(...td.bins, 1);
+            const bars = td.bins.map((v, bi) =>
+                `<div class="bar${td.my_bin != null && bi === td.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
+            const refNote = totalPct != null && scored.length < 3
+                ? ` (母集団は3凸完走のみ — あなたは${scored.length}凸の平均での参考位置)` : '';
+            totalHist = `
+            <div class="hist">${bars}</div>
+            <div class="hist-axis"><span>${Math.round(td.lo * 100)}%</span><span>真ん中 ${Math.round(td.median * 100)}%</span><span>${Math.round(td.hi * 100)}%</span></div>
+            <p class="dist-note">3凸完走 ${td.n}人それぞれの「総合」を並べた分布。${totalPct != null ? `色の違うバーがあなた${refNote}。` : ''}利用者は ${td.users}人です。</p>`;
+        } else if (td) {
+            totalHist = `<p class="dist-note">みんなの総合の分布は 3凸完走 ${td.need ?? 50}人で解禁 (現在 ${td.n ?? 0}人)。利用者 ${td.users ?? 0}人。</p>`;
+        }
         html += `
         <section class="card set-card">
             <div class="score-label">🏅 ${scored.length}凸の総合</div>
@@ -915,6 +951,7 @@ function renderResults() {
                     ? `<span class="pill" style="color:var(--faint);">${ATTR_INFO[r.attribute].jp} 締め凸</span>`
                     : `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${medianRatioOf(r) != null ? `${Math.round(medianRatioOf(r) * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
             </div>
+            ${totalHist}
             <p class="dist-note">${totalPct != null
                 ? `総合 ${totalPct}% = 各凸を「その属性のみんなの中央値 = 100%」と比べ、${scored.length}凸を同じ重みで平均した到達度です (合計ダメージの比ではありません)。ボスの通りやすさは各属性の中央値で補正済み。${finishNote}`
                 : scored.length === 0
@@ -969,6 +1006,7 @@ async function onToggleFinish(i) {
             ]);
             r.dist = dist; r.compDist = compDist; r.fetchError = false;
         } catch { /* 分布だけ失敗してもフラグ自体は反映済み */ }
+        await refreshTotalDist();   // 自分の締め凸の出入りで完走人数・総合も動く
         renderResults();
         showShareCardPreview();
         toast(next ? '締め凸として集計から外しました' : '締め凸を取り消しました (集計に戻ります)');
@@ -1135,7 +1173,7 @@ function distSectionHTML(r, info) {
 // 描画は sharecard.js。ここは結果ごとに1度だけ生成してキャッシュする薄いラッパ
 async function getShareCard() {
     if (shareBlob) return shareBlob;
-    shareBlob = await buildShareCard(results, $('shareCanvas'), { infoOf });
+    shareBlob = await buildShareCard(results, $('shareCanvas'), { infoOf, totalDist });
     return shareBlob;
 }
 
@@ -1163,7 +1201,7 @@ async function showShareCardPreview() {
     if (hint) hint.style.display = 'none';
     try {
         await document.fonts.ready;
-        const blob = await buildShareCard(results, $('shareCanvas'), { infoOf });
+        const blob = await buildShareCard(results, $('shareCanvas'), { infoOf, totalDist });
         if (gen !== previewGen) return;   // その間に新しい測定が始まった → この結果は破棄
         shareBlob = blob;
         setPreviewImage(blob);

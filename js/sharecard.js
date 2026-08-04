@@ -228,19 +228,24 @@ export async function buildShareCard(results, canvas, opts = {}) {
                 : anyFinish ? `${scored.length}凸 (締め凸除く) / SLv ${results[0].slv}`
                             : `${results.length}凸 / SLv ${results[0].slv}`;
             ctx.fillText(sumLabel, x0, 514);   // 属性列の編成内%と同じ高さ
-            // のべ比較人数 = 各属性分布の n の合計 (どれだけの提出と比べたかが一目で分かる)
-            const totalN = results.filter(r2 => distReady(r2.dist)).reduce((s2, r2) => s2 + r2.dist.n, 0);
-            if (totalN > 0) {
-                ctx.fillStyle = '#8A9097';
-                ctx.font = `700 19px ${F}`;
-                ctx.fillText(`のべ ${totalN}人の提出と比較`, x0, 548);
+            // 比較規模: ユニーク利用者数 + 総合分布の母集団 (3凸完走勢)。
+            // 11未適用・取得失敗時は従来の「のべ人数」に劣化 (同一人物の重複カウントあり)
+            const td = opts.totalDist;
+            ctx.fillStyle = '#8A9097';
+            ctx.font = `700 19px ${F}`;
+            if (td?.users > 0) {
+                ctx.fillText(`利用者 ${td.users}人`, x0, 548);
+                if (Number.isFinite(td.n) && td.n > 0) ctx.fillText(`3凸完走 ${td.n}人と比較`, x0, 576);
+            } else {
+                const totalN = results.filter(r2 => distReady(r2.dist)).reduce((s2, r2) => s2 + r2.dist.n, 0);
+                if (totalN > 0) ctx.fillText(`のべ ${totalN}人の提出と比較`, x0, 548);
             }
             ctx.fillStyle = '#6B7178';
             ctx.font = `700 16px ${F}`;
-            if (anyFinish) ctx.fillText('締め凸は分布・総合に不参加 (参考)', x0, 584);
-            ctx.fillText('ボスの通りやすさは属性ごとの', x0, anyFinish ? 610 : 596);
-            ctx.fillText('中央値で補正済み。編成内%は', x0, anyFinish ? 634 : 622);
-            ctx.fillText('同じ5人との比較 (並び順は不問)', x0, anyFinish ? 658 : 648);
+            if (anyFinish) ctx.fillText('締め凸は分布・総合に不参加 (参考)', x0, 600);
+            ctx.fillText('ボスの通りやすさは属性ごとの', x0, anyFinish ? 624 : 596);
+            ctx.fillText('中央値で補正済み。編成内%は', x0, anyFinish ? 648 : 622);
+            ctx.fillText('同じ5人との比較 (並び順は不問)', x0, anyFinish ? 672 : 648);
             return;
         }
         const { r, ratio } = c;

@@ -476,6 +476,26 @@ test('09_finish_flag: 締め凸の除外・互換・データ保全', () => {
         '07のエラーDETAIL落としが 09 の submit に引き継がれていない');
 });
 
+test('11_total_distribution: 読み取り専用 + 除外フィルタの位置 + 母集団=有効3凸以上', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '11_total_distribution.sql'), 'utf8');
+    // 読み取り専用 (書き込み・スキーマ変更を含まない)
+    assert(!/\b(insert into|update |delete from|alter table|drop |truncate)\b/i.test(sql),
+        '11 に書き込み・スキーマ変更が含まれている');
+    assert(/returns json language plpgsql stable/.test(sql), 'stable (読み取り専用) 宣言が無い');
+    // 締め凸・シャドウ除外が per-client ベスト選抜 (group by) より前にある
+    const f1 = /^\s*and not m\.is_finish\b/m.exec(sql);
+    const f2 = sql.indexOf('between bounds.mn and bounds.mx');
+    const g = sql.indexOf('group by m.client_id, m.attribute');
+    assert(f1 && f2 >= 0 && g >= 0 && f1.index < g && f2 < g,
+        '除外フィルタが per-client ベスト選抜より後にある');
+    // 母集団 = 有効な凸が3属性以上の人だけ
+    assert(/where atk >= 3/.test(sql), '母集団の「有効3凸以上」条件が無い');
+    // PUBLIC の既定 execute を剥がし anon にだけ grant
+    assert(/revoke all on function public\.get_total_distribution.* from public/.test(sql) &&
+           /grant execute on function public\.get_total_distribution.* to anon/.test(sql),
+        'revoke/grant が正しくない');
+});
+
 test('10_own_edits: 自分の行しか触れない (client_idスコープ) + 原子的置き換え', () => {
     const sql = readFileSync(join(ROOT, 'supabase', '10_own_edits.sql'), 'utf8');
     // 新規RPCのみ (スキーマ変更・既存RPCの上書きを含まない)
