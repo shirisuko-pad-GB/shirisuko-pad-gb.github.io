@@ -1,5 +1,22 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
+## 🌏 Supabase 東京リージョン移行 (シーズン外に実施 — ユーザー決定 2026-08-04)
+
+現行プロジェクトは **ap-south-1 (ムンバイ)** — 動作は正常だが日本から1往復 +130ms 程度。
+リージョンは後から変えられないため新プロジェクトへの引っ越しになる。
+**⏰ トリガー: レイドシーズンが終わって site_state を between にしたら、次シーズンの
+new-season.mjs を走らせる前に必ずこの節をユーザーに案内すること (2026-08-04 に依頼あり)。**
+
+手順 (シーズン間なら測定データの持ち越し不要で約30分):
+1. Supabase で新プロジェクト作成 — リージョン **Tokyo (ap-northeast-1)**
+2. SQL Editor で `supabase/01〜09` を番号順に適用 → `99_check_applied.sql` で全行 applied を確認
+3. `node scripts/gen-seed.mjs` → `supabase/seed.local.sql` を SQL Editor で実行 (slv_ratio/基準)
+4. `score_bounds` の運用値を再設定: `update public.score_bounds set min_score=0.1, max_score=2.5 where season='<現行>';`
+5. `js/backend.js` の URL / publishable キーを新プロジェクトに差し替え → テスト/E2E → commit → push
+6. 旧プロジェクト (ムンバイ) は数日並走させてから Pause/削除 (巻き戻し保険)
+※ 過去シーズンの測定データを持ち越したい場合のみ: 旧 SQL Editor で measurements を
+   CSV エクスポート → 新プロジェクトへ import (client_id 等はそのまま入る)
+
 ## 🧪 投入中: 見え方確認用の仮データ (2026-07-30)
 
 `scripts/seed-demo.mjs` で仮ユーザー350人分 (各属性 n≈190〜250) を本番に投入済み。
