@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from '../js/calc.js';
+import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 import { makeCharResolver, burstsOf, tileHTML, splitName } from '../js/tiles.js';
 
@@ -96,6 +96,22 @@ test('不正入力・0以下は null', () => {
     assertEq(parseDamageInput('0'), null);
     assertEq(parseDamageInput('13.18.5'), null);
     assertEq(parseDamageInput('-5'), null);
+});
+
+test('damageToBString: 修正フォーム再充填の往復が正確 (指数表記を出さない)', () => {
+    // 通常帯 (最短往復表現)
+    assertEq(damageToBString(20e9), '20');
+    assertEq(damageToBString(13123456789), '13.123456789');
+    // 極小値も指数表記 ("1e-9") にならず parseDamageInput を通る (Codex指摘の端ケース)
+    for (const raw of [20e9, 13123456789, 999999999999, 1180000000, 500000, 1000, 999, 1.5, 1]) {
+        const s = damageToBString(raw);
+        assert(/^\d*\.?\d+$/.test(s), `指数・不正表記になった: ${raw} -> ${JSON.stringify(s)}`);
+        const back = parseDamageInput(s);
+        assert(back != null && Math.abs(back - raw) < 1e-9 * Math.max(1, raw),
+            `往復がズレた: ${raw} -> ${s} -> ${back}`);
+    }
+    assertEq(damageToBString(0), '');
+    assertEq(damageToBString(NaN), '');
 });
 
 console.log('バースト編成 (B1/B2/B3/BΛ・サブバースト対応):');

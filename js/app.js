@@ -1,7 +1,7 @@
 // しりすこPAD GB — ふるり値チェッカー UIロジック
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
-import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput } from './calc.js';
+import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh } from './shared.js';
 import { buildShareCard } from './sharecard.js';
@@ -988,9 +988,8 @@ function startCorrection(i) {
     const a = newAttack();
     a.attribute = r.attribute;
     // B 単位で再充填する (生の桁のままだと「20000000000 B」に見える — 実機FB)。
-    // String(x) は最短往復表現なので toFixed のような丸め損失はない
-    // (20e9 → "20"、13.123456789B → "13.123456789")。二重丸めの誤差は 1e-15 相対で無視できる
-    a.damage = Number.isFinite(r.damage) ? String(r.damage / 1e9) : '';
+    // 変換は damageToBString (指数表記を出さない・丸め損失なし・テストあり)
+    a.damage = damageToBString(r.damage);
     a.isFinish = r.isFinish === true;
     if (Array.isArray(r.characters) && r.characters.length === 5 && compReady()) {
         a.template = detectTemplate(r.characters, burstsOfId);

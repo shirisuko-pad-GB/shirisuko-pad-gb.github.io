@@ -28,6 +28,16 @@ export function parseDamageInput(str) {
     return (hasB || v < 1e6) ? v * 1e9 : v;
 }
 
+// 生ダメージ → B単位の入力文字列 (修正フォームの再充填用)。
+// String() は 1e-6 未満で指数表記 ("1e-9") になり parseDamageInput の正規表現を
+// 通らないため、その帯域だけ固定小数で出す (Codex指摘)。丸め損失なし。
+export function damageToBString(raw) {
+    if (!Number.isFinite(raw) || raw <= 0) return '';
+    const b = raw / 1e9;
+    if (b >= 1e-6) return String(b);   // 最短往復表現 (指数表記にならない帯域)
+    return b.toFixed(12).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 // ---------- バースト編成 (B1/B2/B3/BΛ) ----------
 // BΛ (レッドフード) はどのバースト枠にも入れる特殊仕様。
 // バースト不明 (データ未整備) のキャラも弾かず、どの枠でも選べる扱いにする。
