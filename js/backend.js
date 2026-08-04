@@ -52,7 +52,7 @@ export async function fetchSiteState() {
 }
 
 // 凸セット (1〜3件) を一括登録し、サーバー計算の score と server由来の comp_key を受け取る。
-// attacks = [{attribute, slv, damage, characters}]、season = 現在のシーズンキー
+// attacks = [{attribute, slv, damage, characters, isFinish}]、season = 現在のシーズンキー
 // 戻り値: 送信順の [{score, compKey}]。閉じたシーズンはサーバーが拒否する。
 export async function submitSet(attacks, season) {
     if (!backendConfigured()) throw new Error('backend not configured');
@@ -67,6 +67,7 @@ export async function submitSet(attacks, season) {
         client_id: clientId,
         set_id: setId,
         set_slot: setId ? i + 1 : null,
+        is_finish: a.isFinish === true,   // 締め凸 (09未適用の旧サーバーは黙って無視する)
         // score / norm_damage / comp_key はサーバー側で計算・付与する
     }));
     const returned = await callRpc('submit_measurements', { p_rows: rows });  // [{score, comp_key}]

@@ -177,14 +177,14 @@ function renderInsights(ins, info) {
             <span>採用 <strong>${cp.n}人</strong></span>
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>
-    </div>`).join('');
-    const medianTopHtml = medianTop
-        ? `<p class="sec-label">💪 中央値が高い編成 (採用5人以上)</p>${medianTop}
+    </div>`);
+    const medianTopHtml = medianTop.length
+        ? `<p class="sec-label">💪 中央値が高い編成 (採用5人以上)</p>${foldRows(medianTop)}
            <p class="sec-label" style="margin-top:14px;">📊 よく使われる編成 (使用率順)</p>` : '';
 
     // 編成ランキング (使用率順)。median は採用5人未満だと null (プライバシー下限)。
     // 編成は「同じ5人」で1つ (並び順は評価に無関係なので内訳は出さない — 2026-08-01 運営判断)
-    $('compsArea').innerHTML = medianTopHtml + ((ins.comps || []).map((cp, i) => {
+    const compRows = (ins.comps || []).map((cp, i) => {
         const stats = Number.isFinite(cp.median)
             ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>`
             : `<span style="color:var(--faint);">スコアは5人以上で表示</span>`;
@@ -197,7 +197,23 @@ function renderInsights(ins, info) {
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>`;
         return `<div class="comp-row">${row}</div>`;
-    }).join('') || '<p class="hint">まだ編成つきの提出がありません</p>');
+    });
+    $('compsArea').innerHTML = medianTopHtml +
+        (compRows.length ? foldRows(compRows) : '<p class="hint">まだ編成つきの提出がありません</p>');
+}
+
+// ランキングの折りたたみ: TOP3 は常時表示、4位以下は <details> に格納 (両ランキング共通)。
+// rows は行HTMLの配列 (順位順)。開閉に JS は不要 — 再描画 (属性切替) で自然に畳まれる
+function foldRows(rows) {
+    if (!Array.isArray(rows)) rows = [rows];
+    const head = rows.slice(0, 3).join('');
+    const rest = rows.slice(3);
+    if (rest.length === 0) return head;
+    return head + `
+    <details class="rank-fold">
+        <summary><span class="chev">▼</span> 4〜${rows.length}位も見る</summary>
+        ${rest.join('')}
+    </details>`;
 }
 
 init().catch(e => {

@@ -59,6 +59,15 @@ SELECT * FROM (
                   AND p.prosrc LIKE '%sqlerrm%'),
         'submit のエラーから行内容 (norm_damage/score) の漏洩を止める'
 
+    UNION ALL SELECT '09_finish_flag',
+        (EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = 'public' AND table_name = 'measurements'
+                   AND column_name = 'is_finish')
+         AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                     WHERE n.nspname = 'public' AND p.proname = 'get_distribution'
+                       AND p.prosrc LIKE '%is_finish%')),
+        '締め凸フラグ (is_finish) + 集計から除外 + 中央値TOP10'
+
     UNION ALL SELECT '05_seasons',
         (to_regclass('public.site_state') IS NOT NULL
          AND EXISTS (SELECT 1 FROM information_schema.columns

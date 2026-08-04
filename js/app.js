@@ -37,6 +37,7 @@ function newAttack() {
         slots: [null, null, null, null, null],   // バースト枠ごとの選択キャラ (画像ファイル名)
         template: 'standard', activeSlot: 0,
         compOpen: false,
+        isFinish: false,   // 締め凸 (ボス撃破で戦闘が途中終了) — 分布・編成集計に入れない
     };
 }
 
@@ -255,7 +256,7 @@ function saveLastResult(items) {
     try {
         localStorage.setItem(LAST_KEY, JSON.stringify({
             savedAt: season,
-            items: items.map(it => ({ attribute: it.attribute, slv: it.slv, damage: it.damage, score: it.score, characters: it.characters })),
+            items: items.map(it => ({ attribute: it.attribute, slv: it.slv, damage: it.damage, score: it.score, characters: it.characters, isFinish: it.isFinish === true })),
         }));
     } catch { /* localStorage 不可でも致命ではない */ }
 }
@@ -296,6 +297,7 @@ async function showRecalledDistribution(last) {
     const items = last.items.map(it => ({
         attribute: it.attribute, slv: it.slv, damage: it.damage,
         characters: it.characters ?? null, score: Number(it.score),
+        isFinish: it.isFinish === true,
     }));
     const dists = await Promise.all(items.map(async (it) => {
         try {
@@ -425,6 +427,12 @@ function attackCardHTML(a, i) {
                 <span class="dmg-unit">B</span>
             </div>
             <p class="preview">${damagePreviewText(a.damage)}</p>
+            <label class="finish-check">
+                <input type="checkbox" class="atk-finish"${a.isFinish ? ' checked' : ''}>
+                <span>🏁 締め凸だった <span class="finish-sub">(ボス撃破で戦闘が途中終了した凸)</span></span>
+            </label>
+            ${a.isFinish ? `<p class="hint finish-note">締め凸はダメージが途中で打ち切られるため、
+                みんなの分布・編成集計には入りません (測定と記録は普通にできます)</p>` : ''}
         </div>
         <details class="comp"${a.compOpen ? ' open' : ''}>
             <summary><span class="sum-label">キャラ編成</span><span class="pill">任意</span><span class="sum-faces">${summaryFacesHTML(a)}</span><span class="chev">▼</span></summary>
@@ -564,6 +572,9 @@ function bindAttackCard(card) {
         card.querySelector('.preview').innerHTML = damagePreviewText(a.damage);
         updateSubmitState();
     });
+    // 締め凸チェック (再描画して説明文を出し入れする — 離散操作なのでフォーカス問題なし)
+    const finishCb = card.querySelector('.atk-finish');
+    if (finishCb) finishCb.addEventListener('change', () => { a.isFinish = finishCb.checked; renderAttacks(); });
     // 削除
     const del = card.querySelector('.atk-del');
     if (del) del.addEventListener('click', () => { attacks.splice(i, 1); renderAttacks(); });
@@ -726,6 +737,7 @@ async function onSubmit() {
         attribute: a.attribute, slv,
         damage: parseDamageInput(a.damage),
         characters: selChars(a).length === 5 ? selChars(a).sort() : null,
+        isFinish: a.isFinish === true,
     }));
     if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !Number.isInteger(slv) || slv < 1 || slv > SLV_MAX) {
         toast('入力内容を確認してください');
@@ -820,21 +832,29 @@ function renderResults() {
     if (multi) {
         // 総合 = 各凸の中央値比の平均。ふるり値は属性ごとに基準ボスが違うため、
         // 属性をまたいだ「ふるり値の合算」はしない (運営判断 2026-07-30)。
-        // 全凸の分布が解禁されているときだけ出せる
-        const ratios = results.map(medianRatioOf);
-        const totalPct = ratios.every(x => x != null)
+        // 締め凸はダメージが打ち切られていて中央値比が構造的に低い → 総合から除外
+        // (分布からも除外済み)。全「対象凸」の分布が解禁されているときだけ出せる
+        const scored = results.filter(r => !r.isFinish);
+        const ratios = scored.map(medianRatioOf);
+        const totalPct = scored.length > 0 && ratios.every(x => x != null)
             ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
+        const finishNote = scored.length < results.length
+            ? ` 締め凸 ${results.length - scored.length}凸は打ち切りダメージのため総合に含めていません。` : '';
         html += `
         <section class="card set-card">
-            <div class="score-label">🏅 ${results.length}凸の総合</div>
+            <div class="score-label">🏅 ${scored.length}凸の総合</div>
             <div class="score-big">${totalPct != null ? `${totalPct}<span style="font-size:26px;">%</span>` : '—'}</div>
             <div class="pill-row">
                 <span class="pill">各凸の中央値比の平均</span>
-                ${results.map((r, ri) => `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${ratios[ri] != null ? `${Math.round(ratios[ri] * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
+                ${results.map((r, ri) => r.isFinish
+                    ? `<span class="pill" style="color:var(--faint);">${ATTR_INFO[r.attribute].jp} 締め凸</span>`
+                    : `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${medianRatioOf(r) != null ? `${Math.round(medianRatioOf(r) * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
             </div>
             <p class="dist-note">${totalPct != null
-                ? `総合 ${totalPct}% = 各凸を「その属性のみんなの中央値 = 100%」と比べ、${results.length}凸を同じ重みで平均した到達度です (合計ダメージの比ではありません)。ボスの通りやすさは各属性の中央値で補正済み。`
-                : `※ 総合 (各凸の中央値比の平均) は、凸した全属性の分布が解禁されると表示されます`}</p>
+                ? `総合 ${totalPct}% = 各凸を「その属性のみんなの中央値 = 100%」と比べ、${scored.length}凸を同じ重みで平均した到達度です (合計ダメージの比ではありません)。ボスの通りやすさは各属性の中央値で補正済み。${finishNote}`
+                : scored.length === 0
+                    ? `※ 全て締め凸のため総合はありません (締め凸は打ち切りダメージなので比較対象にしません)`
+                    : `※ 総合 (各凸の中央値比の平均) は、凸した全属性の分布が解禁されると表示されます${finishNote}`}</p>
         </section>`;
     }
     // ❓ 数字の出し方 tips (突っ込まれやすい計算方法を先回りで開示 — 実機FB)
@@ -852,6 +872,8 @@ function renderResults() {
             (同一編成${THRESHOLDS.comp}人で解禁)。強力なサポーターの有無など編成の差はこちらで公平に比べられます。</p>
             <p><strong>総合</strong> = 各凸の%を同じ重みで平均した到達度で、合計ダメージの比では
             ありません。編成の差は総合では補正しません (どの編成もどこか1凸では使えるため)。</p>
+            <p><strong>締め凸</strong> = ボス撃破で戦闘が途中終了した凸。ダメージが打ち切られて
+            低く出るため、みんなの分布・編成集計・総合には入れません (%は参考値として表示)。</p>
         </div>
     </details>`;
     area.innerHTML = html;
@@ -888,15 +910,23 @@ function resultCardHTML(r, i, multi) {
           `</div>`
         : '';
 
+    // 締め凸: %は出すが「参考値」であることを明示 (分布・編成集計・総合には不参加)
+    const finishPill = r.isFinish ? `<span class="pill finish-pill">🏁 締め凸</span>` : '';
+    const finishNote = r.isFinish
+        ? `<p class="dist-note">🏁 締め凸 (ボス撃破で戦闘が途中終了) のため、この凸はみんなの分布・
+           編成集計・総合には入れていません。%は「打ち切られたダメージでもここまで出た」という参考値です。</p>`
+        : '';
+
     return `
-    <section class="card result-card">
-        <div class="score-label"><strong style="color:${info.color};">${info.jp}PT</strong> ${title}${pill}</div>
-        <div class="score-big">${big}</div>
+    <section class="card result-card${r.isFinish ? ' finish-card' : ''}">
+        <div class="score-label"><strong style="color:${info.color};">${info.jp}PT</strong> ${title}${finishPill}${pill}</div>
+        <div class="score-big">${big}${r.isFinish ? `<span class="finish-ref">参考</span>` : ''}</div>
         <div class="pill-row">
             ${mainPill}
             <span class="pill">SLv ${r.slv}</span>
             <span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>
         </div>
+        ${finishNote}
         ${compRow}
         ${distHtml}
     </section>`;

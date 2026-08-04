@@ -393,9 +393,9 @@ test('キャラ画像の掲載方針 (2026-07-31 削除対応前提) の整合�
     }
 });
 
-test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 08)', () => {
-    // 集計RPCの最終定義は 08_shadow_stats.sql (05 は歴史)。両方に同じ閾値があることを確認
-    for (const file of ['05_seasons.sql', '08_shadow_stats.sql']) {
+test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 09)', () => {
+    // 集計RPCの最終定義は 09_finish_flag.sql (05/08 は歴史)。全てに同じ閾値があることを確認
+    for (const file of ['05_seasons.sql', '08_shadow_stats.sql', '09_finish_flag.sql']) {
         const sql = readFileSync(join(ROOT, 'supabase', file), 'utf8');
         assert(new RegExp(`then\\s+${THRESHOLDS.dist}\\s+else\\s+${THRESHOLDS.comp}`).test(sql),
             `${file} の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
@@ -404,29 +404,59 @@ test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 
     }
 });
 
-test('08_shadow_stats: シャドウ除外と score_bounds 既定値の整合', () => {
-    const sql = readFileSync(join(ROOT, 'supabase', '08_shadow_stats.sql'), 'utf8');
-    // 両RPCとも「per-client ベスト選抜の前」に妥当範囲でフィルタしていること (位置まで検査 —
-    // 集約後に移すと荒らし票が本人の正当票を隠すため、出現数だけでなく順序を見る)
-    // 冒頭コメントにも関数名が出るため、関数定義行をアンカーに切り出す
+// シャドウ除外の構造検査 (08 で導入・09 が最終定義 — 両方が同じ構造を保つこと)
+for (const file of ['08_shadow_stats.sql', '09_finish_flag.sql']) {
+    test(`${file}: シャドウ除外と score_bounds 既定値の整合`, () => {
+        const sql = readFileSync(join(ROOT, 'supabase', file), 'utf8');
+        // 両RPCとも「per-client ベスト選抜の前」に妥当範囲でフィルタしていること (位置まで検査 —
+        // 集約後に移すと荒らし票が本人の正当票を隠すため、出現数だけでなく順序を見る)
+        // 冒頭コメントにも関数名が出るため、関数定義行をアンカーに切り出す
+        const defDist = sql.indexOf('create or replace function public.get_distribution');
+        const defIns = sql.indexOf('create or replace function public.get_comp_insights');
+        assert(defDist >= 0 && defIns > defDist, `${file} に関数定義が見つからない`);
+        const dist = sql.slice(defDist, defIns);
+        const ins = sql.slice(defIns);
+        const before = (part, label, anchor) => {
+            const f = part.indexOf('between v_min and v_max');
+            const a = part.indexOf(anchor);
+            assert(f >= 0, `${label}: シャドウ除外が無い`);
+            assert(a >= 0 && f < a, `${label}: シャドウ除外が per-client 選抜 (${anchor}) より後にある`);
+        };
+        before(dist, 'get_distribution', 'group by client_id');
+        before(ins, 'get_comp_insights', 'order by client_id, norm_damage desc');
+        // フォールバック既定 [0.01, 5.0] がテーブル既定と一致
+        assert(sql.includes("coalesce(b.min_score, 0.01)") && sql.includes("coalesce(b.max_score, 5.0)"),
+            'フォールバック既定が [0.01, 5.0] ではない');
+        // 「最高」(生max) を公開しない
+        assert(!/['"]best['"]/.test(sql), `${file} に best (生max) の公開が残っている`);
+    });
+}
+
+test('09_finish_flag: 締め凸の除外・互換・データ保全', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '09_finish_flag.sql'), 'utf8');
+    // 追加のみのマイグレーション (既存データを消す・書き換える文が無いこと)
+    assert(/add column if not exists is_finish boolean not null default false/.test(sql),
+        'is_finish の追加が additive (default false) でない');
+    assert(!/\b(drop|truncate|delete\s+from|update\s+public\.measurements)\b/i.test(sql),
+        '09 に破壊的な文が含まれている');
+    // 両集計RPCが締め凸を除外している (per-client 選抜より前)
     const defDist = sql.indexOf('create or replace function public.get_distribution');
     const defIns = sql.indexOf('create or replace function public.get_comp_insights');
-    assert(defDist >= 0 && defIns > defDist, '08 に関数定義が見つからない');
     const dist = sql.slice(defDist, defIns);
     const ins = sql.slice(defIns);
-    const before = (part, label, anchor) => {
-        const f = part.indexOf('between v_min and v_max');
-        const a = part.indexOf(anchor);
-        assert(f >= 0, `${label}: シャドウ除外が無い`);
-        assert(a >= 0 && f < a, `${label}: シャドウ除外が per-client 選抜 (${anchor}) より後にある`);
-    };
-    before(dist, 'get_distribution', 'group by client_id');
-    before(ins, 'get_comp_insights', 'order by client_id, norm_damage desc');
-    // フォールバック既定 [0.01, 5.0] がテーブル既定と一致
-    assert(sql.includes("coalesce(b.min_score, 0.01)") && sql.includes("coalesce(b.max_score, 5.0)"),
-        'フォールバック既定が [0.01, 5.0] ではない');
-    // 「最高」(生max) を公開しない
-    assert(!/['"]best['"]/.test(sql), '08 に best (生max) の公開が残っている');
+    for (const [part, label, anchor] of [[dist, 'get_distribution', 'group by client_id'],
+                                         [ins, 'get_comp_insights', 'order by client_id, norm_damage desc']]) {
+        const f = part.indexOf('not is_finish');
+        assert(f >= 0, `${label}: 締め凸除外が無い`);
+        assert(f < part.indexOf(anchor), `${label}: 締め凸除外が per-client 選抜より後にある`);
+    }
+    // submit は is_finish 省略時 false (旧クライアント互換)
+    assert(/coalesce\(\(v_row ->> 'is_finish'\)::boolean, false\)/.test(sql),
+        'submit の is_finish が省略時 false になっていない');
+    // 中央値TOPは10件・エラーDETAIL落とし (07由来) を維持
+    assert(/order by med desc limit 10/.test(sql), '中央値TOPが10件になっていない');
+    assert(/exception when others then/.test(sql) && /sqlerrm/.test(sql),
+        '07のエラーDETAIL落としが 09 の submit に引き継がれていない');
 });
 
 test('07: submit の INSERT が例外ハンドラで包まれている (エラーDETAILの行内容漏洩ガード)', () => {

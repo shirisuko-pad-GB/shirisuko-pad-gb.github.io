@@ -93,16 +93,49 @@ function compLineOf(r) {
     return { text: `編成内%は${cd.need ?? THRESHOLDS.comp}人で解禁`, ready: false };
 }
 
+// 締め凸列のマーキング (打ち切りダメージ = 参考値、を視覚で伝える)。
+// style: 'frame' = 属性色の枠囲い / 'dashed' = ニュートラル破線枠 / 'tint' = 属性色の薄い面
+function drawFinishMark(ctx, { style, fx, fy, fw, fh, color }) {
+    ctx.save();
+    if (style === 'tint') {
+        ctx.fillStyle = color + '14';   // 属性色 8%
+        ctx.beginPath(); ctx.roundRect(fx, fy, fw, fh, 18); ctx.fill();
+    } else {
+        ctx.strokeStyle = style === 'dashed' ? '#8A9097' : color;
+        ctx.lineWidth = 3;
+        if (style === 'dashed') ctx.setLineDash([9, 7]);
+        ctx.beginPath(); ctx.roundRect(fx, fy, fw, fh, 18); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    // 「締め凸」ピル (枠の上辺右に載せる)
+    ctx.font = `800 17px ${F}`;
+    const label = '締め凸';
+    const pw = ctx.measureText(label).width + 26, ph = 32;
+    const px = fx + fw - pw - 14, py = fy - ph / 2;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, px + pw / 2, py + 22);
+    ctx.textAlign = 'left';
+    ctx.restore();
+}
+
 export async function buildShareCard(results, canvas, opts = {}) {
     if (!Array.isArray(results) || results.length === 0) return null;
     const infoOf = typeof opts.infoOf === 'function' ? opts.infoOf : null;
+    const finishStyle = opts.finishStyle ?? 'frame';
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const multi = results.length > 1;
     const ratios = results.map(r =>
         (distReady(r.dist) && r.dist.median > 0) ? r.score / r.dist.median : null);
-    const totalPct = multi && ratios.every(x => x != null)
-        ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
+    // 総合は締め凸を除いた凸だけで平均 (締め凸は打ち切りダメージで構造的に低いため)
+    const scoredIdx = results.map((r, i) => r.isFinish ? null : i).filter(x => x != null);
+    const scoredRatios = scoredIdx.map(i => ratios[i]);
+    const anyFinish = scoredIdx.length < results.length;
+    const totalPct = multi && scoredRatios.length > 0 && scoredRatios.every(x => x != null)
+        ? Math.round((scoredRatios.reduce((s, x) => s + x, 0) / scoredRatios.length) * 100) : null;
 
     // 編成の顔画像を先にまとめてロード (Canvas 描画は同期のため)。無い顔は自作タイルで描く
     const charFaces = new Map();   // 代表ID → HTMLImageElement
@@ -172,31 +205,51 @@ export async function buildShareCard(results, canvas, opts = {}) {
         const x0 = left + i * cw + (i > 0 ? pad : 0);
         const iw = cw - (i > 0 ? pad : 0) - pad;
         if (c.type === 'sum') {
+            // 総合の母集団 = 締め凸を除いた凸 (打ち切りダメージを平均に混ぜない)
+            const scored = results.filter(r2 => !r2.isFinish);
             ctx.fillStyle = CREAM;
             ctx.font = `800 26px ${F}`;
             ctx.fillText('総合', x0, 252);
             // 未解禁 (分布50人未満) の間は % が出せないので、平均ふるり値を主役にする
             // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)
-            const avgScore = results.reduce((s2, r2) => s2 + r2.score, 0) / results.length;
+            const avgBase = scored.length ? scored : results;
+            const avgScore = avgBase.reduce((s2, r2) => s2 + r2.score, 0) / avgBase.length;
             if (totalPct != null) drawBigNum(ctx, x0, 252 + bigSize + 4, totalPct, bigSize, CREAM, iw);
             else drawBigNum(ctx, x0, 252 + bigSize + 4, avgScore.toFixed(2), bigSize, CREAM, iw, null);
             ctx.fillStyle = '#8A9097';
             ctx.font = `700 18px ${F}`;
-            ctx.fillText(totalPct != null ? '各凸の中央値比を同じ重みで平均' : `平均ふるり値 (${results.length}凸)`,
+            ctx.fillText(totalPct != null ? '各凸の中央値比を同じ重みで平均' : `平均ふるり値 (${avgBase.length}凸)`,
                 x0, 252 + bigSize + 36);
             ctx.fillStyle = '#A4AAB0';
             ctx.font = `700 22px ${F}`;
-            ctx.fillText(`${results.length}凸 / SLv ${results[0].slv}`, x0, 514);   // 属性列の編成内%と同じ高さ
+            const sumLabel = anyFinish ? `${scored.length}凸 (締め凸除く) / SLv ${results[0].slv}`
+                                       : `${results.length}凸 / SLv ${results[0].slv}`;
+            ctx.fillText(sumLabel, x0, 514);   // 属性列の編成内%と同じ高さ
+            // のべ比較人数 = 各属性分布の n の合計 (どれだけの提出と比べたかが一目で分かる)
+            const totalN = results.filter(r2 => distReady(r2.dist)).reduce((s2, r2) => s2 + r2.dist.n, 0);
+            if (totalN > 0) {
+                ctx.fillStyle = '#8A9097';
+                ctx.font = `700 19px ${F}`;
+                ctx.fillText(`のべ ${totalN}人の提出と比較`, x0, 548);
+            }
             ctx.fillStyle = '#6B7178';
             ctx.font = `700 16px ${F}`;
-            ctx.fillText('ボスの通りやすさは属性ごとの', x0, 596);
-            ctx.fillText('中央値で補正済み。編成内%は', x0, 622);
-            ctx.fillText('同じ5人との比較 (並び順は不問)', x0, 648);
+            if (anyFinish) ctx.fillText('締め凸は分布・総合に不参加 (参考)', x0, 584);
+            ctx.fillText('ボスの通りやすさは属性ごとの', x0, anyFinish ? 610 : 596);
+            ctx.fillText('中央値で補正済み。編成内%は', x0, anyFinish ? 634 : 622);
+            ctx.fillText('同じ5人との比較 (並び順は不問)', x0, anyFinish ? 658 : 648);
             return;
         }
         const { r, ratio } = c;
         const info = ATTR_INFO[r.attribute];
         const mp = ratio != null ? Math.round(ratio * 100) : null;
+        // 締め凸マーキング (コンテンツより先に描く — tint は背景面のため)
+        if (r.isFinish) {
+            drawFinishMark(ctx, {
+                style: finishStyle, color: info.color,
+                fx: x0 - 14, fy: 224, fw: iw + 28, fh: multi ? 442 : 502,
+            });
+        }
         ctx.fillStyle = info.color;
         ctx.font = `800 ${multi ? 26 : 30}px ${F}`;
         ctx.fillText(`${info.jp}PT`, x0, multi ? 252 : 270);

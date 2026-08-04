@@ -137,6 +137,17 @@
         footer { text-align:center; padding:20px 0 8px; font-size:10.5px; color:var(--faint); line-height:1.7; }
         .contact-x a { color:var(--sub); font-weight:800; }
         .err { font-size:12px; color:var(--sub); }
+
+        /* ランキングの折りたたみ (TOP3 常時表示 + 4位以下を格納) */
+        .rank-fold > summary {
+            list-style: none; cursor: pointer; margin-top: 8px; padding: 10px;
+            border-radius: 14px; background: var(--card2); text-align: center;
+            font-size: 12px; font-weight: 800; color: var(--sub);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .rank-fold > summary::-webkit-details-marker { display: none; }
+        .rank-fold > summary .chev { display: inline-block; transition: transform 0.2s; margin-right: 4px; }
+        .rank-fold[open] > summary .chev { transform: rotate(180deg); }
     </style>
 </head>
 <body>
