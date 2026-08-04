@@ -952,7 +952,7 @@ function renderResults() {
 let editBusy = false;
 async function onToggleFinish(i) {
     const r = results?.[i];
-    if (!r || editBusy) return;
+    if (!r || editBusy || submitting) return;   // 修正送信中の古いカードから操作させない (Codex指摘)
     editBusy = true;
     try {
         const next = !r.isFinish;
@@ -983,11 +983,15 @@ async function onToggleFinish(i) {
 // ✏️ 修正モード: 前回の内容をフォームへ再充填し、送信を「置き換え」に切り替える
 function startCorrection(i) {
     const r = results?.[i];
-    if (!r) return;
+    if (!r || editBusy || submitting) return;
     correcting = { attribute: r.attribute };
     const a = newAttack();
     a.attribute = r.attribute;
-    a.damage = Number.isFinite(r.damage) ? String(+(r.damage / 1e9).toFixed(4)) : '';
+    // 生値をそのまま入れる (B換算の丸めで送信値が変わらないように — Codex指摘。
+    // parseDamageInput は 1e6 以上をフル桁として扱うので往復が正確。
+    // 1e6 未満の極小値だけはフル桁扱いされないため B 単位に変換して入れる)
+    a.damage = Number.isFinite(r.damage)
+        ? (r.damage >= 1e6 ? String(r.damage) : String(r.damage / 1e9)) : '';
     a.isFinish = r.isFinish === true;
     if (Array.isArray(r.characters) && r.characters.length === 5 && compReady()) {
         a.template = detectTemplate(r.characters, burstsOfId);

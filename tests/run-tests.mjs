@@ -478,9 +478,14 @@ test('10_own_edits: 自分の行しか触れない (client_idスコープ) + 原
     assert((sql.match(/submissions are closed/g) || []).length >= 2, 'open チェックが両RPCに揃っていない');
     // INSERT は 07 と同じ例外ハンドラ (DETAIL漏洩ガード + 失敗時ロールバックで元の行が残る)
     assert(/exception when others then[\s\S]*?sqlerrm/.test(sql), 'correct の INSERT が例外ハンドラで包まれていない');
-    // grant は anon への execute のみ
+    // grant は anon への execute のみ + PUBLIC の既定 execute を明示的に剥がす (Codex指摘)
     assert((sql.match(/grant execute on function/g) || []).length === 2 && !/grant\s+(all|insert|update|delete)\s+on\s+table/i.test(sql),
         'grant が RPC execute 以外に及んでいる');
+    assert((sql.match(/revoke all on function .* from public/g) || []).length === 2,
+        'PUBLIC への既定 execute が revoke されていない');
+    // correct は既存行がある場合のみ (この RPC で行を新規作成できない = Sybil量産ガード)
+    assert(/if v_replaced = 0 then raise exception/.test(sql),
+        'correct の「既存行のみ」ガードが無い');
 });
 
 test('07: submit の INSERT が例外ハンドラで包まれている (エラーDETAILの行内容漏洩ガード)', () => {

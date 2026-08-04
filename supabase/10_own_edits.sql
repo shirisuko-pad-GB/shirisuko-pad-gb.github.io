@@ -12,10 +12,12 @@
 --    単純な再送信では古い誤り行が per-client ベスト選抜に勝ち残るため、
 --    「自分のその属性の行を置き換える」原子的な RPC が必要。
 --
--- セキュリティモデルは submit と同じ: client_id (端末ローカルのランダムUUID) を
--- 知っている = 本人。**どちらの RPC も自分の client_id の行しか触れない**。
--- 他人の票は client_id を知らない限り操作できず、悪用しても自分の票を
--- 集計から出し入れできるだけ (荒らしの道具にならない)。
+-- セキュリティモデルは submit と同じ「client_id (端末ローカルのランダムUUID) を
+-- 知っている = 本人」の bearer 方式。**どちらの RPC も指定 client_id の行しか触れない**。
+-- UUIDv4 (2^122通り) の総当たりは非現実的だが、UUID が漏れればその人の票を
+-- 操作できる点は submit と同等の割り切り (Codexレビュー 2026-08-04 で明文化)。
+-- correct は「既存行がある場合のみ」置き換え可 (新規作成は submit のみ —
+-- この RPC を Sybil 的な行量産に使えないようにするガード)。
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -41,6 +43,7 @@ begin
     get diagnostics v_n = row_count;
     return v_n;
 end; $$;
+revoke all on function public.mark_own_finish(uuid, text, text, boolean) from public;
 grant execute on function public.mark_own_finish(uuid, text, text, boolean) to anon;
 
 -- ---------------------------------------------------------------------------
@@ -75,6 +78,11 @@ begin
      where client_id = v_client and season = v_active and attribute = v_attr;
     get diagnostics v_replaced = row_count;
 
+    -- 既存行が無いなら「修正」ではない → 拒否 (新規作成は submit_measurements のみ。
+    -- この RPC で無から行を量産する Sybil/DoS 経路を塞ぐ — Codex指摘)。
+    -- 例外で関数全体が失敗するため上の delete も無効 (何も変わらない)
+    if v_replaced = 0 then raise exception 'no existing submission to correct'; end if;
+
     begin
         insert into public.measurements
             (attribute, slv, damage, season, characters, comp_key, client_id, set_id, set_slot, is_finish)
@@ -92,6 +100,7 @@ begin
 
     return jsonb_build_object('score', v_score, 'comp_key', v_comp_key, 'replaced', v_replaced);
 end; $$;
+revoke all on function public.correct_own_measurement(jsonb) from public;
 grant execute on function public.correct_own_measurement(jsonb) to anon;
 
 notify pgrst, 'reload schema';
