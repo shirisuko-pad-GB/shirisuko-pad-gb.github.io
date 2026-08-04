@@ -478,9 +478,13 @@ test('09_finish_flag: 締め凸の除外・互換・データ保全', () => {
 
 test('11_total_distribution: 読み取り専用 + 除外フィルタの位置 + 母集団=有効3凸以上', () => {
     const sql = readFileSync(join(ROOT, 'supabase', '11_total_distribution.sql'), 'utf8');
-    // 読み取り専用 (書き込み・スキーマ変更を含まない)
-    assert(!/\b(insert into|update |delete from|alter table|drop |truncate)\b/i.test(sql),
+    // 読み取り専用 (書き込み・スキーマ変更を含まない)。
+    // drop は「自関数の旧シグネチャ掃除 (drop function if exists get_total_distribution)」のみ許可
+    assert(!/\b(insert into|update |delete from|alter table|truncate)\b/i.test(sql),
         '11 に書き込み・スキーマ変更が含まれている');
+    const drops = sql.match(/drop\s+[^;]+/gi) || [];
+    assert(drops.every(d => /^drop function if exists public\.get_total_distribution/i.test(d)),
+        '想定外の drop 文がある');
     assert(/returns json language plpgsql stable/.test(sql), 'stable (読み取り専用) 宣言が無い');
     // 締め凸・シャドウ除外が per-client ベスト選抜 (group by) より前にある
     const f1 = /^\s*and not m\.is_finish\b/m.exec(sql);
@@ -490,6 +494,10 @@ test('11_total_distribution: 読み取り専用 + 除外フィルタの位置 + 
         '除外フィルタが per-client ベスト選抜より後にある');
     // 母集団 = 有効な凸が3属性以上の人だけ
     assert(/where atk >= 3/.test(sql), '母集団の「有効3凸以上」条件が無い');
+    // 本人の位置はサーバーが client_id から計算 (クライアント計算値を信用しない)
+    assert(/client_id = p_client_id/.test(sql), '本人の総合がサーバー計算になっていない');
+    // 基準不完全な seed ではフェイルクローズ (部分集計を返さない)
+    assert(/incomplete bases for season/.test(sql), '基準欠落時のフェイルクローズが無い');
     // PUBLIC の既定 execute を剥がし anon にだけ grant
     assert(/revoke all on function public\.get_total_distribution.* from public/.test(sql) &&
            /grant execute on function public\.get_total_distribution.* to anon/.test(sql),

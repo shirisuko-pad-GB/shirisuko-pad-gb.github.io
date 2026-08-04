@@ -886,17 +886,15 @@ async function onSubmit() {
     }
 }
 
-// 総合の全体分布を取り直す (renderResults の前に呼ぶ)。閲覧者の総合 (1〜2凸の
-// 参考値含む) を渡すと my_bin が返る。11未適用・通信失敗は null で静かに劣化
+// 総合の全体分布を取り直す (renderResults の前に呼ぶ)。本人の位置 (my_total/my_atk/
+// my_bin) はサーバーが client_id から「属性ごとのシーズンベスト」で計算して返す —
+// 表示中セット由来の値だと再提出・同属性重複でズレる (Codex指摘)。
+// 11未適用・通信失敗は null で静かに劣化
 async function refreshTotalDist() {
     totalDist = null;
     if (!results?.length) return;
     try {
-        const scored = results.filter(r => !r.isFinish);
-        const ratios = scored.map(medianRatioOf);
-        const total = scored.length > 0 && ratios.every(x => x != null)
-            ? ratios.reduce((s, x) => s + x, 0) / ratios.length : null;
-        totalDist = await fetchTotalDistribution({ season: viewSeason ?? season, total });
+        totalDist = await fetchTotalDistribution({ season: viewSeason ?? season });
     } catch (e) {
         console.warn('総合分布の取得失敗:', e);
         totalDist = null;
@@ -932,12 +930,15 @@ function renderResults() {
             const maxBin = Math.max(...td.bins, 1);
             const bars = td.bins.map((v, bi) =>
                 `<div class="bar${td.my_bin != null && bi === td.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
-            const refNote = totalPct != null && scored.length < 3
-                ? ` (母集団は3凸完走のみ — あなたは${scored.length}凸の平均での参考位置)` : '';
+            // 位置の説明: サーバーの正 (属性ごとシーズンベスト) 基準。有効3凸未満は参考扱い
+            const myNote = td.my_bin == null ? ''
+                : Number.isFinite(td.my_atk) && td.my_atk < 3
+                    ? `色の違うバーがあなた (母集団は3凸完走のみ — あなたは有効${td.my_atk}凸の平均 ${Math.round(td.my_total * 100)}% での参考位置)。`
+                    : `色の違うバーがあなた (シーズン内の属性ごとベスト凸での総合 ${Math.round(td.my_total * 100)}%)。`;
             totalHist = `
             <div class="hist">${bars}</div>
             <div class="hist-axis"><span>${Math.round(td.lo * 100)}%</span><span>真ん中 ${Math.round(td.median * 100)}%</span><span>${Math.round(td.hi * 100)}%</span></div>
-            <p class="dist-note">3凸完走 ${td.n}人それぞれの「総合」を並べた分布。${totalPct != null ? `色の違うバーがあなた${refNote}。` : ''}利用者は ${td.users}人です。</p>`;
+            <p class="dist-note">3凸完走 ${td.n}人それぞれの「総合」を並べた分布。${myNote}利用者は ${td.users}人です。</p>`;
         } else if (td) {
             totalHist = `<p class="dist-note">みんなの総合の分布は 3凸完走 ${td.need ?? 50}人で解禁 (現在 ${td.n ?? 0}人)。利用者 ${td.users ?? 0}人。</p>`;
         }

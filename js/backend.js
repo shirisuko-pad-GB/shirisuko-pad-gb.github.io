@@ -126,11 +126,12 @@ export async function fetchDistribution({ attribute, season, score, compKey = nu
 //     ※ best/median は採用5人未満の編成では null (プライバシー下限)
 //   閾値未満: {n, gated:true, need} / 0件: {n: 0}
 // 総合 (各凸の中央値比の平均) の全体分布 + ユニーク利用者数。
-// total = 閲覧者の総合 (割合。1〜2凸の参考位置も可)。11未適用のサーバーではエラー →
-// 呼び出し側で null 扱いにして静かに劣化させる
-export async function fetchTotalDistribution({ season, total = null }) {
+// 本人の位置 (my_total / my_atk / my_bin) はサーバーが client_id から
+// 「属性ごとのシーズンベスト」で計算する (表示セット由来の値とのズレを防ぐ)。
+// 11未適用のサーバーではエラー → 呼び出し側で null 扱いにして静かに劣化させる
+export async function fetchTotalDistribution({ season }) {
     if (!backendConfigured()) return null;
-    return callRpc('get_total_distribution', { p_season: season, p_total: total });
+    return callRpc('get_total_distribution', { p_season: season, p_client_id: getClientId() });
 }
 
 export async function fetchCompInsights({ attribute, season }) {

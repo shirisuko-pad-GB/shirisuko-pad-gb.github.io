@@ -16,15 +16,31 @@
 -- (シーズン絞り → 締め凸除外 → シャドウ範囲内 → per-client ベスト → 中央値)。
 -- ============================================================================
 
+-- 旧シグネチャ (p_total 渡し) の残骸があれば消す (閲覧者の総合はサーバーで計算する方式に
+-- 変更 — クライアント計算値だと「画面の表示セット」と「シーズン内ベスト」がズレる Codex指摘)
+drop function if exists public.get_total_distribution(text, numeric, int);
+
 create or replace function public.get_total_distribution(
-    p_season text, p_total numeric default null, p_bins int default 20
+    p_season text, p_client_id uuid default null, p_bins int default 20
 ) returns json language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
     v_totals numeric[]; v_users int; v_n int; v_median numeric;
     v_lo numeric; v_hi numeric; v_bins int[]; v_my_bin int;
+    v_my_total numeric; v_my_atk int;
     v_thresh int := 50;   -- 分布の解禁しきい値 (属性分布と同じ感覚)
 begin
     p_bins := least(greatest(p_bins, 5), 50);
+
+    -- 基準 (fururi_bases) が無い属性に提出がある = seed 不完全。黙って部分集計せず
+    -- 落とす (get_distribution と同じフェイルクローズ — Codex指摘)
+    if exists (
+        select 1 from public.measurements m
+        where m.season = p_season
+          and not exists (select 1 from public.fururi_bases b
+                          where b.season = p_season and b.attribute = m.attribute)
+    ) then
+        raise exception 'incomplete bases for season %', p_season;
+    end if;
 
     with k as (
         -- 属性ごとのスコア係数 (シャドウ範囲の判定に使う — 09 と同じ定義)
@@ -57,8 +73,12 @@ begin
         from ratios group by client_id
     )
     select (select count(*) from totals),                                   -- 利用者 (有効1凸以上)
-           (select array_agg(total) from totals where atk >= 3)             -- 3凸完走勢の総合
-      into v_users, v_totals;
+           (select array_agg(total) from totals where atk >= 3),            -- 3凸完走勢の総合
+           -- 閲覧者本人の総合はサーバーの正 (属性ごとシーズンベスト) から計算する。
+           -- クライアントの表示セット由来の値だと再提出・同属性重複でズレる (Codex指摘)
+           (select total from totals where p_client_id is not null and client_id = p_client_id),
+           (select atk from totals where p_client_id is not null and client_id = p_client_id)
+      into v_users, v_totals, v_my_total, v_my_atk;
 
     v_n := coalesce(array_length(v_totals, 1), 0);
     if v_n = 0 then return json_build_object('users', coalesce(v_users, 0), 'n', 0); end if;
@@ -73,21 +93,22 @@ begin
 
     if v_hi <= v_lo then
         v_bins := array_fill(0, array[p_bins]); v_bins[1] := v_n;
-        v_my_bin := case when p_total is null then null else 1 end;
+        v_my_bin := case when v_my_total is null then null else 1 end;
     else
         select array_agg(coalesce(c, 0) order by gs.b) into v_bins
         from generate_series(1, p_bins) as gs(b)
         left join (select least(width_bucket(least(greatest(x, v_lo), v_hi), v_lo, v_hi, p_bins), p_bins) as b,
                           count(*)::int as c from unnest(v_totals) as x group by 1) h on h.b = gs.b;
-        -- p_total (閲覧者の総合・1〜2凸の参考位置も含む) は範囲外でも端のビンに寄せる
-        v_my_bin := case when p_total is null then null
-                         else least(width_bucket(least(greatest(p_total, v_lo), v_hi), v_lo, v_hi, p_bins), p_bins) end;
+        -- 本人の総合 (1〜2凸の参考位置も含む) は範囲外でも端のビンに寄せる
+        v_my_bin := case when v_my_total is null then null
+                         else least(width_bucket(least(greatest(v_my_total, v_lo), v_hi), v_lo, v_hi, p_bins), p_bins) end;
     end if;
 
     return json_build_object('users', v_users, 'n', v_n, 'median', v_median,
-                             'lo', v_lo, 'hi', v_hi, 'bins', to_json(v_bins), 'my_bin', v_my_bin);
+                             'lo', v_lo, 'hi', v_hi, 'bins', to_json(v_bins), 'my_bin', v_my_bin,
+                             'my_total', v_my_total, 'my_atk', v_my_atk);
 end; $$;
-revoke all on function public.get_total_distribution(text, numeric, int) from public;
-grant execute on function public.get_total_distribution(text, numeric, int) to anon;
+revoke all on function public.get_total_distribution(text, uuid, int) from public;
+grant execute on function public.get_total_distribution(text, uuid, int) to anon;
 
 notify pgrst, 'reload schema';
