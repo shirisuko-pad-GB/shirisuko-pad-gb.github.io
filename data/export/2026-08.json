@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "season": "2026-08",
-  "generatedAt": "2026-08-04T23:41:04.321Z",
+  "generatedAt": "2026-08-05T00:38:47.557Z",
   "methodology": {
     "unit": "fururi",
     "attackBenchmark": "per-client best per attribute (シーズン内・1端末1票)",
@@ -54,10 +54,10 @@
   "attributes": {
     "FIRE": {
       "attackBenchmark": {
-        "n": 495,
-        "medianFururi": 1.0711,
-        "loFururi": 0.4402,
-        "hiFururi": 1.6981
+        "n": 496,
+        "medianFururi": 1.0712,
+        "loFururi": 0.441,
+        "hiFururi": 1.698
       },
       "compCohortN": 262,
       "comps": [
@@ -416,10 +416,10 @@
     },
     "WATER": {
       "attackBenchmark": {
-        "n": 682,
-        "medianFururi": 1.0335,
-        "loFururi": 0.5453,
-        "hiFururi": 1.8317
+        "n": 683,
+        "medianFururi": 1.0344,
+        "loFururi": 0.546,
+        "hiFururi": 1.8313
       },
       "compCohortN": 342,
       "comps": [
@@ -1129,12 +1129,12 @@
     },
     "ELECTRIC": {
       "attackBenchmark": {
-        "n": 542,
-        "medianFururi": 1.0587,
-        "loFururi": 0.3838,
-        "hiFururi": 1.5495
+        "n": 543,
+        "medianFururi": 1.0599,
+        "loFururi": 0.3841,
+        "hiFururi": 1.5493
       },
-      "compCohortN": 256,
+      "compCohortN": 257,
       "comps": [
         {
           "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|59035ecc65d2e661f612d9eea23dbe07.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp|70fb299487aa9bb61a844a4b68e96d89.webp",
@@ -1160,8 +1160,8 @@
               "name": "マスト：ロマンチックメイド"
             }
           ],
-          "n": 61,
-          "medianFururi": 1.2332,
+          "n": 62,
+          "medianFururi": 1.2359,
           "arrangements": [
             {
               "memberGbIdsInOrder": [
@@ -1171,7 +1171,7 @@
                 "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
                 "70fb299487aa9bb61a844a4b68e96d89.webp"
               ],
-              "n": 61
+              "n": 62
             }
           ]
         },
@@ -1433,8 +1433,8 @@
               "name": "ネオン：ビジョン・アイ"
             }
           ],
-          "n": 6,
-          "medianFururi": 0.9963,
+          "n": 7,
+          "medianFururi": 0.998,
           "arrangements": [
             {
               "memberGbIdsInOrder": [
@@ -1444,7 +1444,7 @@
                 "70fb299487aa9bb61a844a4b68e96d89.webp",
                 "e3532447b3ca028770c2a5ee149e746e.webp"
               ],
-              "n": 6
+              "n": 7
             }
           ]
         },
@@ -1491,12 +1491,12 @@
     },
     "IRON": {
       "attackBenchmark": {
-        "n": 998,
-        "medianFururi": 1.1654,
-        "loFururi": 0.4769,
-        "hiFururi": 1.905
+        "n": 1001,
+        "medianFururi": 1.1652,
+        "loFururi": 0.4773,
+        "hiFururi": 1.9047
       },
-      "compCohortN": 486,
+      "compCohortN": 488,
       "comps": [
         {
           "compKey": "15f93b4073cd82430710c5d4105fa56d.webp|2020306990ac4f6696c4674b536dca49.webp|31caa32129469999a8c011eba7fc1bac.webp|9a54283cdd0c15a9b554810488563775.webp|c4ba87906faff8cfc78af5ba6429e5be.webp",
@@ -1522,8 +1522,8 @@
               "name": "レッドフード"
             }
           ],
-          "n": 134,
-          "medianFururi": 1.3046,
+          "n": 135,
+          "medianFururi": 1.3051,
           "arrangements": [
             {
               "memberGbIdsInOrder": [
@@ -1533,7 +1533,7 @@
                 "9a54283cdd0c15a9b554810488563775.webp",
                 "c4ba87906faff8cfc78af5ba6429e5be.webp"
               ],
-              "n": 134
+              "n": 135
             }
           ]
         },
@@ -1931,12 +1931,12 @@
     },
     "WIND": {
       "attackBenchmark": {
-        "n": 582,
-        "medianFururi": 1.1701,
-        "loFururi": 0.6899,
-        "hiFururi": 1.816
+        "n": 583,
+        "medianFururi": 1.1699,
+        "loFururi": 0.6901,
+        "hiFururi": 1.8158
       },
-      "compCohortN": 274,
+      "compCohortN": 275,
       "comps": [
         {
           "compKey": "03d1fd97b534b7adbcc378694be6e25e.webp|171c4160829049f2604cde5036b79801.webp|6045c557bca29bcd35a65c8c99745ff0.webp|6e3b8dbfd367f6b1c0977866c27cd40b.webp|e3532447b3ca028770c2a5ee149e746e.webp",
@@ -1962,8 +1962,8 @@
               "name": "紅蓮：ブラックシャドウ"
             }
           ],
-          "n": 224,
-          "medianFururi": 1.1778,
+          "n": 225,
+          "medianFururi": 1.1775,
           "arrangements": [
             {
               "memberGbIdsInOrder": [
@@ -1973,7 +1973,7 @@
                 "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
                 "e3532447b3ca028770c2a5ee149e746e.webp"
               ],
-              "n": 224
+              "n": 225
             }
           ]
         },

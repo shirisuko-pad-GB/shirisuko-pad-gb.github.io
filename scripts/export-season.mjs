@@ -27,14 +27,22 @@ const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 
 const SEASON = process.argv[2] ?? base.version;
 const ATTRS = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
 
-if (SEASON === base.version && raid.season !== SEASON) {
-    console.error(`raid.json (${raid.season}) と base.json (${base.version}) のシーズンが不一致`);
+// base/raid はローカルファイル = 現行シーズンの値しか持っていない。過去シーズンを
+// 指定すると「過去の集計 × 現行の基準ダメージ/ボス名」の混在ファイルができてしまうため
+// 拒否する (過去分が要るときは当時のコミットを checkout して実行 — Codex指摘)
+if (SEASON !== base.version || raid.season !== SEASON) {
+    console.error(`シーズン不一致: 指定=${SEASON} / base.json=${base.version} / raid.json=${raid.season}`);
+    console.error('過去シーズンのエクスポートは、そのシーズン時点のコミットを checkout して実行してください');
     process.exit(1);
 }
 
-// キャラID → 正規ID + 日本語名 (本家側は名前で突き合わせ、IDは照合検証用)
+// キャラID → 正規ID + 日本語名 (本家側は名前で突き合わせ、IDは照合検証用)。
+// alias 経由の解決は件数を数えて最後に報告する (古い alias が誤った名前を黙って出す
+// リスクの可視化 — Codex指摘。名前が引けない ID は最終的にエクスポート失敗にする)
+let aliasResolved = 0;
 const resolve = (id) => {
-    const canon = charData.chars[id] ? id : charData.aliases?.[id];
+    let canon = id;
+    if (!charData.chars[canon] && charData.aliases?.[id]) { canon = charData.aliases[id]; aliasResolved++; }
     const c = charData.chars[canon];
     return c ? { gbId: canon, name: c.name } : { gbId: id, name: null };
 };
@@ -102,7 +110,7 @@ for (const attr of ATTRS) {
         compCohortN: ins.n ?? 0,
         comps: comps.map(c => {
             const members = (Array.isArray(c.chars) ? c.chars : []).map(resolve);
-            members.forEach(m => { if (!m.name) { console.error(`⚠ ${attr}: 名前未解決 ${m.gbId}`); warned = true; } });
+            members.forEach(m => { if (!m.name) { console.error(`✖ ${attr}: 名前未解決 ${m.gbId}`); warned = true; } });
             return {
                 compKey: members.map(m => m.gbId).sort().join('|'),
                 members: members.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')),
@@ -113,12 +121,22 @@ for (const attr of ATTRS) {
                     n: x.n,
                 })),
             };
-        }),
+        // サーバーの同順位は返却順が不定 → ファイル側で決定的に並べ直す (Codex指摘)
+        }).sort((a, b) => b.n - a.n || b.medianFururi - a.medianFururi || a.compKey.localeCompare(b.compKey)),
     };
     console.log(`${attr}: 全体 n=${out.attributes[attr].attackBenchmark.n}` +
         ` 中央値=${out.attributes[attr].attackBenchmark.medianFururi}` +
         ` / 編成 ${comps.length}件 (母数${ins.n})`);
 }
+
+// 名前未解決が1件でもあれば書き出さない (本家側で誤マッチ・欠落編成を生むため — Codex指摘)
+const unresolved = Object.values(out.attributes)
+    .flatMap(a => a.comps).flatMap(c => c.members).filter(m => !m.name).length;
+if (unresolved > 0) {
+    console.error(`\n✖ 名前未解決 ${unresolved}件 — characters.json を更新してから再実行してください (書き出し中止)`);
+    process.exit(1);
+}
+if (aliasResolved > 0) console.log(`ℹ alias 経由の解決 ${aliasResolved}件 (名前が正しいか抜き取り確認を推奨)`);
 
 mkdirSync(join(ROOT, 'data', 'export'), { recursive: true });
 const file = join(ROOT, 'data', 'export', `${SEASON}.json`);
