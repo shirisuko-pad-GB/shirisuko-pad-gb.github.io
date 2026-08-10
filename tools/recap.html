@@ -20,7 +20,7 @@
 
   使い方: ローカルで開く (python -m http.server → /tools/recap.html)。
   「画像を保存」で PNG が落ちる。キャラは自作タイル表示 (権利方針によりゲーム画像は不使用)。
-  headless 書き出し: ?auto=median|usage|summary|practical&bare=1 (&art=1 でキャラ絵)
+  headless 書き出し: ?auto=median|usage|summary|practical&bare=1 (&art=1 でキャラ絵・&raid=43 で回数)
 -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Noto+Sans+JP:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -46,6 +46,7 @@
 
 <div class="row">
     <label>シーズン <input id="season" value="2026-08" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:110px;"></label>
+    <label>第<input id="raidNo" type="number" min="1" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:70px;">回</label>
     <button onclick="buildBoth()">4枚まとめて作る</button>
     <label style="font-size:12px;color:#93938C;"><input type="checkbox" id="useArt"> キャラ絵を使う (ローカル専用・公開前に要許諾)</label>
 </div>
@@ -102,6 +103,17 @@ const ATTRS = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
 
 let infoOf = () => null, logo = null, booted = null;
 
+// カードの見出しは「2026-08」ではなく「第43回ユニオンレイド」で出す (SNSでの通りが良いため)。
+// 回数はシーズンキーから機械的に導けない (レイドは約3週間おきで、月と1:1で対応しない) ので
+// 明示的な対応表 + 手入力。未知のシーズンはシーズンキーのまま描く (「第回」を出さない)。
+const SEASON_RAID_NO = { '2026-07': 42, '2026-08': 43 };
+function raidLabel() {
+    const n = Number(document.getElementById('raidNo')?.value);
+    return Number.isInteger(n) && n > 0
+        ? `第${n}回ユニオンレイド`
+        : document.getElementById('season').value.trim();
+}
+
 function boot() {
     if (booted) return booted;
     booted = (async () => {
@@ -113,6 +125,8 @@ function boot() {
         if (b?.version && !new URLSearchParams(location.search).get('season')) {
             document.getElementById('season').value = b.version;
         }
+        const raid = document.getElementById('raidNo');
+        if (!raid.value) raid.value = SEASON_RAID_NO[document.getElementById('season').value.trim()] || '';
         logo = await new Promise(res => {
             const i = new Image();
             i.onload = () => res(i); i.onerror = () => res(null);
@@ -143,7 +157,16 @@ function frame(ctx, W, H, title, sub, lead) {
         ctx.fillStyle = '#8A9097'; ctx.font = `700 22px ${F}`; ctx.textAlign = 'right';
         ctx.fillText('Developed by', lx - 16, 84); ctx.textAlign = 'left';
     }
-    ctx.fillStyle = '#FFFFFF'; ctx.font = `800 46px ${F}`;
+    // 見出しは「第43回ユニオンレイド 人気かつ強かった編成」のように長くなり得るので、
+    // 添え字ぶんの幅を確保できるまで字を詰める (はみ出して切れるより読める方を優先)
+    ctx.font = `700 21px ${F}`;
+    const subW = sub ? ctx.measureText(sub).width + 28 : 0;
+    let size = 46;
+    ctx.font = `800 ${size}px ${F}`;
+    while (size > 30 && 70 + ctx.measureText(title).width + subW > W - 70) {
+        size -= 2; ctx.font = `800 ${size}px ${F}`;
+    }
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillText(title, 70, 168);
     const tw = ctx.measureText(title).width;
     ctx.fillStyle = '#8A9097'; ctx.font = `700 21px ${F}`;
@@ -379,8 +402,8 @@ window.build = async (kind) => {
             const faces = await preloadFaces(ATTRS.flatMap(a => picks[a]));
             await document.fonts.ready;
             const cv = document.getElementById('c4'), ctx = cv.getContext('2d');
-            frame(ctx, cv.width, cv.height, `${season} 人気かつ強かった編成`,
-                `${season} シーズンの記録`,
+            frame(ctx, cv.width, cv.height, '人気かつ強かった編成',
+                `利用者 ${users}人 · のべ ${totalN}件の提出`,
                 `${PRACTICAL_MIN_N}人以上が使い、その属性の中央値 (100%) を上回った編成`);
             drawStrongTop(ctx, cv.width, cv.height, { data, faces, pick: a => picks[a], startRank: 1,
                 note: ['同じ5人 (並び順は不問) を使った提出が', `${PRACTICAL_MIN_N}人以上あり、その中央値が属性の中央値`,
@@ -391,8 +414,8 @@ window.build = async (kind) => {
         if (kind === 'summary') {
             await document.fonts.ready;
             const cv = document.getElementById('c1'), ctx = cv.getContext('2d');
-            frame(ctx, cv.width, cv.height, `${season} 総まとめ`,
-                `${season} シーズンの記録`, 'みなさんの提出でできた、今回のユニオンレイドの全体像');
+            frame(ctx, cv.width, cv.height, `${raidLabel()} 総まとめ`,
+                '', 'みなさんの提出でできた、今回のユニオンレイドの全体像');
             drawSummary(ctx, cv.width, cv.height,
                 { data, totalN, users, avgSlv: Number(document.getElementById('avgSlv')?.value) || 0 });
             st.textContent = '✅ 作成しました';
@@ -405,7 +428,7 @@ window.build = async (kind) => {
         const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
         const usage = kind === 'usage';
         frame(ctx, W, H,
-            usage ? `${season} よく使われた編成` : `${season} 結果発表`,
+            usage ? 'よく使われた編成' : '結果発表',
             `利用者 ${users}人 · のべ ${totalN}件の提出`,
             usage ? '属性ごとに、いちばん多くの人が使っていた編成'
                   : '属性ごとに、いちばん強かった編成 — その属性の中央値を 100% として比較');
@@ -468,6 +491,7 @@ window.buildBoth = async () => { await window.build('summary'); await window.bui
     const auto = q.get('auto');
     if (!auto) { boot(); return; }
     if (q.get('season')) document.getElementById('season').value = q.get('season');
+    if (q.get('raid')) document.getElementById('raidNo').value = q.get('raid');
     if (q.get('bare')) {
         document.body.style.padding = '0';
         document.querySelectorAll('body > *:not(canvas)').forEach(el => { el.style.display = 'none'; });
