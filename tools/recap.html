@@ -44,7 +44,7 @@
 
 <div class="row">
     <label>シーズン <input id="season" value="2026-08" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:110px;"></label>
-    <button onclick="buildBoth()">2枚まとめて作る</button>
+    <button onclick="buildBoth()">3枚まとめて作る</button>
     <label style="font-size:12px;color:#93938C;"><input type="checkbox" id="useArt"> キャラ絵を使う (ローカル専用・公開前に要許諾)</label>
 </div>
 
@@ -63,6 +63,20 @@
 </div>
 <div class="status" id="s2"></div>
 <canvas id="c2" width="1200" height="800"></canvas>
+
+<h2>③ 総合サマリー</h2>
+<p class="note">
+    平均SLv だけは公開RPCに無いので、SQL Editor で下を実行して数値を入れてください
+    (集計値のみ・個人は特定できません)。空欄なら SLv 欄は省略して描画します。<br>
+    <code style="color:#EFDD3C;">with per as (select client_id, max(slv) slv from public.measurements where season='2026-08' group by client_id) select count(*) users, round(avg(slv)) avg_slv from per;</code>
+</p>
+<div class="row">
+    <label>平均SLv <input id="avgSlv" type="number" placeholder="例: 720" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:100px;"></label>
+    <button class="sub" onclick="build('summary')">作り直す</button>
+    <button class="sub" onclick="save('c3','shirisuko-recap-summary')">画像を保存</button>
+</div>
+<div class="status" id="s3"></div>
+<canvas id="c3" width="1200" height="800"></canvas>
 
 <script type="module">
 import { ATTR_INFO, SITE_URL } from '../js/shared.js';
@@ -217,13 +231,83 @@ async function fetchAll(season) {
     return { data, totalN, users };
 }
 
+// ③ 総合サマリー: 参加規模 + ボスの通りやすさ。
+// 通りやすさはサイト (js/stats.js renderEase) と同じ式 —
+// 5属性の中央値を並べ、**真ん中の属性を ×1.00** に正規化した比。
+// 「その属性は他より通りやすかったか」を1つの数字で見せる指標
+function drawSummary(ctx, W, H, { data, totalN, users, avgSlv }) {
+    const meds = ATTRS.map(a => data[a].median).filter(Number.isFinite).sort((x, y) => x - y);
+    const center = meds.length >= 3 ? meds[Math.floor(meds.length / 2)] : null;
+    // 参加規模の3枚組
+    const stats = [
+        { label: '測定した人', value: users > 0 ? String(users) : '—', unit: '人' },
+        { label: 'のべ提出', value: String(totalN), unit: '件' },
+        { label: '平均SLv', value: avgSlv > 0 ? String(avgSlv) : '—', unit: '' },
+    ];
+    const bw = (W - 140 - 24 * 2) / 3;
+    stats.forEach((s, i) => {
+        const x = 70 + i * (bw + 24);
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.roundRect(x, 232, bw, 118, 16); ctx.fill();
+        ctx.fillStyle = '#8A9097'; ctx.font = `800 16px ${F}`;
+        ctx.fillText(s.label, x + 22, 266);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `800 54px ${F}`;
+        ctx.fillText(s.value, x + 22, 326);
+        if (s.unit) {
+            const w = ctx.measureText(s.value).width;
+            ctx.fillStyle = '#8A9097'; ctx.font = `800 20px ${F}`;
+            ctx.fillText(s.unit, x + 28 + w, 326);
+        }
+    });
+    // ボスの通りやすさ
+    ctx.fillStyle = '#FFFFFF'; ctx.font = `800 24px ${F}`;
+    ctx.fillText('⚖️ 今回のボスの通りやすさ', 70, 412);
+    ctx.fillStyle = '#8A9097'; ctx.font = `700 17px ${F}`;
+    ctx.fillText('5属性の中央値を並べ、真ん中の属性を ×1.00 として比べた値', 70, 440);
+    const cw = (W - 140 - 16 * 4) / 5;
+    ATTRS.forEach((attr, i) => {
+        const info = ATTR_INFO[attr];
+        const x = 70 + i * (cw + 16);
+        const v = (center > 0 && Number.isFinite(data[attr].median)) ? data[attr].median / center : null;
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.beginPath(); ctx.roundRect(x, 462, cw, 176, 16); ctx.fill();
+        ctx.fillStyle = info.color; ctx.font = `800 20px ${F}`;
+        ctx.fillText(`${info.jp}PT`, x + 18, 496);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `800 42px ${F}`;
+        ctx.fillText(v != null ? `×${v.toFixed(2)}` : '—', x + 18, 548);
+        // 0.85〜1.15 を全幅に伸ばしたバー (差が小さいので拡大して見せる)
+        const barW = cw - 36, bx = x + 18, by = 570;
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.beginPath(); ctx.roundRect(bx, by, barW, 10, 5); ctx.fill();
+        if (v != null) {
+            const t = Math.max(0, Math.min(1, (v - 0.85) / 0.3));
+            ctx.fillStyle = info.color;
+            ctx.beginPath(); ctx.roundRect(bx, by, Math.max(10, barW * t), 10, 5); ctx.fill();
+        }
+        ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
+        ctx.fillText(`${data[attr].n}件の提出`, x + 18, 606);
+    });
+    ctx.fillStyle = '#6B7178'; ctx.font = `700 16px ${F}`;
+    ctx.fillText('×1.00 より大きい = その属性の人はみんな高めに出せた (ボスが通りやすい)。1端末1票・締め凸と極端な値は除外', 70, 690);
+}
+
 window.build = async (kind) => {
     await boot();
     const season = document.getElementById('season').value.trim();
-    const st = document.getElementById(kind === 'usage' ? 's2' : 's1');
+    const st = document.getElementById(kind === 'usage' ? 's2' : kind === 'summary' ? 's3' : 's1');
     st.textContent = '取得中…';
     try {
         const { data, totalN, users } = await fetchAll(season);
+        if (kind === 'summary') {
+            await document.fonts.ready;
+            const cv = document.getElementById('c3'), ctx = cv.getContext('2d');
+            frame(ctx, cv.width, cv.height, `${season} 総まとめ`,
+                `${season} シーズンの記録`, 'みなさんの提出でできた、今回のユニオンレイドの全体像');
+            drawSummary(ctx, cv.width, cv.height,
+                { data, totalN, users, avgSlv: Number(document.getElementById('avgSlv')?.value) || 0 });
+            st.textContent = '✅ 作成しました';
+            return;
+        }
         const usageMode = kind === 'usage';
         const faces = await preloadFaces(ATTRS.map(a => usageMode ? data[a].byUsage : data[a].byMedian));
         await document.fonts.ready;
@@ -250,12 +334,14 @@ window.build = async (kind) => {
             // ふるり値の絶対値は外部に伝わらないので、カードでは常に「中央値=100%」で見せる
             const relPct = (comp && Number.isFinite(comp.median) && d.median > 0)
                 ? Math.round(comp.median / d.median * 100) : null;
-            // 主役の数値
-            ctx.fillStyle = '#FFFFFF'; ctx.font = `800 46px ${F}`;
+            // 主役の数値 (中央値比は属性色 — 実機FB 2026-08-10)
+            ctx.font = `800 46px ${F}`;
             if (usage) {
                 const pct = comp && d.cohort > 0 ? Math.round(comp.n / d.cohort * 100) : null;
+                ctx.fillStyle = '#FFFFFF';
                 ctx.fillText(pct != null ? `${pct}%` : '—', 190, cy + 12);
             } else {
+                ctx.fillStyle = info.color;
                 ctx.fillText(relPct != null ? `${relPct}%` : '—', 190, cy + 12);
             }
             if (!comp) {
@@ -266,13 +352,13 @@ window.build = async (kind) => {
             drawTeam(ctx, comp.chars, 470, y + 10, 64, faces);
             // 右肩の補足
             if (usage) {
-                ctx.fillStyle = info.color; ctx.font = `800 26px ${F}`;
-                ctx.fillText(`${comp.n}人`, 900, cy + 4);
-                ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
+                ctx.fillStyle = '#FFFFFF'; ctx.font = `800 24px ${F}`;
+                ctx.fillText(`${comp.n}人`, 900, cy + 2);
+                ctx.fillStyle = info.color; ctx.font = `800 17px ${F}`;
                 ctx.fillText(relPct != null ? `中央値比 ${relPct}%` : '', 900, cy + 26);
             } else {
-                ctx.fillStyle = info.color; ctx.font = `800 26px ${F}`;
-                ctx.fillText(`${comp.n}人`, 900, cy + 4);
+                ctx.fillStyle = '#FFFFFF'; ctx.font = `800 24px ${F}`;
+                ctx.fillText(`${comp.n}人`, 900, cy + 2);
                 ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
                 ctx.fillText('が使用', 900, cy + 26);
             }
@@ -284,7 +370,7 @@ window.build = async (kind) => {
         st.textContent = '✅ 作成しました';
     } catch (e) { st.textContent = '❌ ' + (e?.message || e); }
 };
-window.buildBoth = async () => { await window.build('median'); await window.build('usage'); };
+window.buildBoth = async () => { await window.build('median'); await window.build('usage'); await window.build('summary'); };
 
 // 自動生成モード (headless Chrome での書き出し用): ?auto=median|usage&bare=1
 (async () => {
@@ -296,9 +382,10 @@ window.buildBoth = async () => { await window.build('median'); await window.buil
         document.body.style.padding = '0';
         document.querySelectorAll('body > *:not(canvas)').forEach(el => { el.style.display = 'none'; });
         document.querySelectorAll('canvas').forEach(c => { c.style.display = 'none'; c.style.borderRadius = '0'; c.style.margin = '0'; });
-        document.getElementById(auto === 'usage' ? 'c2' : 'c1').style.display = 'block';
+        document.getElementById(auto === 'usage' ? 'c2' : auto === 'summary' ? 'c3' : 'c1').style.display = 'block';
     }
-    await window.build(auto === 'usage' ? 'usage' : 'median');
+    if (q.get('avgslv')) document.getElementById('avgSlv').value = q.get('avgslv');
+    await window.build(auto);
 })();
 </script>
 </body>
