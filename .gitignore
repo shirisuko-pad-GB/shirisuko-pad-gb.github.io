@@ -4,3 +4,6 @@ supabase/02_stats.local.sql
 supabase/seed.local.sql
 supabase/base-vote-id.local
 tests/e2e-client-id.local
+
+# ローカル専用: SNS結果画像を作るときだけ使うキャラ画像 (掲載停止中のためコミット禁止)
+character-images-local/

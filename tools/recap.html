@@ -45,6 +45,7 @@
 <div class="row">
     <label>シーズン <input id="season" value="2026-08" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:110px;"></label>
     <button onclick="buildBoth()">2枚まとめて作る</button>
+    <label style="font-size:12px;color:#93938C;"><input type="checkbox" id="useArt"> キャラ絵を使う (ローカル専用・公開前に要許諾)</label>
 </div>
 
 <h2>① 中央値が高かった編成</h2>
@@ -141,12 +142,44 @@ function rows(ctx, W, drawRow) {
     });
 }
 
-// 編成5体を横一列のタイルで (自作タイル — ゲーム画像は使わない)
-function drawTeam(ctx, ids, x0, y, ts = 64) {
+// キャラ絵つきモード (?art=1 またはチェックボックス)。
+// ⚠ サイト本体は掲載停止中 (USE_CHAR_IMAGES=false)。ここは**この画像を作るときだけ**の経路で、
+//    参照先は gitignore 済みの character-images-local/ (リポジトリには入らない)。
+//    権利元の許諾が出るまで、生成した画像を公開しないこと (運営判断 2026-08-10)。
+const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
+const faceCache = new Map();
+function useArt() {
+    const q = new URLSearchParams(location.search).get('art');
+    if (q != null) return q === '1';
+    return !!document.getElementById('useArt')?.checked;
+}
+function loadFace(id) {
+    if (!CHAR_ID_RE.test(id || '')) return Promise.resolve(null);
+    if (faceCache.has(id)) return faceCache.get(id);
+    const p = new Promise(res => {
+        const im = new Image();
+        im.onload = () => res(im); im.onerror = () => res(null);
+        im.src = `../character-images-local/${id}`;
+    });
+    faceCache.set(id, p);
+    return p;
+}
+// 使う編成のキャラ絵を先読み (Canvas 描画は同期のため)
+async function preloadFaces(comps) {
+    if (!useArt()) return new Map();
+    const ids = [...new Set(comps.flatMap(c => c?.chars || []).map(id => infoOf(id)?.id).filter(Boolean))];
+    const out = new Map();
+    await Promise.all(ids.map(async id => { const im = await loadFace(id); if (im) out.set(id, im); }));
+    return out;
+}
+
+// 編成5体を横一列のタイルで (既定は自作タイル。faces があれば顔絵を載せる)
+function drawTeam(ctx, ids, x0, y, ts = 64, faces = null) {
     if (!Array.isArray(ids) || ids.length === 0) return;
     const gap = 5;
     sortForDisplay(ids, infoOf).forEach((id, i) => {
-        drawTileCanvas(ctx, infoOf(id), x0 + i * (ts + gap), y, ts, F, null);
+        const info = infoOf(id);
+        drawTileCanvas(ctx, info, x0 + i * (ts + gap), y, ts, F, faces?.get(info?.id) ?? null);
     });
 }
 
@@ -191,6 +224,8 @@ window.build = async (kind) => {
     st.textContent = '取得中…';
     try {
         const { data, totalN, users } = await fetchAll(season);
+        const usageMode = kind === 'usage';
+        const faces = await preloadFaces(ATTRS.map(a => usageMode ? data[a].byUsage : data[a].byMedian));
         await document.fonts.ready;
         const cv = document.getElementById(kind === 'usage' ? 'c2' : 'c1');
         const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
@@ -224,7 +259,7 @@ window.build = async (kind) => {
                 ctx.fillText('データ不足', 470, cy + 6);
                 return;
             }
-            drawTeam(ctx, comp.chars, 470, y + 10, 64);
+            drawTeam(ctx, comp.chars, 470, y + 10, 64, faces);
             // 右肩の補足
             if (usage) {
                 ctx.fillStyle = info.color; ctx.font = `800 26px ${F}`;
