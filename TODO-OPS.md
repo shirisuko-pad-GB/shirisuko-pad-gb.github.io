@@ -17,15 +17,12 @@ new-season.mjs を走らせる前に必ずこの節をユーザーに案内す�
 ※ 過去シーズンの測定データを持ち越したい場合のみ: 旧 SQL Editor で measurements を
    CSV エクスポート → 新プロジェクトへ import (client_id 等はそのまま入る)
 
-## 🧪 投入中: 見え方確認用の仮データ (2026-07-30)
+## ✅ 済: 見え方確認用の仮データ (2026-07-30 投入 → 2026-08 のシーズン切替で消滅)
 
-`scripts/seed-demo.mjs` で仮ユーザー350人分 (各属性 n≈190〜250) を本番に投入済み。
-**公開拡散の前に必ず削除する**:
-```sql
-delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8ddd-%';
-```
-(実機確認用の固定端末票 …-ffffffffffff / …-fffffffffffe も同じSQLで消える)。追加投入は
-`node scripts/seed-demo.mjs --from 350 --to 400` のように範囲を伸ばす (同範囲の再実行は同じデータ)。
+シーズン切替の `delete from public.measurements` で仮データ (client_id が
+`dddddddd-dddd-4ddd-8ddd-%`) も一緒に消えた。2026-08-10 時点で 2026-07 の利用者は 0 で確認済み。
+再度使うときは `node scripts/seed-demo.mjs --from 0 --to 350` (同範囲の再実行は同じデータ)。
+消すときは `delete from public.measurements where client_id::text like 'dddddddd-dddd-4ddd-8ddd-%';`
 
 ## 🖼️ キャラ画像を BlablaLINK 図鑑アイコンに刷新 (2026-08-01)
 

@@ -14,10 +14,11 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
 1. **SLv補正テーブル (slv-ratio) は公開厳禁**。リポジトリ・サイト・Supabase の公開範囲に置かない。
    計算はサーバー側トリガのみ。seed は `scripts/gen-seed.mjs` が生成する gitignore 済みの
    `supabase/seed.local.sql` だけ (データのみ・関数は含めない)。詳細: README「SLv補正テーブルの秘匿」
-2. **キャラ画像は「削除対応前提」で掲載** (2026-07-31 運営判断 — README「権利方針」が正)。
-   公式に許諾照会済み (一次返信: 調査中)。指摘があれば `js/tiles.js` の
-   `USE_CHAR_IMAGES = false` で**サイト全体が即時に自作タイル表示へ戻る**構造を必ず維持する。
-   画像は build (`scripts/build-characters.mjs`) が本家からコピーし hasImg を付与 —
+2. **キャラ画像は掲載停止中** (2026-08-10 — README「権利方針」が正)。
+   二次創作ガイドライン第1条4項 (複製・トレースは二次創作と認められない) に照らし
+   `js/tiles.js` の `USE_CHAR_IMAGES = false` に切替済み。権利元 (business@shiftup.co.kr) へ
+   **許諾を申請中で、許諾が出るまで独断で true に戻さないこと** (CIのテストが false 固定を担保)。
+   画像ファイル自体と build の仕組みは再開に備えて残してある —
    手で character-images/ に画像を足さない。属性アイコン等のUI用ゲームアセットは引き続き自作のみ
 3. **書き込みRPCは「新規提出 = `submit_measurements`」+「自分の行の後編集 =
    `mark_own_finish` / `correct_own_measurement` (10)」のみ**。後編集は必ず

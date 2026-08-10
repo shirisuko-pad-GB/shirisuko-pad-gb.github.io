@@ -7,7 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
-import { makeCharResolver, burstsOf, tileHTML, splitName } from '../js/tiles.js';
+import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc } from '../js/tiles.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -254,17 +254,25 @@ test('tileHTML: キャラ名のXSSペイロードが無害化される', () => {
     assert(html.includes('&lt;'), 'エスケープされていません');
 });
 
-test('tileHTML: 画像タイルは正規の32hex.webp のときだけ img を出す (id経由XSSガード)', () => {
-    // 正規 id + hasImg → 画像タイル
+// ★ 権利方針 (2026-08-10): 二次創作ガイドライン第1条4項によりキャラ画像の掲載を停止。
+//   権利元へ許諾申請中で、**許諾が出るまで false 固定**。このテストは「うっかり true に
+//   戻す」ことを CI で止めるための門番なので、方針が変わったときだけ一緒に更新すること
+test('権利方針: キャラ画像の掲載は停止中 (USE_CHAR_IMAGES = false)', () => {
+    assertEq(USE_CHAR_IMAGES, false,
+        'キャラ画像は権利元の許諾が出るまで掲載停止です。true に戻すには許諾の確認が必要');
+});
+
+test('tileHTML: 掲載停止中はどのidでも img を出さない (id経由XSSガードも兼ねる)', () => {
+    // 正規 id + hasImg でも画像は出ない (掲載停止の担保)
     const ok = tileHTML({ id: 'a'.repeat(32) + '.webp', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
-    assert(/<img class="gb-tile-img" src="\.\/character-images\/a{32}\.webp"/.test(ok), '正規idで画像タイルが出ていない');
-    // 壊れた id (属性インジェクション狙い) + hasImg → 画像を出さず自作タイルに落ちる
+    assert(!ok.includes('<img'), '掲載停止中なのに画像タイルが出ている');
+    assert(ok.includes('gb-tile-base'), '自作タイルへフォールバックしていない');
+    // 壊れた id (属性インジェクション狙い) → 画像を出さず自作タイルに落ちる
     const evilId = tileHTML({ id: 'x" onerror="alert(1)', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
     assert(!evilId.includes('<img'), '不正idで img タグが出てはいけない');
     assert(!evilId.includes('onerror'), 'onerror が素通りしています');
-    // hasImg なし → 画像を出さない
-    assert(!tileHTML({ id: 'a'.repeat(32) + '.webp', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE' }).includes('<img'),
-        'hasImg なしで画像タイルになっている');
+    // charImgSrc の id 検証は掲載再開時のガード — フラグと独立に形式を弾くこと
+    assertEq(charImgSrc({ id: 'x" onerror="alert(1)', hasImg: true }), null, '不正idが charImgSrc を通過している');
 });
 
 test('tileHTML: 未知キャラ・属性未分類はグレーの安全表示', () => {
