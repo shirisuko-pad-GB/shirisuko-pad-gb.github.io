@@ -21,7 +21,9 @@ export const USE_CHAR_IMAGES = false;
 
 // キャラID = 画像ファイル名の許容形式 (build 生成の 32hex.webp のみ)。
 // characters.json は実行時 fetch なので、壊れた id が src/onerror に混入しないよう再検証する
-const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
+// 掲載停止中も形式ガードだけは単体で検証できるよう export する
+// (USE_CHAR_IMAGES=false だと charImgSrc が手前で null を返し、regex まで到達しないため)
+export const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
 
 // 画像パス (代表IDのみ画像を持つ。hasImg は build-characters.mjs が付与)。
 // id が許容形式でなければ画像なし扱い = 自作タイルにフォールバック (XSS の入口を塞ぐ)

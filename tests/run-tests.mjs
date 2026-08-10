@@ -7,7 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
-import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc } from '../js/tiles.js';
+import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc, CHAR_ID_RE } from '../js/tiles.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -271,8 +271,12 @@ test('tileHTML: 掲載停止中はどのidでも img を出さない (id経由XS
     const evilId = tileHTML({ id: 'x" onerror="alert(1)', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
     assert(!evilId.includes('<img'), '不正idで img タグが出てはいけない');
     assert(!evilId.includes('onerror'), 'onerror が素通りしています');
-    // charImgSrc の id 検証は掲載再開時のガード — フラグと独立に形式を弾くこと
-    assertEq(charImgSrc({ id: 'x" onerror="alert(1)', hasImg: true }), null, '不正idが charImgSrc を通過している');
+    // 掲載再開時に効く id 形式ガードは、フラグに関係なく成立していること
+    // (charImgSrc はフラグで手前 return するので、正規表現を直接検証する — Codex指摘)
+    assert(!CHAR_ID_RE.test('x" onerror="alert(1)'), '不正idが id 形式ガードを通過している');
+    assert(!CHAR_ID_RE.test('../../etc/passwd.webp'), 'パス混入が id 形式ガードを通過している');
+    assert(CHAR_ID_RE.test('a'.repeat(32) + '.webp'), '正規idが弾かれている');
+    assertEq(charImgSrc({ id: 'a'.repeat(32) + '.webp', hasImg: true }), null, '掲載停止中に charImgSrc が src を返している');
 });
 
 test('tileHTML: 未知キャラ・属性未分類はグレーの安全表示', () => {
@@ -389,13 +393,13 @@ test('site.json: xAccount の形式と recruit の構造', () => {
     }
 });
 
-test('キャラ画像の掲載方針 (2026-07-31 削除対応前提) の整合ガード', () => {
+test('キャラ画像アセットの整合ガード (掲載停止中も生成物の対応は保つ)', () => {
     // 属性アイコン等のUI用ゲームアセットは引き続き同梱しない (自作SVG/絵文字のまま)
     assert(!existsSync(join(ROOT, 'assets', 'attr')), 'assets/attr/ が復活しています (UI用ゲームアイコンは同梱禁止)');
-    // キャラ画像は「即時撤去レバー + 生成物の整合」を条件に掲載する
+    // 掲載可否のレバーは常に存在すること (値の固定は「権利方針」テストが担保)
     const tiles = readFileSync(join(ROOT, 'js', 'tiles.js'), 'utf8');
     assert(/export const USE_CHAR_IMAGES = (true|false);/.test(tiles),
-        'tiles.js に USE_CHAR_IMAGES フラグ (削除要請時の即時撤去レバー) がありません');
+        'tiles.js に USE_CHAR_IMAGES フラグ (掲載可否のレバー) がありません');
     const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
     const files = existsSync(join(ROOT, 'character-images'))
         ? readdirSync(join(ROOT, 'character-images')).filter(f => f.endsWith('.webp')) : [];

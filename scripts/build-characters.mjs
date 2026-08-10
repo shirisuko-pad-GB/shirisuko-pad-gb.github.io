@@ -179,7 +179,10 @@ if (existsSync(overridePath)) {
     }
 }
 
-// ---- キャラ画像のコピー (掲載方針 2026-07-31: 公式へ許諾照会済み・削除対応前提で掲載) ----
+// ---- キャラ画像のコピー ----
+// ⚠ 掲載方針 (2026-08-10): ガイドライン第1条4項により**掲載停止中**・許諾申請中。
+//    ビルドは再開に備えて画像を用意するが、表示は tiles.js の USE_CHAR_IMAGES=false で止まっている。
+//    詳細は README「権利方針」。
 // 優先順: ① BlablaLINK 図鑑アイコン (assets/blabla-icons/<resource_id>.webp × data/blabla-map.json —
 //          透過128px統一・全所持キャラ分) → ② 本家PADのOCR由来アイコン (フォールバック)。
 // GB側は常に <代表ID>.webp の名前で持つ。画像が無いキャラは hasImg なし → 自作タイル表示。
