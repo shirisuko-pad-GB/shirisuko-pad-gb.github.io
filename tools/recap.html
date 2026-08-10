@@ -234,9 +234,9 @@ window.build = async (kind) => {
             usage ? `${season} よく使われた編成` : `${season} 結果発表`,
             `利用者 ${users}人 · のべ ${totalN}件の提出`,
             usage ? '属性ごとに、いちばん多くの人が使っていた編成'
-                  : '属性ごとの「みんなの真ん中」と、中央値がいちばん高かった編成');
+                  : '属性ごとに、いちばん強かった編成 — その属性の中央値を 100% として比較');
         ctx.fillStyle = '#6B7178'; ctx.font = `800 14px ${F}`;
-        ctx.fillText(usage ? '採用率' : '中央値', 190, 224);
+        ctx.fillText(usage ? '採用率' : '中央値比', 190, 224);
         ctx.fillText(usage ? 'いちばん使われた編成' : '中央値が高かった編成', 470, 224);
         rows(ctx, W, (attr, y) => {
             const d = data[attr], info = ATTR_INFO[attr];
@@ -246,13 +246,17 @@ window.build = async (kind) => {
             ctx.fillText(`${info.jp}PT`, 70, cy - 6);
             ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
             ctx.fillText(usage ? `編成つき ${d.cohort}件` : `${d.n}件`, 70, cy + 20);
+            // 中央値比 = その編成の中央値 ÷ その属性の中央値 (=100%)。
+            // ふるり値の絶対値は外部に伝わらないので、カードでは常に「中央値=100%」で見せる
+            const relPct = (comp && Number.isFinite(comp.median) && d.median > 0)
+                ? Math.round(comp.median / d.median * 100) : null;
             // 主役の数値
             ctx.fillStyle = '#FFFFFF'; ctx.font = `800 46px ${F}`;
             if (usage) {
                 const pct = comp && d.cohort > 0 ? Math.round(comp.n / d.cohort * 100) : null;
                 ctx.fillText(pct != null ? `${pct}%` : '—', 190, cy + 12);
             } else {
-                ctx.fillText(Number.isFinite(d.median) ? d.median.toFixed(2) : '—', 190, cy + 12);
+                ctx.fillText(relPct != null ? `${relPct}%` : '—', 190, cy + 12);
             }
             if (!comp) {
                 ctx.fillStyle = '#6B7178'; ctx.font = `700 17px ${F}`;
@@ -265,18 +269,18 @@ window.build = async (kind) => {
                 ctx.fillStyle = info.color; ctx.font = `800 26px ${F}`;
                 ctx.fillText(`${comp.n}人`, 900, cy + 4);
                 ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
-                ctx.fillText(Number.isFinite(comp.median) ? `中央値 ${Number(comp.median).toFixed(2)}` : '', 900, cy + 26);
+                ctx.fillText(relPct != null ? `中央値比 ${relPct}%` : '', 900, cy + 26);
             } else {
-                ctx.fillStyle = info.color; ctx.font = `800 30px ${F}`;
-                ctx.fillText(Number(comp.median).toFixed(2), 900, cy + 4);
+                ctx.fillStyle = info.color; ctx.font = `800 26px ${F}`;
+                ctx.fillText(`${comp.n}人`, 900, cy + 4);
                 ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
-                ctx.fillText(`採用 ${comp.n}人`, 900, cy + 26);
+                ctx.fillText('が使用', 900, cy + 26);
             }
         });
         ctx.fillStyle = '#6B7178'; ctx.font = `700 16px ${F}`;
         ctx.fillText(usage
-            ? '採用率 = 編成を登録した提出のうち、その5人 (並び順は不問) を使っていた割合。1端末1票・締め凸と極端な値は除外'
-            : '中央値 = 提出のちょうど真ん中。1端末1票・締め凸と極端な値は除外。編成は採用5人以上が対象', 70, 738);
+            ? '採用率 = 編成を登録した提出のうち、その5人 (並び順は不問) を使っていた割合。中央値比はその属性の中央値を100%とした値'
+            : '中央値比 = その属性の提出の真ん中 (=100%) と比べた、その編成の中央値。1端末1票・締め凸と極端な値は除外・採用5人以上が対象', 70, 738);
         st.textContent = '✅ 作成しました';
     } catch (e) { st.textContent = '❌ ' + (e?.message || e); }
 };
