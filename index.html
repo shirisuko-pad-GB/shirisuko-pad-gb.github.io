@@ -479,6 +479,15 @@
 
         /* ===== about / footer ===== */
         .about h3 { font-size: 13px; font-weight: 800; margin: 14px 0 4px; }
+        /* 解説内の折りたたみ (基準記録など、見たい人だけ開く長めの内容) */
+        .about details.fold > summary {
+            list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            font-size: 13px; font-weight: 800; margin: 14px 0 4px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .about details.fold > summary::-webkit-details-marker { display: none; }
+        .about details.fold > summary .chev { margin-left: auto; color: var(--faint); font-size: 11px; transition: transform 0.2s; }
+        .about details.fold[open] > summary .chev { transform: rotate(180deg); }
         .about p { font-size: 12.5px; color: var(--sub); }
         footer { text-align: center; padding: 20px 0 8px; font-size: 10.5px; color: var(--faint); line-height: 1.7; }
         footer a { color: var(--sub2); }
@@ -587,9 +596,12 @@
         <p>ふるり値 = あなたのダメージ ÷ (基準ダメージ × SLv補正[あなた] ÷ SLv補正[基準])</p>
         <h3>📊 みんなの分布 (シーズンごと)</h3>
         <p>送信されたデータは匿名で蓄積され、<strong>今シーズン</strong>の提出が属性ごとに<strong id="thresholdAllLabel"></strong>人を超えると「みんなの真ん中 (中央値) を100%としたときのあなたの%」が見られるようになります。集計は1端末につきベスト1件で行い、極端な値の影響を受けにくい方法 (中央値・パーセンタイル) を使っています。編成を登録した提出が同一編成で<strong id="thresholdCompLabel"></strong>人を超えると「同じ編成の中での位置」も開放されます。<strong>シーズンが変わると分布はリセット</strong>されます (新キャラ・ボスの違いを公平に扱うため)。</p>
-        <h3>📐 基準はこの記録です</h3>
-        <p class="hint" style="margin-bottom:8px;">基準者「ふるり」が今シーズンに出した属性別のダメージと編成です。あなたのふるり値は、これを自分の SLv 相当に換算した値との比率です。</p>
-        <div id="baseTeams"></div>
+        <!-- 基準記録は縦に長いので既定は畳んでおく (見たい人だけ開く — 実機FB 2026-08-10) -->
+        <details class="fold">
+            <summary>📐 基準はこの記録です<span class="chev">▼</span></summary>
+            <p class="hint" style="margin-bottom:8px;">基準者「ふるり」が今シーズンに出した属性別のダメージと編成です。あなたのふるり値は、これを自分の SLv 相当に換算した値との比率です。</p>
+            <div id="baseTeams"></div>
+        </details>
         <h3>⚠️ 注意</h3>
         <p>ふるり値は育成効率を可視化する<strong>参考指標</strong>です。ボスのギミック相性・締め凸・戦闘時間などの条件差は考慮されません。基準データ: <span id="baseVersionLabel"></span></p>
         <h3>🏷️ このサイトについて</h3>
