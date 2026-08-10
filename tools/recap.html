@@ -86,6 +86,15 @@
 <div class="status" id="s4"></div>
 <canvas id="c4" width="1200" height="1000"></canvas>
 
+<h2>⑤ 人気かつ強かった編成 (④の代替案)</h2>
+<p class="note">10人以上が使い、その属性の中央値を上回った編成だけを各属性 最大3つ。少人数の上振れを排除できます。</p>
+<div class="row">
+    <button class="sub" onclick="build('practical')">作り直す</button>
+    <button class="sub" onclick="save('c5','shirisuko-recap-practical')">画像を保存</button>
+</div>
+<div class="status" id="s5"></div>
+<canvas id="c5" width="1200" height="1000"></canvas>
+
 <script type="module">
 import { ATTR_INFO, SITE_URL } from '../js/shared.js';
 import { makeCharResolver, drawTileCanvas, sortForDisplay } from '../js/tiles.js';
@@ -233,6 +242,7 @@ async function fetchAll(season) {
             byMedian: (ins.medianTop || [])[0] || null, // 中央値TOP
             byUsage: (ins.comps || [])[0] || null,      // 使用率TOP
             medianTopList: ins.medianTop || [],         // 中央値順の全体 (深掘りカード用)
+            compsList: ins.comps || [],                 // 使用率順の全体 (実用枠カード用)
         };
         totalN += d.n || 0;
     }
@@ -303,14 +313,14 @@ function drawSummary(ctx, W, H, { data, totalN, users, avgSlv }) {
 // ④ 強かった編成の深掘り: 属性ごとに 2〜4位。
 // 1枚に15編成入るので 2列 (左3属性・右2属性) にして、タイルは48pxを死守する
 // (これ以下だとタイムラインで名前が読めない — 実機判断)
-function drawStrongTop(ctx, W, H, { data, faces }) {
+function drawStrongTop(ctx, W, H, { data, faces, pick, startRank = 2, note }) {
     const CW = 530, GAP = 60;
     const cols = [{ x: 70, attrs: ATTRS.slice(0, 3) }, { x: 70 + CW + GAP, attrs: ATTRS.slice(3) }];
     cols.forEach(({ x, attrs }) => {
         let y = 248;
         attrs.forEach(attr => {
             const info = ATTR_INFO[attr], d = data[attr];
-            const list = (d.medianTopList || []).slice(1, 4);   // 2〜4位
+            const list = pick ? pick(attr) : (d.medianTopList || []).slice(1, 4);   // 既定は2〜4位
             ctx.fillStyle = info.color; ctx.font = `800 21px ${F}`;
             ctx.textAlign = 'left';
             ctx.fillText(`${info.jp}PT`, x, y + 20);
@@ -322,7 +332,7 @@ function drawStrongTop(ctx, W, H, { data, faces }) {
                     ? Math.round(c.median / d.median * 100) : null;
                 ctx.fillStyle = '#8A9097'; ctx.font = `800 15px ${F}`;
                 ctx.textAlign = 'left';
-                ctx.fillText(`${i + 2}位`, x, ry + 30);
+                ctx.fillText(`${i + startRank}位`, x, ry + 30);
                 drawTeam(ctx, c.chars, x + 40, ry, 48, faces);
                 ctx.textAlign = 'right';
                 ctx.fillStyle = info.color; ctx.font = `800 24px ${F}`;
@@ -333,7 +343,7 @@ function drawStrongTop(ctx, W, H, { data, faces }) {
             });
             if (list.length === 0) {
                 ctx.fillStyle = '#6B7178'; ctx.font = `700 16px ${F}`;
-                ctx.fillText('2位以下のデータがありません', x, y + 62);
+                ctx.fillText('条件を満たす編成がありません', x, y + 62);
             }
             y += 40 + Math.max(1, list.length) * 60 + 22;
         });
@@ -341,20 +351,46 @@ function drawStrongTop(ctx, W, H, { data, faces }) {
     // 右列の余白に注記を置く (下端に置くと左列と衝突するため)
     ctx.textAlign = 'left';
     ctx.fillStyle = '#8A9097'; ctx.font = `700 16px ${F}`;
-    ctx.fillText('1位は別カードで発表しています。', cols[1].x, 742);
+    const lines = note || ['1位は別カードで発表しています。', '%はその属性の中央値を100%としたときの、',
+                          'その編成の中央値。採用5人以上の編成が対象で、', '1端末1票・締め凸と極端な値は除外しています。'];
+    ctx.fillText(lines[0], cols[1].x, 742);
     ctx.fillStyle = '#6B7178'; ctx.font = `700 15px ${F}`;
-    ctx.fillText('%はその属性の中央値を100%としたときの、', cols[1].x, 772);
-    ctx.fillText('その編成の中央値。採用5人以上の編成が対象で、', cols[1].x, 796);
-    ctx.fillText('1端末1票・締め凸と極端な値は除外しています。', cols[1].x, 820);
+    lines.slice(1).forEach((t, i) => ctx.fillText(t, cols[1].x, 772 + i * 24));
+}
+
+// ⑤ 実用枠: 「10人以上が使い、かつ中央値を上回った」編成を各属性 最大3つ。
+// 中央値だけで並べると n=5〜8 の編成が混ざり、少数の上振れで順位が動いてしまう
+// (5人の中央値は1〜2人で動く)。人数の下限を入れると「再現性のある強さ」に寄る。
+const PRACTICAL_MIN_N = 10;
+function practicalComps(d) {
+    return (d.compsList || [])
+        .filter(c => Number.isFinite(c.median) && c.n >= PRACTICAL_MIN_N && c.median >= d.median)
+        .sort((x, y) => y.median - x.median)
+        .slice(0, 3);
 }
 
 window.build = async (kind) => {
     await boot();
     const season = document.getElementById('season').value.trim();
-    const st = document.getElementById({ usage: 's2', summary: 's3', strong2: 's4' }[kind] || 's1');
+    const st = document.getElementById({ usage: 's2', summary: 's3', strong2: 's4', practical: 's5' }[kind] || 's1');
     st.textContent = '取得中…';
     try {
         const { data, totalN, users } = await fetchAll(season);
+        if (kind === 'practical') {
+            const picks = {};
+            ATTRS.forEach(a => { picks[a] = practicalComps(data[a]); });
+            const faces = await preloadFaces(ATTRS.flatMap(a => picks[a]));
+            await document.fonts.ready;
+            const cv = document.getElementById('c5'), ctx = cv.getContext('2d');
+            frame(ctx, cv.width, cv.height, `${season} 人気かつ強かった編成`,
+                `${season} シーズンの記録`,
+                `${PRACTICAL_MIN_N}人以上が使い、その属性の中央値 (100%) を上回った編成`);
+            drawStrongTop(ctx, cv.width, cv.height, { data, faces, pick: a => picks[a], startRank: 1,
+                note: ['同じ5人 (並び順は不問) を使った提出が', `${PRACTICAL_MIN_N}人以上あり、その中央値が属性の中央値`,
+                       'を上回ったものだけを載せています。少人数の', '編成は上振れで動くため対象外です。'] });
+            st.textContent = '✅ 作成しました';
+            return;
+        }
         if (kind === 'strong2') {
             const faces = await preloadFaces(ATTRS.flatMap(a => (data[a].medianTopList || []).slice(1, 4)));
             await document.fonts.ready;
@@ -449,7 +485,7 @@ window.buildBoth = async () => { await window.build('median'); await window.buil
         document.body.style.padding = '0';
         document.querySelectorAll('body > *:not(canvas)').forEach(el => { el.style.display = 'none'; });
         document.querySelectorAll('canvas').forEach(c => { c.style.display = 'none'; c.style.borderRadius = '0'; c.style.margin = '0'; });
-        document.getElementById({ usage: 'c2', summary: 'c3', strong2: 'c4' }[auto] || 'c1').style.display = 'block';
+        document.getElementById({ usage: 'c2', summary: 'c3', strong2: 'c4', practical: 'c5' }[auto] || 'c1').style.display = 'block';
     }
     if (q.get('avgslv')) document.getElementById('avgSlv').value = q.get('avgslv');
     await window.build(auto);
