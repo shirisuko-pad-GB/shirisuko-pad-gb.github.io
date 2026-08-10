@@ -8,9 +8,11 @@
   運営用: SNS投稿向けの「シーズン結果発表」画像を作る (閲覧専用のワークベンチ)。
   デザインはシェアカード (js/sharecard.js) と同じ言語 — 暗色カード + 属性色 + 自作キャラタイル。
 
-  ① 属性別の中央値 + 中央値が高かった編成
-  ② 属性別の使用率が高かった編成
-  どちらも公開RPC (get_distribution / get_comp_insights) の集計値だけを使う。
+  ① 中央値が高かった編成   ② 使用率が高かった編成
+  ③ 総合サマリー (参加規模 + ボスの通りやすさ)
+  ④ 人気かつ強かった編成 (10人以上が使い、中央値を上回ったもの)
+  いずれも公開RPC (get_distribution / get_comp_insights / get_total_distribution) の集計値だけを使う。
+  ※ 平均SLv だけは公開RPCに無いため画面で入力する (集計値のみ)。
 
   ⚠ 個人の記録 (最高ダメージ等) は載せない — 運営判断 2026-08-10。
      ダメージ+SLv+編成が揃うと個人が特定され得るため、集計値 (中央値・採用率) のみ扱う。
@@ -18,7 +20,7 @@
 
   使い方: ローカルで開く (python -m http.server → /tools/recap.html)。
   「画像を保存」で PNG が落ちる。キャラは自作タイル表示 (権利方針によりゲーム画像は不使用)。
-  headless 書き出し: ?auto=median|usage&bare=1
+  headless 書き出し: ?auto=median|usage|summary|practical&bare=1 (&art=1 でキャラ絵)
 -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Noto+Sans+JP:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -78,22 +80,17 @@
 <div class="status" id="s3"></div>
 <canvas id="c3" width="1200" height="800"></canvas>
 
-<h2>④ 強かった編成 2〜4位 (深掘り)</h2>
+<h2>④ 人気かつ強かった編成</h2>
+<p class="note">
+    10人以上が使い、その属性の中央値を上回った編成だけを各属性 最大3つ。<br>
+    中央値だけで並べると n=5〜8 の編成が混ざり、1〜2人の上振れで順位が動くため、人数の下限で弾いています。
+</p>
 <div class="row">
-    <button class="sub" onclick="build('strong2')">作り直す</button>
-    <button class="sub" onclick="save('c4','shirisuko-recap-strong2')">画像を保存</button>
+    <button class="sub" onclick="build('practical')">作り直す</button>
+    <button class="sub" onclick="save('c4','shirisuko-recap-practical')">画像を保存</button>
 </div>
 <div class="status" id="s4"></div>
 <canvas id="c4" width="1200" height="1000"></canvas>
-
-<h2>⑤ 人気かつ強かった編成 (④の代替案)</h2>
-<p class="note">10人以上が使い、その属性の中央値を上回った編成だけを各属性 最大3つ。少人数の上振れを排除できます。</p>
-<div class="row">
-    <button class="sub" onclick="build('practical')">作り直す</button>
-    <button class="sub" onclick="save('c5','shirisuko-recap-practical')">画像を保存</button>
-</div>
-<div class="status" id="s5"></div>
-<canvas id="c5" width="1200" height="1000"></canvas>
 
 <script type="module">
 import { ATTR_INFO, SITE_URL } from '../js/shared.js';
@@ -372,7 +369,7 @@ function practicalComps(d) {
 window.build = async (kind) => {
     await boot();
     const season = document.getElementById('season').value.trim();
-    const st = document.getElementById({ usage: 's2', summary: 's3', strong2: 's4', practical: 's5' }[kind] || 's1');
+    const st = document.getElementById({ usage: 's2', summary: 's3', practical: 's4' }[kind] || 's1');
     st.textContent = '取得中…';
     try {
         const { data, totalN, users } = await fetchAll(season);
@@ -381,23 +378,13 @@ window.build = async (kind) => {
             ATTRS.forEach(a => { picks[a] = practicalComps(data[a]); });
             const faces = await preloadFaces(ATTRS.flatMap(a => picks[a]));
             await document.fonts.ready;
-            const cv = document.getElementById('c5'), ctx = cv.getContext('2d');
+            const cv = document.getElementById('c4'), ctx = cv.getContext('2d');
             frame(ctx, cv.width, cv.height, `${season} 人気かつ強かった編成`,
                 `${season} シーズンの記録`,
                 `${PRACTICAL_MIN_N}人以上が使い、その属性の中央値 (100%) を上回った編成`);
             drawStrongTop(ctx, cv.width, cv.height, { data, faces, pick: a => picks[a], startRank: 1,
                 note: ['同じ5人 (並び順は不問) を使った提出が', `${PRACTICAL_MIN_N}人以上あり、その中央値が属性の中央値`,
                        'を上回ったものだけを載せています。少人数の', '編成は上振れで動くため対象外です。'] });
-            st.textContent = '✅ 作成しました';
-            return;
-        }
-        if (kind === 'strong2') {
-            const faces = await preloadFaces(ATTRS.flatMap(a => (data[a].medianTopList || []).slice(1, 4)));
-            await document.fonts.ready;
-            const cv = document.getElementById('c4'), ctx = cv.getContext('2d');
-            frame(ctx, cv.width, cv.height, `${season} 強かった編成 2〜4位`,
-                `${season} シーズンの記録`, '1位に次いで中央値が高かった編成 — その属性の中央値を 100% として比較');
-            drawStrongTop(ctx, cv.width, cv.height, { data, faces });
             st.textContent = '✅ 作成しました';
             return;
         }
@@ -473,7 +460,7 @@ window.build = async (kind) => {
         st.textContent = '✅ 作成しました';
     } catch (e) { st.textContent = '❌ ' + (e?.message || e); }
 };
-window.buildBoth = async () => { await window.build('median'); await window.build('usage'); await window.build('summary'); await window.build('strong2'); };
+window.buildBoth = async () => { await window.build('median'); await window.build('usage'); await window.build('summary'); await window.build('practical'); };
 
 // 自動生成モード (headless Chrome での書き出し用): ?auto=median|usage&bare=1
 (async () => {
@@ -485,7 +472,7 @@ window.buildBoth = async () => { await window.build('median'); await window.buil
         document.body.style.padding = '0';
         document.querySelectorAll('body > *:not(canvas)').forEach(el => { el.style.display = 'none'; });
         document.querySelectorAll('canvas').forEach(c => { c.style.display = 'none'; c.style.borderRadius = '0'; c.style.margin = '0'; });
-        document.getElementById({ usage: 'c2', summary: 'c3', strong2: 'c4', practical: 'c5' }[auto] || 'c1').style.display = 'block';
+        document.getElementById({ usage: 'c2', summary: 'c3', practical: 'c4' }[auto] || 'c1').style.display = 'block';
     }
     if (q.get('avgslv')) document.getElementById('avgSlv').value = q.get('avgslv');
     await window.build(auto);
