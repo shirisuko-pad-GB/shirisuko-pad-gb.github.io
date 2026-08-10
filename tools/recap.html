@@ -8,13 +8,17 @@
   運営用: SNS投稿向けの「シーズン結果発表」画像を作る (閲覧専用のワークベンチ)。
   デザインはシェアカード (js/sharecard.js) と同じ言語 — 暗色カード + 属性色 + 自作キャラタイル。
 
-  ① 属性別の中央値 + 中央値が高かった編成 … 公開RPC (get_distribution / get_comp_insights) から自動取得
-  ② 属性別の最高記録 + 編成 … **公開していないデータ**なので Supabase SQL Editor の結果を貼り付ける
-     (最高値は「境界内の1票で乗っ取れる」ため公開集計から外してある — 08_shadow_stats.sql 参照。
-      発表に使う前に、貼り付けた上位5件を見て不自然な値でないか必ず目視すること)
+  ① 属性別の中央値 + 中央値が高かった編成
+  ② 属性別の使用率が高かった編成
+  どちらも公開RPC (get_distribution / get_comp_insights) の集計値だけを使う。
+
+  ⚠ 個人の記録 (最高ダメージ等) は載せない — 運営判断 2026-08-10。
+     ダメージ+SLv+編成が揃うと個人が特定され得るため、集計値 (中央値・採用率) のみ扱う。
+     この方針を破る改造をしないこと。
 
   使い方: ローカルで開く (python -m http.server → /tools/recap.html)。
   「画像を保存」で PNG が落ちる。キャラは自作タイル表示 (権利方針によりゲーム画像は不使用)。
+  headless 書き出し: ?auto=median|usage&bare=1
 -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Noto+Sans+JP:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -25,8 +29,6 @@
     button { background:#EFDD3C; color:#2A2708; border:none; border-radius:999px; padding:9px 18px;
              font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
     button.sub { background:#1F1F1C; color:#F2F2EE; }
-    textarea { width:100%; height:150px; background:#171715; color:#F2F2EE; border:1px solid #2A2A26;
-               border-radius:10px; padding:10px; font-family:monospace; font-size:11px; }
     canvas { max-width:100%; border-radius:12px; margin-top:8px; }
     .status { font-size:12px; color:#EFDD3C; min-height:18px; }
     h2 { font-size:14px; margin:26px 0 6px; }
@@ -36,30 +38,27 @@
 <h1>🏁 シーズン結果発表 画像メーカー</h1>
 <p class="note">
     シェアカードと同じデザインで、SNS投稿用の結果画像を作ります。キャラは自作タイル表示です
-    (権利方針によりゲーム画像は使用しません)。
+    (権利方針によりゲーム画像は使用しません)。<br>
+    <b>集計値のみを扱います</b> — 個人の記録 (最高ダメージ等) は特定につながるため載せません。
 </p>
 
 <div class="row">
     <label>シーズン <input id="season" value="2026-08" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:110px;"></label>
-    <button onclick="build1()">① 中央値カードを作る</button>
+    <button onclick="buildBoth()">2枚まとめて作る</button>
+</div>
+
+<h2>① 中央値が高かった編成</h2>
+<div class="row">
+    <button class="sub" onclick="build('median')">作り直す</button>
     <button class="sub" onclick="save('c1','shirisuko-recap-median')">画像を保存</button>
 </div>
 <div class="status" id="s1"></div>
 <canvas id="c1" width="1200" height="800"></canvas>
 
-<h2>② 最高記録カード</h2>
-<p class="note">
-    最高値は公開集計に含めていないため、Supabase の SQL Editor で下のクエリを実行し、結果 (JSON) を貼り付けてください。<br>
-    <b>発表前に必ず上位を目視し、不自然な値が混ざっていないか確認すること。</b>
-</p>
-<textarea id="sql" readonly></textarea>
+<h2>② 使用率が高かった編成</h2>
 <div class="row">
-    <button class="sub" onclick="copySql()">クエリをコピー</button>
-</div>
-<textarea id="paste" placeholder="SQL Editor の結果 (JSON) をここに貼り付け"></textarea>
-<div class="row">
-    <button onclick="build2()">② 最高記録カードを作る</button>
-    <button class="sub" onclick="save('c2','shirisuko-recap-top')">画像を保存</button>
+    <button class="sub" onclick="build('usage')">作り直す</button>
+    <button class="sub" onclick="save('c2','shirisuko-recap-usage')">画像を保存</button>
 </div>
 <div class="status" id="s2"></div>
 <canvas id="c2" width="1200" height="800"></canvas>
@@ -72,42 +71,27 @@ const F = "'Poppins', 'Noto Sans JP', sans-serif";
 const INK = '#14161A', CREAM = '#F6F1CD';
 const ATTRS = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
 
-const SQL = `-- 属性別の最高記録 上位5件 (発表前の目視用)。SQL Editor で実行し、結果をJSONで貼り付ける
-with b as (
-  select coalesce(sb.min_score, 0.01) mn, coalesce(sb.max_score, 5.0) mx
-  from (select 1) o left join public.score_bounds sb on sb.season = :season
-), best as (
-  select distinct on (m.client_id, m.attribute)
-         m.attribute, m.client_id, m.slv, m.damage, m.score, m.characters
-  from public.measurements m, b
-  where m.season = :season and not m.is_finish
-    and m.score between b.mn and b.mx
-  order by m.client_id, m.attribute, m.score desc
-), ranked as (
-  select *, row_number() over (partition by attribute order by score desc) rn from best
-)
-select attribute, rn, round(score, 3) as score, round(damage / 1e9, 2) as damage_b,
-       slv, characters
-from ranked where rn <= 5 order by attribute, rn;`;
+let infoOf = () => null, logo = null, booted = null;
 
-let charData = null, infoOf = () => null, base = null, raid = null, logo = null;
-
-async function boot() {
-    const [c, b2, r] = await Promise.all([
-        fetch('../data/characters.json').then(x => x.json()).catch(() => null),
-        fetch('../data/base.json').then(x => x.json()).catch(() => null),
-        fetch('../data/raid.json').then(x => x.json()).catch(() => null),
-    ]);
-    charData = c; infoOf = makeCharResolver(c); base = b2; raid = r;
-    if (b2?.version) document.getElementById('season').value = b2.version;
-    document.getElementById('sql').value = SQL.replaceAll(':season', `'${document.getElementById('season').value}'`);
-    logo = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = '../assets/union-logo.png'; });
+function boot() {
+    if (booted) return booted;
+    booted = (async () => {
+        const [c, b] = await Promise.all([
+            fetch('../data/characters.json').then(x => x.json()).catch(() => null),
+            fetch('../data/base.json').then(x => x.json()).catch(() => null),
+        ]);
+        infoOf = makeCharResolver(c);
+        if (b?.version && !new URLSearchParams(location.search).get('season')) {
+            document.getElementById('season').value = b.version;
+        }
+        logo = await new Promise(res => {
+            const i = new Image();
+            i.onload = () => res(i); i.onerror = () => res(null);
+            i.src = '../assets/union-logo.png';
+        });
+    })();
+    return booted;
 }
-window.copySql = () => {
-    const el = document.getElementById('sql');
-    el.value = SQL.replaceAll(':season', `'${document.getElementById('season').value}'`);
-    navigator.clipboard.writeText(el.value); el.select();
-};
 window.save = (id, name) => {
     const a = document.createElement('a');
     a.download = `${name}-${document.getElementById('season').value}.png`;
@@ -116,7 +100,7 @@ window.save = (id, name) => {
 };
 
 // ---- 共通の下地 (シェアカードと同じ構図) ----
-function frame(ctx, W, H, title, sub) {
+function frame(ctx, W, H, title, sub, lead) {
     ctx.fillStyle = INK; ctx.fillRect(0, 0, W, H);
     const bar = ATTRS.map(a => ATTR_INFO[a].color).concat(CREAM);
     const seg = W / bar.length;
@@ -135,7 +119,8 @@ function frame(ctx, W, H, title, sub) {
     const tw = ctx.measureText(title).width;
     ctx.fillStyle = '#8A9097'; ctx.font = `700 21px ${F}`;
     ctx.fillText(sub, 70 + tw + 28, 164);
-    // 権利表記
+    ctx.fillStyle = '#A4AAB0'; ctx.font = `700 19px ${F}`;
+    ctx.fillText(lead, 70, 196);
     ctx.fillStyle = '#6B7178'; ctx.font = `700 17px ${F}`;
     ctx.fillText('非公式ファンコンテンツ | 勝利の女神：NIKKE © SHIFT UP CORP.', 70, H - 34);
     ctx.font = `700 24px ${F}`; ctx.textAlign = 'right';
@@ -143,8 +128,7 @@ function frame(ctx, W, H, title, sub) {
     ctx.textAlign = 'left';
 }
 
-// 5属性の行レイアウト (列だとタイルが小さすぎてSNSで読めないため行に — 実機判断)
-// drawRow(attr, y, h) が1行ぶんを描く。左に属性+数値、右に編成タイル。
+// 5属性の行レイアウト (列だとタイルが小さすぎてSNSで読めないため行に)
 const ROW_TOP = 238, ROW_H = 94;
 function rows(ctx, W, drawRow) {
     ATTRS.forEach((attr, i) => {
@@ -153,18 +137,17 @@ function rows(ctx, W, drawRow) {
             ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(70, y - 8); ctx.lineTo(W - 70, y - 8); ctx.stroke();
         }
-        drawRow(attr, y, ROW_H);
+        drawRow(attr, y);
     });
 }
 
-// 編成5体を横一列のタイルで (自作タイル — ゲーム画像は使わない)。戻り値は使った幅
+// 編成5体を横一列のタイルで (自作タイル — ゲーム画像は使わない)
 function drawTeam(ctx, ids, x0, y, ts = 64) {
-    if (!Array.isArray(ids) || ids.length === 0) return 0;
+    if (!Array.isArray(ids) || ids.length === 0) return;
     const gap = 5;
     sortForDisplay(ids, infoOf).forEach((id, i) => {
         drawTileCanvas(ctx, infoOf(id), x0 + i * (ts + gap), y, ts, F, null);
     });
-    return ids.length * (ts + gap) - gap;
 }
 
 const rpc = async (fn, body) => {
@@ -179,134 +162,105 @@ const rpc = async (fn, body) => {
     return res.json();
 };
 
-// ---- ① 中央値カード ----
-window.build1 = async () => {
+// 5属性ぶんの集計をまとめて取る
+async function fetchAll(season) {
+    const data = {};
+    let totalN = 0, users = 0;
+    for (const a of ATTRS) {
+        const [d, ins] = await Promise.all([
+            rpc('get_distribution', { p_attribute: a, p_season: season, p_score: 1 }),
+            rpc('get_comp_insights', { p_attribute: a, p_season: season }),
+        ]);
+        data[a] = {
+            n: d.n || 0,
+            median: d.median,
+            cohort: ins.n || 0,                        // 編成つき提出の母数
+            byMedian: (ins.medianTop || [])[0] || null, // 中央値TOP
+            byUsage: (ins.comps || [])[0] || null,      // 使用率TOP
+        };
+        totalN += d.n || 0;
+    }
+    try { users = (await rpc('get_total_distribution', { p_season: season }))?.users || 0; } catch { /* 11未適用 */ }
+    return { data, totalN, users };
+}
+
+window.build = async (kind) => {
+    await boot();
     const season = document.getElementById('season').value.trim();
-    const st = document.getElementById('s1');
+    const st = document.getElementById(kind === 'usage' ? 's2' : 's1');
     st.textContent = '取得中…';
     try {
-        const data = {};
-        let users = 0, totalN = 0;
-        for (const a of ATTRS) {
-            const [d, ins] = await Promise.all([
-                rpc('get_distribution', { p_attribute: a, p_season: season, p_score: 1 }),
-                rpc('get_comp_insights', { p_attribute: a, p_season: season }),
-            ]);
-            data[a] = { n: d.n || 0, median: d.median, top: (ins.medianTop || [])[0] || null };
-            totalN += d.n || 0;
-        }
-        try { users = (await rpc('get_total_distribution', { p_season: season }))?.users || 0; } catch { /* 11未適用 */ }
+        const { data, totalN, users } = await fetchAll(season);
         await document.fonts.ready;
-        const cv = document.getElementById('c1'), ctx = cv.getContext('2d');
-        const W = cv.width, H = cv.height;
-        frame(ctx, W, H, `${season} 結果発表`,
-            `利用者 ${users}人 · のべ ${totalN}件の提出`);
-        ctx.fillStyle = '#A4AAB0'; ctx.font = `700 19px ${F}`;
-        ctx.fillText('属性ごとの「みんなの真ん中」と、中央値がいちばん高かった編成', 70, 196);
-        // 見出し
+        const cv = document.getElementById(kind === 'usage' ? 'c2' : 'c1');
+        const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+        const usage = kind === 'usage';
+        frame(ctx, W, H,
+            usage ? `${season} よく使われた編成` : `${season} 結果発表`,
+            `利用者 ${users}人 · のべ ${totalN}件の提出`,
+            usage ? '属性ごとに、いちばん多くの人が使っていた編成'
+                  : '属性ごとの「みんなの真ん中」と、中央値がいちばん高かった編成');
         ctx.fillStyle = '#6B7178'; ctx.font = `800 14px ${F}`;
-        ctx.fillText('中央値', 190, 224);
-        ctx.fillText('中央値が高かった編成', 470, 224);
+        ctx.fillText(usage ? '採用率' : '中央値', 190, 224);
+        ctx.fillText(usage ? 'いちばん使われた編成' : '中央値が高かった編成', 470, 224);
         rows(ctx, W, (attr, y) => {
             const d = data[attr], info = ATTR_INFO[attr];
-            const cy = y + 46;   // 行の視覚的な中心
+            const cy = y + 46;
+            const comp = usage ? d.byUsage : d.byMedian;
             ctx.fillStyle = info.color; ctx.font = `800 22px ${F}`;
             ctx.fillText(`${info.jp}PT`, 70, cy - 6);
             ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
-            ctx.fillText(`${d.n}件`, 70, cy + 20);
-            // 中央値 (主役)
+            ctx.fillText(usage ? `編成つき ${d.cohort}件` : `${d.n}件`, 70, cy + 20);
+            // 主役の数値
             ctx.fillStyle = '#FFFFFF'; ctx.font = `800 46px ${F}`;
-            ctx.fillText(Number.isFinite(d.median) ? d.median.toFixed(2) : '—', 190, cy + 12);
-            if (d.top) {
-                drawTeam(ctx, d.top.chars, 470, y + 10, 64);
-                ctx.fillStyle = info.color; ctx.font = `800 30px ${F}`;
-                ctx.fillText(Number(d.top.median).toFixed(2), 900, cy + 4);
-                ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
-                ctx.fillText(`採用 ${d.top.n}人`, 900, cy + 26);
+            if (usage) {
+                const pct = comp && d.cohort > 0 ? Math.round(comp.n / d.cohort * 100) : null;
+                ctx.fillText(pct != null ? `${pct}%` : '—', 190, cy + 12);
             } else {
+                ctx.fillText(Number.isFinite(d.median) ? d.median.toFixed(2) : '—', 190, cy + 12);
+            }
+            if (!comp) {
                 ctx.fillStyle = '#6B7178'; ctx.font = `700 17px ${F}`;
                 ctx.fillText('データ不足', 470, cy + 6);
+                return;
+            }
+            drawTeam(ctx, comp.chars, 470, y + 10, 64);
+            // 右肩の補足
+            if (usage) {
+                ctx.fillStyle = info.color; ctx.font = `800 26px ${F}`;
+                ctx.fillText(`${comp.n}人`, 900, cy + 4);
+                ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
+                ctx.fillText(Number.isFinite(comp.median) ? `中央値 ${Number(comp.median).toFixed(2)}` : '', 900, cy + 26);
+            } else {
+                ctx.fillStyle = info.color; ctx.font = `800 30px ${F}`;
+                ctx.fillText(Number(comp.median).toFixed(2), 900, cy + 4);
+                ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
+                ctx.fillText(`採用 ${comp.n}人`, 900, cy + 26);
             }
         });
         ctx.fillStyle = '#6B7178'; ctx.font = `700 16px ${F}`;
-        ctx.fillText('中央値 = 提出のちょうど真ん中。1端末1票・締め凸と極端な値は除外。編成は採用5人以上が対象', 70, 738);
+        ctx.fillText(usage
+            ? '採用率 = 編成を登録した提出のうち、その5人 (並び順は不問) を使っていた割合。1端末1票・締め凸と極端な値は除外'
+            : '中央値 = 提出のちょうど真ん中。1端末1票・締め凸と極端な値は除外。編成は採用5人以上が対象', 70, 738);
         st.textContent = '✅ 作成しました';
     } catch (e) { st.textContent = '❌ ' + (e?.message || e); }
 };
+window.buildBoth = async () => { await window.build('median'); await window.build('usage'); };
 
-// ---- ② 最高記録カード ----
-window.build2 = async () => {
-    const season = document.getElementById('season').value.trim();
-    const st = document.getElementById('s2');
-    let rows;
-    try {
-        rows = JSON.parse(document.getElementById('paste').value);
-        if (!Array.isArray(rows)) throw new Error('配列ではありません');
-    } catch (e) { st.textContent = '❌ 貼り付けたJSONを読めません: ' + (e?.message || e); return; }
-    const top = {};
-    rows.forEach(r => {
-        const a = String(r.attribute || '').toUpperCase();
-        if (!ATTRS.includes(a)) return;
-        if (Number(r.rn) !== 1) return;   // 1位だけ使う (2〜5位は目視用)
-        top[a] = r;
-    });
-    await document.fonts.ready;
-    const cv = document.getElementById('c2'), ctx = cv.getContext('2d');
-    const W = cv.width, H = cv.height;
-    frame(ctx, W, H, `${season} 最高記録`, '属性ごとのトップと、その編成');
-    ctx.fillStyle = '#A4AAB0'; ctx.font = `700 19px ${F}`;
-    ctx.fillText('提出のなかで最も高いふるり値を記録した凸と、その編成', 70, 196);
-    ctx.fillStyle = '#6B7178'; ctx.font = `800 14px ${F}`;
-    ctx.fillText('最高ふるり値', 190, 224);
-    ctx.fillText('その記録の編成', 470, 224);
-    rows(ctx, W, (attr, y) => {
-        const r = top[attr], info = ATTR_INFO[attr];
-        const cy = y + 46;
-        ctx.fillStyle = info.color; ctx.font = `800 22px ${F}`;
-        ctx.fillText(`${info.jp}PT`, 70, cy - 6);
-        if (!r) { ctx.fillStyle = '#6B7178'; ctx.font = `700 17px ${F}`; ctx.fillText('データなし', 190, cy + 6); return; }
-        ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
-        ctx.fillText(`SLv ${r.slv}`, 70, cy + 20);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `800 46px ${F}`;
-        ctx.fillText(Number(r.score).toFixed(2), 190, cy + 12);
-        ctx.fillStyle = '#A4AAB0'; ctx.font = `700 17px ${F}`;
-        ctx.fillText(`${Number(r.damage_b).toFixed(2)} B`, 330, cy + 8);
-        const ids = Array.isArray(r.characters) ? r.characters : [];
-        if (ids.length) drawTeam(ctx, ids, 470, y + 10, 64);
-        else { ctx.fillStyle = '#6B7178'; ctx.font = `700 17px ${F}`; ctx.fillText('編成の登録なし', 470, cy + 6); }
-    });
-    ctx.fillStyle = '#6B7178'; ctx.font = `700 16px ${F}`;
-    ctx.fillText('1端末1票・締め凸と極端な値は除外。自己申告のダメージのため参考値です', 70, 738);
-    st.textContent = '✅ 作成しました';
-};
-
-// 自動生成モード (headless Chrome での書き出し用):
-//   ?auto=median … ①を描画   ?auto=top&data=<JSON> … ②を描画   &bare=1 … カード以外を隠す
+// 自動生成モード (headless Chrome での書き出し用): ?auto=median|usage&bare=1
 (async () => {
     const q = new URLSearchParams(location.search);
     const auto = q.get('auto');
-    if (!auto) return;
+    if (!auto) { boot(); return; }
     if (q.get('season')) document.getElementById('season').value = q.get('season');
     if (q.get('bare')) {
         document.body.style.padding = '0';
         document.querySelectorAll('body > *:not(canvas)').forEach(el => { el.style.display = 'none'; });
         document.querySelectorAll('canvas').forEach(c => { c.style.display = 'none'; c.style.borderRadius = '0'; c.style.margin = '0'; });
-        const keep = document.getElementById(auto === 'top' ? 'c2' : 'c1');
-        keep.style.display = 'block';
+        document.getElementById(auto === 'usage' ? 'c2' : 'c1').style.display = 'block';
     }
-    if (auto === 'top' && q.get('data')) document.getElementById('paste').value = decodeURIComponent(q.get('data'));
-    await (auto === 'top' ? window.build2() : window.build1());
+    await window.build(auto === 'usage' ? 'usage' : 'median');
 })();
-
-boot().then(() => {
-    // boot 完了後に auto を回すため、上の即時実行とは別に再試行 (順序ガード)
-    const q = new URLSearchParams(location.search);
-    if (!q.get('auto')) return;
-    const cv = document.getElementById(q.get('auto') === 'top' ? 'c2' : 'c1');
-    const ctx = cv.getContext('2d');
-    const blank = !ctx.getImageData(0, 0, 1, 1).data[3];
-    if (blank) (q.get('auto') === 'top' ? window.build2() : window.build1());
-});
 </script>
 </body>
 </html>
