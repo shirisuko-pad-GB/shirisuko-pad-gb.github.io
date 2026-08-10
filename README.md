@@ -143,6 +143,15 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 > `tests/run-tests.mjs` の「権利方針」テストが false 固定を CI で担保しています
 > (方針が変わったときだけテストも一緒に更新する)。
 
+**画像ファイル自体もリポジトリから削除済み** (2026-08-10)。フラグを false にしても
+`character-images/*.webp` がリポジトリに残っていると **GitHub Pages の直URLで取得できてしまう**
+(= 掲載を続けているのと同じ) ため。あわせて `characters.json` の `hasImg` も除去した。
+
+**掲載を再開する手順** (許諾が得られた場合のみ):
+1. `node scripts/build-characters.mjs` — 本家PADから画像を再取得し `hasImg` を復元する
+2. `js/tiles.js` の `USE_CHAR_IMAGES = true` + `tests/run-tests.mjs` の「権利方針」テストを更新
+3. `sw.js` の `CACHEABLE` に `character-images` を戻し、`CACHE` の版数を上げる
+
 なお**非営利・著作権表示・非公式である旨の明記**は元々ガイドラインを満たしており、
 引っかかっていたのは画像の複製1点のみ。第3条3項 (ゲームIPを活用したゲームの製作・配布・サービスの禁止)
 については、本サイトはゲームではなくプレイ記録の補助ツールであるため対象外と考えているが、
