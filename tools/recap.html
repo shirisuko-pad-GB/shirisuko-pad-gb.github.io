@@ -50,23 +50,7 @@
     <label style="font-size:12px;color:#93938C;"><input type="checkbox" id="useArt"> キャラ絵を使う (ローカル専用・公開前に要許諾)</label>
 </div>
 
-<h2>① 中央値が高かった編成</h2>
-<div class="row">
-    <button class="sub" onclick="build('median')">作り直す</button>
-    <button class="sub" onclick="save('c1','shirisuko-recap-median')">画像を保存</button>
-</div>
-<div class="status" id="s1"></div>
-<canvas id="c1" width="1200" height="800"></canvas>
-
-<h2>② 使用率が高かった編成</h2>
-<div class="row">
-    <button class="sub" onclick="build('usage')">作り直す</button>
-    <button class="sub" onclick="save('c2','shirisuko-recap-usage')">画像を保存</button>
-</div>
-<div class="status" id="s2"></div>
-<canvas id="c2" width="1200" height="800"></canvas>
-
-<h2>③ 総合サマリー</h2>
+<h2>① 総合サマリー</h2>
 <p class="note">
     平均SLv だけは公開RPCに無いので、SQL Editor で下を実行して数値を入れてください
     (集計値のみ・個人は特定できません)。空欄なら SLv 欄は省略して描画します。<br>
@@ -75,7 +59,23 @@
 <div class="row">
     <label>平均SLv <input id="avgSlv" type="number" placeholder="例: 720" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:100px;"></label>
     <button class="sub" onclick="build('summary')">作り直す</button>
-    <button class="sub" onclick="save('c3','shirisuko-recap-summary')">画像を保存</button>
+    <button class="sub" onclick="save('c1','shirisuko-recap-summary')">画像を保存</button>
+</div>
+<div class="status" id="s1"></div>
+<canvas id="c1" width="1200" height="800"></canvas>
+
+<h2>② 使われた編成</h2>
+<div class="row">
+    <button class="sub" onclick="build('usage')">作り直す</button>
+    <button class="sub" onclick="save('c2','shirisuko-recap-usage')">画像を保存</button>
+</div>
+<div class="status" id="s2"></div>
+<canvas id="c2" width="1200" height="800"></canvas>
+
+<h2>③ 強かった編成</h2>
+<div class="row">
+    <button class="sub" onclick="build('median')">作り直す</button>
+    <button class="sub" onclick="save('c3','shirisuko-recap-median')">画像を保存</button>
 </div>
 <div class="status" id="s3"></div>
 <canvas id="c3" width="1200" height="800"></canvas>
@@ -369,7 +369,7 @@ function practicalComps(d) {
 window.build = async (kind) => {
     await boot();
     const season = document.getElementById('season').value.trim();
-    const st = document.getElementById({ usage: 's2', summary: 's3', practical: 's4' }[kind] || 's1');
+    const st = document.getElementById({ usage: 's2', median: 's3', practical: 's4' }[kind] || 's1');
     st.textContent = '取得中…';
     try {
         const { data, totalN, users } = await fetchAll(season);
@@ -390,7 +390,7 @@ window.build = async (kind) => {
         }
         if (kind === 'summary') {
             await document.fonts.ready;
-            const cv = document.getElementById('c3'), ctx = cv.getContext('2d');
+            const cv = document.getElementById('c1'), ctx = cv.getContext('2d');
             frame(ctx, cv.width, cv.height, `${season} 総まとめ`,
                 `${season} シーズンの記録`, 'みなさんの提出でできた、今回のユニオンレイドの全体像');
             drawSummary(ctx, cv.width, cv.height,
@@ -401,7 +401,7 @@ window.build = async (kind) => {
         const usageMode = kind === 'usage';
         const faces = await preloadFaces(ATTRS.map(a => usageMode ? data[a].byUsage : data[a].byMedian));
         await document.fonts.ready;
-        const cv = document.getElementById(kind === 'usage' ? 'c2' : 'c1');
+        const cv = document.getElementById(kind === 'usage' ? 'c2' : 'c3');
         const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
         const usage = kind === 'usage';
         frame(ctx, W, H,
@@ -460,7 +460,7 @@ window.build = async (kind) => {
         st.textContent = '✅ 作成しました';
     } catch (e) { st.textContent = '❌ ' + (e?.message || e); }
 };
-window.buildBoth = async () => { await window.build('median'); await window.build('usage'); await window.build('summary'); await window.build('practical'); };
+window.buildBoth = async () => { await window.build('summary'); await window.build('usage'); await window.build('median'); await window.build('practical'); };
 
 // 自動生成モード (headless Chrome での書き出し用): ?auto=median|usage&bare=1
 (async () => {
@@ -472,7 +472,7 @@ window.buildBoth = async () => { await window.build('median'); await window.buil
         document.body.style.padding = '0';
         document.querySelectorAll('body > *:not(canvas)').forEach(el => { el.style.display = 'none'; });
         document.querySelectorAll('canvas').forEach(c => { c.style.display = 'none'; c.style.borderRadius = '0'; c.style.margin = '0'; });
-        document.getElementById({ usage: 'c2', summary: 'c3', practical: 'c4' }[auto] || 'c1').style.display = 'block';
+        document.getElementById({ usage: 'c2', median: 'c3', practical: 'c4' }[auto] || 'c1').style.display = 'block';
     }
     if (q.get('avgslv')) document.getElementById('avgSlv').value = q.get('avgslv');
     await window.build(auto);
