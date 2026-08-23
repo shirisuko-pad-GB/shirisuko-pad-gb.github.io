@@ -4,7 +4,7 @@
 // gen-seed → update-roster まで連続実行する。
 //
 // 使い方:  node scripts/new-season.mjs [shirisu-padのパス] [--slv 544] [--season-id 26]
-//   (省略時 ../shirisu-pad。--slv は月次JSONが無いときの基準SLv上書き。
+//   (省略時 ../しりすこPAD。--slv は月次JSONが無いときの基準SLv上書き。
 //    --season-id は本家シーズンIDの明示指定 — 現行シーズンの再生成や検証に使う)
 //
 // データの出所 (README「シーズン切替の運用ランブック」の手転記2箇所を自動化):

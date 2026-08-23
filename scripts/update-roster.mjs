@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 新キャラ・新データの取り込みを1コマンドに: presets/画像 → characters を順に再生成する。
 //
-// 使い方:  node scripts/update-roster.mjs [shirisu-padのパス]   (省略時 ../shirisu-pad)
+// 使い方:  node scripts/update-roster.mjs [shirisu-padのパス]   (省略時 ../しりすこPAD)
 //
 // 流れ: 本家に新キャラが登録されたら実行 → 警告が出たら
 //   ・バースト未分類 → 本家PADの設定タブ → キャラ管理で登録 (本家DBが唯一の正)

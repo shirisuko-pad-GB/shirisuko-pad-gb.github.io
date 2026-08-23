@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 見え方確認用の仮データ投入 (運営用・本番 Supabase に submit RPC 経由で送信)。
 //
-//   node scripts/seed-demo.mjs --from 0 --to 200 [--dry] [../shirisu-padのパス]
+//   node scripts/seed-demo.mjs --from 0 --to 200 [--dry] [../しりすこPADのパス]
 //
 // - 仮ユーザーは client_id が dddddddd-dddd-4ddd-8ddd-XXXXXXXXXXXX の連番UUID。
 //   ★ 全削除: SQL Editor で
