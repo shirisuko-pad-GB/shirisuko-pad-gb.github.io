@@ -93,7 +93,7 @@ SELECT * FROM (
                        AND pg_get_function_identity_arguments(p.oid) LIKE '%p_season%')),
         'シーズン制 (season列/site_state/p_season版RPC)'
 
-    UNION ALL SELECT '09_slv_1183',
+    UNION ALL SELECT '12_slv_1183',
         (EXISTS (SELECT 1 FROM pg_constraint
                  WHERE conname = 'measurements_slv_check'
                    AND conrelid = 'public.measurements'::regclass

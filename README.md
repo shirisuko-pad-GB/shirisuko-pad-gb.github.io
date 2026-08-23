@@ -318,10 +318,11 @@ base.json の基準ダメージの出所 (new-season.mjs が自動で解決す�
 3. `node scripts/gen-seed.mjs` (../しりすこPAD が隣にある環境で) → 生成された
    `supabase/seed.local.sql` を SQL Editor で実行 (slv_ratio + fururi_bases のデータ)
 4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` → `06_input_bounds.sql` →
-   `07_sanitize_errors.sql` → `08_shadow_stats.sql` → `09_slv_1183.sql` の**番号順に全部**実行
+   `07_sanitize_errors.sql` → `08_shadow_stats.sql` → `09_finish_flag.sql` →
+   `10_own_edits.sql` → `11_total_distribution.sql` → `12_slv_1183.sql` の**番号順に全部**実行
    (04で characters CHECK・submit RPC一本化、05で season化・site_state、06で damage上限、
    07でエラーDETAIL漏洩対策 — 07を飛ばすと slv_ratio が逆算可能なままになる。
-   09はSLv上限1183 — **既存環境に後から適用する場合は 09 → seed の順**。
+   12はSLv上限1183 — **既存環境に後から適用する場合は 12 → seed の順**。
    逆だと SLv1001+ の seed が CHECK 違反で失敗する)。
    **04 の実行前に `delete from public.measurements;` でテストデータを掃除**しておくこと。
    最後に `99_check_applied.sql` を実行して**全行 applied=true** を確認。
