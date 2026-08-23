@@ -19,7 +19,7 @@
 -- 1) SLv補正テーブル (非公開)
 -- ============================================================
 create table if not exists public.slv_ratio (
-    slv   int     primary key check (slv between 1 and 1000),
+    slv   int     primary key check (slv between 1 and 1183),   -- 上限は補正データの実測範囲 (09で拡張)
     ratio numeric not null check (ratio > 0)
 );
 

@@ -332,10 +332,10 @@ function stepSlv(d) {
     onSlvChanged();
 }
 
-// 対応SLvの上限。SLv補正テーブル (めいでん+ふるりの実測) が 1〜1000 までのため。
+// 対応SLvの上限。SLv補正テーブル (めいでん+ふるりの実測) が 1〜1183 までのため。
 // ⚠ 1000超に対応するときは、この定数・input[max]・サーバー側 (01_schema の CHECK と
 //    slv_ratio の行) を揃えて広げること
-const SLV_MAX = 1000;
+const SLV_MAX = 1183;   // 2026-08-23 拡張 (シートの既存1〜1000と全件一致を検証してから取り込み)
 // 「1000.5」「1e3」を parseInt で拾うと実際と違う SLv で測定してしまうため、整数表記のみ受理する
 function slvOf() {
     const raw = String($('slv').value ?? '').trim();

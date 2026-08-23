@@ -9,7 +9,7 @@ create table public.measurements (
     id           bigint generated always as identity primary key,
     created_at   timestamptz not null default now(),
     attribute    text        not null check (attribute in ('FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND')),
-    slv          int         not null check (slv between 1 and 1000),
+    slv          int         not null check (slv between 1 and 1183),   -- 上限は補正データの実測範囲 (09で拡張)
     damage       numeric     not null check (damage > 0 and damage < 1e15),
     score        numeric     not null check (score > 0 and score < 1000),
     base_version text        not null,          -- 基準データの版 (例 '2026-07')。版が違うスコアは混ぜない

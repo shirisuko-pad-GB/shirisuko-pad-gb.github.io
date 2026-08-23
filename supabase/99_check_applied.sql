@@ -92,5 +92,11 @@ SELECT * FROM (
                      WHERE n.nspname = 'public' AND p.proname = 'get_comp_insights'
                        AND pg_get_function_identity_arguments(p.oid) LIKE '%p_season%')),
         'シーズン制 (season列/site_state/p_season版RPC)'
+
+    UNION ALL SELECT '09_slv_1183',
+        EXISTS (SELECT 1 FROM pg_constraint
+                WHERE conname = 'measurements_slv_check'
+                  AND pg_get_constraintdef(oid) LIKE '%1183%'),
+        'SLv上限 1183 (補正テーブル拡張 2026-08-23 — 未適用だと SLv1001+ の測定が入らない)'
 ) t
 ORDER BY migration;

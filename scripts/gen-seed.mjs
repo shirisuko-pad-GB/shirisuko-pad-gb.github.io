@@ -8,14 +8,15 @@
 // ⚠ slv-ratio は未公開の検証データ。生成物 seed.local.sql は gitignore 済み・コミット禁止。
 //
 // 使い方: node scripts/gen-seed.mjs [slv-ratio.jsonのパス]
-//   パス省略時は ../shirisu-pad/data/slv-ratio.json を読む
+//   パス省略時は ../しりすこPAD/data/slv-ratio.json を読む (本家PADの本命リポジトリ。
+//   旧 ../shirisu-pad は 2026-07-15 に一本化済みで存在しない)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outPath = join(ROOT, 'supabase', 'seed.local.sql');
-const ratioPath = process.argv[2] || join(ROOT, '..', 'shirisu-pad', 'data', 'slv-ratio.json');
+const ratioPath = process.argv[2] || join(ROOT, '..', 'しりすこPAD', 'data', 'slv-ratio.json');
 
 const ratio = JSON.parse(readFileSync(ratioPath, 'utf8')).data;
 const base = JSON.parse(readFileSync(join(ROOT, 'data', 'base.json'), 'utf8'));
