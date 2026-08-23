@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const padDir = process.argv[2] || join(ROOT, '..', 'shirisu-pad');
+const padDir = process.argv[2] || join(ROOT, '..', 'しりすこPAD');
 if (!existsSync(join(padDir, 'data'))) {
     console.error(`shirisu-pad が見つかりません: ${padDir}`);
     process.exit(1);

@@ -30,7 +30,7 @@ for (let i = 0; i < args.length; i++) {
     else if (args[i].startsWith('--')) { console.error(`不明なオプション: ${args[i]}`); process.exit(1); }
     else if (padDirArg === null) padDirArg = args[i];
 }
-const padDir = padDirArg ?? join(ROOT, '..', 'shirisu-pad');
+const padDir = padDirArg ?? join(ROOT, '..', 'しりすこPAD');
 
 if (!existsSync(join(padDir, 'js', 'supabase-client.js'))) {
     console.error(`shirisu-pad が見つかりません: ${padDir}`);

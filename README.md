@@ -77,7 +77,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
   Supabase の `slv_ratio` テーブル (RLSで外部SELECT不可) と、手元のローカルファイルだけ
 - ふるり値の計算はサーバー側のみ: 送信 (INSERT) のトリガが計算し、返事で score を返す。
   クライアントは計算式のテーブル部分を一切持たない
-- 秘匿データの投入は **`node scripts/gen-seed.mjs`** (shirisu-pad の slv-ratio.json を読む) が生成する
+- 秘匿データの投入は **`node scripts/gen-seed.mjs`** (../しりすこPAD の slv-ratio.json を読む) が生成する
   `supabase/seed.local.sql` — **gitignore 済み。コミット禁止**。
   ※ seed は **データのみ (slv_ratio + fururi_bases)**。関数定義は含めない
   (含めると月次再実行で 04/05/07 のRPC強化を上書きしてしまうため。集計RPCの正は 05_seasons.sql、
@@ -298,7 +298,7 @@ UI もサーバーの書き込み可否もこれで決まる。
 ## 新キャラの取り込み (実装されたら / 月次)
 
 ```sh
-node scripts/update-roster.mjs        # ../shirisu-pad を読む (パス指定も可)
+node scripts/update-roster.mjs        # ../しりすこPAD を読む (パス指定も可)
 ```
 
 - 「⚠ バースト未分類」 → 本家PADの設定タブ → キャラ管理で登録 (本家DBが唯一の正) → 再実行
@@ -307,7 +307,7 @@ node scripts/update-roster.mjs        # ../shirisu-pad を読む (パス指定�
 - 警告が消えたら commit → push
 
 base.json の基準ダメージの出所 (new-season.mjs が自動で解決する):
-- 基準者ふるりの `syncLevel` と各属性の実凸ダメージ → 最新月JSON (`../shirisu-pad/data/YYYY-MM.json`)
+- 基準者ふるりの `syncLevel` と各属性の実凸ダメージ → 最新月JSON (`../しりすこPAD/data/YYYY-MM.json`)
 - 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → PAD の Supabase
   `fururi_simulation_scores` (該当 season_id)。**模擬登録がある属性は模擬値を優先**
 
@@ -315,12 +315,14 @@ base.json の基準ダメージの出所 (new-season.mjs が自動で解決す�
 
 1. https://supabase.com/dashboard で新規プロジェクト作成 (PAD とは別プロジェクト)
 2. SQL Editor で `supabase/01_schema.sql` を実行
-3. `node scripts/gen-seed.mjs` (shirisu-pad が隣にある環境で) → 生成された
+3. `node scripts/gen-seed.mjs` (../しりすこPAD が隣にある環境で) → 生成された
    `supabase/seed.local.sql` を SQL Editor で実行 (slv_ratio + fururi_bases のデータ)
 4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` → `06_input_bounds.sql` →
-   `07_sanitize_errors.sql` の**番号順に全部**実行 (04で characters CHECK・submit RPC一本化、
-   05で season化・site_state、06で damage上限、07でエラーDETAIL漏洩対策 — 07を飛ばすと
-   slv_ratio が逆算可能なままになる)。
+   `07_sanitize_errors.sql` → `08_shadow_stats.sql` → `09_slv_1183.sql` の**番号順に全部**実行
+   (04で characters CHECK・submit RPC一本化、05で season化・site_state、06で damage上限、
+   07でエラーDETAIL漏洩対策 — 07を飛ばすと slv_ratio が逆算可能なままになる。
+   09はSLv上限1183 — **既存環境に後から適用する場合は 09 → seed の順**。
+   逆だと SLv1001+ の seed が CHECK 違反で失敗する)。
    **04 の実行前に `delete from public.measurements;` でテストデータを掃除**しておくこと。
    最後に `99_check_applied.sql` を実行して**全行 applied=true** を確認。
 5. Project Settings → API の URL と publishable key を `js/backend.js` の定数に設定

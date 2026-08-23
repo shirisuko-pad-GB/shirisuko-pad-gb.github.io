@@ -94,9 +94,14 @@ SELECT * FROM (
         'シーズン制 (season列/site_state/p_season版RPC)'
 
     UNION ALL SELECT '09_slv_1183',
-        EXISTS (SELECT 1 FROM pg_constraint
-                WHERE conname = 'measurements_slv_check'
-                  AND pg_get_constraintdef(oid) LIKE '%1183%'),
-        'SLv上限 1183 (補正テーブル拡張 2026-08-23 — 未適用だと SLv1001+ の測定が入らない)'
+        (EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conname = 'measurements_slv_check'
+                   AND conrelid = 'public.measurements'::regclass
+                   AND pg_get_constraintdef(oid) LIKE '%1183%')
+         AND EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conname = 'slv_ratio_slv_check'
+                   AND conrelid = 'public.slv_ratio'::regclass
+                   AND pg_get_constraintdef(oid) LIKE '%1183%')),
+        'SLv上限 1183 (両テーブルのCHECK — 片方でも旧上限だと SLv1001+ の seed/測定が失敗する)'
 ) t
 ORDER BY migration;

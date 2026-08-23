@@ -25,7 +25,7 @@ const FROM = parseInt(argVal('--from', '0'));
 const TO = parseInt(argVal('--to', '200'));
 const DRY = args.includes('--dry');
 const padDir = args.filter(a => !a.startsWith('--') && a !== String(FROM) && a !== String(TO)).pop()
-    ?? join(ROOT, '..', 'shirisu-pad');
+    ?? join(ROOT, '..', 'しりすこPAD');
 
 // ---- 接続情報・データ ----
 const backendSrc = readFileSync(join(ROOT, 'js', 'backend.js'), 'utf8');
