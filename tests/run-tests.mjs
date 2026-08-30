@@ -404,7 +404,7 @@ test('キャラ画像アセットの整合ガード (hasImg ↔ character-images
         'tiles.js に USE_CHAR_IMAGES フラグ (掲載可否のレバー) がありません');
     // レバーに連動すべき経路: build (false なら画像を出力しない) と recap ツール (false なら顔画像を読まない)
     const build = readFileSync(join(ROOT, 'scripts', 'build-characters.mjs'), 'utf8');
-    assert(/USE_CHAR_IMAGES = \/\^export const USE_CHAR_IMAGES = true;\$\/m\.test\(/.test(build),
+    assert(/USE_CHAR_IMAGES = \/\^export const USE_CHAR_IMAGES = true;\\r\?\$\/m\.test\(/.test(build),
         'build-characters.mjs が tiles.js の USE_CHAR_IMAGES を読んでいません (撤去時に画像を再コピーしてしまう)');
     const recap = readFileSync(join(ROOT, 'tools', 'recap.html'), 'utf8');
     assert(/import \{[^}]*\bUSE_CHAR_IMAGES\b[^}]*\} from '\.\.\/js\/tiles\.js'/.test(recap) && /if \(!USE_CHAR_IMAGES\) return false;/.test(recap),
