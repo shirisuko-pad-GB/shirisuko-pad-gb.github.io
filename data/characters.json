@@ -61,7 +61,8 @@
    "name": "アイギス",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "017c721c701448281a977fb55f610c25.webp": {
    "name": "アイン",
@@ -318,7 +319,8 @@
    "name": "クイーン(新島真)",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "1bbbf1ab8e2981ff654e82f29f58aee6.webp": {
    "name": "クエンシー",
@@ -535,9 +537,10 @@
   },
   "27cbafc5f7fbd397c6a694ed10001087.webp": {
    "name": "ソリン",
-   "burst": "B1",
+   "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "8b439391ad93e8bd3ae2a1f73fcd6c49.webp": {
    "name": "ソリン：フロストチケット",
@@ -819,9 +822,10 @@
   },
   "92d36ff7782b177dd02659810229cff2.webp": {
    "name": "ブリッド",
-   "burst": "B1",
+   "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "830d9d8541fce0c485950e38050b1c6d.webp": {
    "name": "ブリッド：サイレントトラック",
@@ -1020,7 +1024,8 @@
    "name": "ミカ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "f44598bf153dd7ac44b0e144e6f76951.webp": {
    "name": "ミカ：スノーバディ",
@@ -1330,7 +1335,8 @@
    "name": "天城雪子",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "7da657f827e162f9bce28c46a077d1f6.webp": {
    "name": "姫野",
