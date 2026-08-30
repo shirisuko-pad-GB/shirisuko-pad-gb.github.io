@@ -154,7 +154,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 4. 要請元へ対応完了を返信し、TODO-OPS.md に日時と経緯を記録する
 
 再掲載する場合 (許諾が出た等): `git checkout <撤去前のcommit> -- assets/blabla-icons` で図鑑アイコンを戻す →
-フラグ true → build-characters で画像と `hasImg` を復元 → sw.js の CACHEABLE と版数を戻す
+フラグ true → build-characters で画像と `hasImg` を復元 → sw.js の CACHEABLE と版数を戻す → commit & push
 (2026-08-31 の commit a9f887f が実例)。
 
 なお**非営利・著作権表示・非公式である旨の明記**は元々ガイドラインを満たしており、

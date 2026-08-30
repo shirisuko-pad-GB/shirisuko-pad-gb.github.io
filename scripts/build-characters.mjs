@@ -189,7 +189,7 @@ if (existsSync(overridePath)) {
 // GB側は常に <代表ID>.webp の名前で持つ。画像が無いキャラは hasImg なし → 自作タイル表示。
 const imgDir = join(ROOT, 'character-images');
 mkdirSync(imgDir, { recursive: true });
-// 撤去レバー (tiles.js) の現在値。true 以外はすべて「撤去中」扱い (読めない場合も安全側に倒す)
+// 撤去レバー (tiles.js) の現在値。true 以外はすべて「撤去中」扱い (tiles.js が読めなければ例外で停止 = 何も消さない)
 const USE_CHAR_IMAGES = /^export const USE_CHAR_IMAGES = true;\r?$/m.test(readFileSync(join(ROOT, 'js', 'tiles.js'), 'utf8'));
 // blabla-map: resource_id → 日本語名 (str | 配列) を norm名→ridファイル に反転
 const blablaByName = new Map();
