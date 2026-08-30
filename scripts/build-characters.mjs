@@ -181,13 +181,16 @@ if (existsSync(overridePath)) {
 
 // ---- キャラ画像のコピー ----
 // ⚠ 掲載方針 (2026-08-31): takedown 方式で掲載中 (README「権利方針」)。表示の ON/OFF は
-//    tiles.js の USE_CHAR_IMAGES。撤去時はこのディレクトリと assets/blabla-icons も削除する (README「撤去手順」)。
+//    tiles.js の USE_CHAR_IMAGES で、**このビルドも同じフラグを読む**: false のときは画像を一切コピーせず
+//    character-images/*.webp を削除し hasImg も付けない (本家OCR画像からの再コピーも起きない)。
+//    撤去手順は「フラグ false → build → assets/blabla-icons を git rm → push」(README「撤去手順」)。
 // 優先順: ① BlablaLINK 図鑑アイコン (assets/blabla-icons/<resource_id>.webp × data/blabla-map.json —
 //          透過128px統一・全所持キャラ分) → ② 本家PADのOCR由来アイコン (フォールバック)。
 // GB側は常に <代表ID>.webp の名前で持つ。画像が無いキャラは hasImg なし → 自作タイル表示。
-// 掲載を取りやめる場合は tiles.js の USE_CHAR_IMAGES を false に (画像削除はこのディレクトリごと)。
 const imgDir = join(ROOT, 'character-images');
 mkdirSync(imgDir, { recursive: true });
+// 撤去レバー (tiles.js) の現在値。true 以外はすべて「撤去中」扱い (読めない場合も安全側に倒す)
+const USE_CHAR_IMAGES = /^export const USE_CHAR_IMAGES = true;$/m.test(readFileSync(join(ROOT, 'js', 'tiles.js'), 'utf8'));
 // blabla-map: resource_id → 日本語名 (str | 配列) を norm名→ridファイル に反転
 const blablaByName = new Map();
 const blablaPath = join(ROOT, 'data', 'blabla-map.json');
@@ -204,7 +207,7 @@ if (existsSync(blablaPath)) {
     }
 }
 let copied = 0, fromBlabla = 0;
-for (const [id, cands] of iconCandidates) {
+for (const [id, cands] of (USE_CHAR_IMAGES ? iconCandidates : [])) {
     const bl = blablaByName.get(norm(characters[id].name));
     if (bl) {
         copyFileSync(bl, join(imgDir, id));
@@ -223,7 +226,11 @@ for (const [id, cands] of iconCandidates) {
 // ただし今回1枚もコピーできていない場合は異常 (API空応答・本家画像ディレクトリ欠け) なので
 // 掃除しない — 破壊的な全削除を防ぐ (掲載中の画像を巻き込まない安全弁)
 let removed = 0;
-if (copied === 0) {
+if (!USE_CHAR_IMAGES) {
+    // 撤去中: 既存の画像を全部消す (hasImg は上で一切付けていない)。安全弁 (copied===0) より優先
+    for (const f of readdirSync(imgDir)) if (f.endsWith('.webp')) { unlinkSync(join(imgDir, f)); removed++; }
+    console.warn(`ℹ USE_CHAR_IMAGES=false (撤去中) → 画像コピーなし・既存 ${removed} 枚を削除・hasImg なし`);
+} else if (copied === 0) {
     console.warn('⚠ 画像を1枚もコピーできませんでした → 掃除をスキップ (本家 character-images/ とAPI応答を確認)');
 } else {
     for (const f of readdirSync(imgDir)) {

@@ -48,7 +48,7 @@
     <label>シーズン <input id="season" value="2026-08" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:110px;"></label>
     <label>第<input id="raidNo" type="number" min="1" style="background:#171715;color:#F2F2EE;border:1px solid #2A2A26;border-radius:8px;padding:6px 10px;font:inherit;width:70px;">回</label>
     <button onclick="buildBoth()">4枚まとめて作る</button>
-    <label style="font-size:12px;color:#93938C;"><input type="checkbox" id="useArt"> キャラ絵を使う (ローカル専用・公開前に要許諾)</label>
+    <label style="font-size:12px;color:#93938C;"><input type="checkbox" id="useArt"> キャラ絵を使う (サイト本体と同じ character-images/ — 撤去中は自動で無効)</label>
 </div>
 
 <h2>① 総合サマリー</h2>
@@ -95,7 +95,7 @@
 
 <script type="module">
 import { ATTR_INFO, SITE_URL } from '../js/shared.js';
-import { makeCharResolver, drawTileCanvas, sortForDisplay } from '../js/tiles.js';
+import { makeCharResolver, drawTileCanvas, sortForDisplay, USE_CHAR_IMAGES } from '../js/tiles.js';
 
 const F = "'Poppins', 'Noto Sans JP', sans-serif";
 const INK = '#14161A', CREAM = '#F6F1CD';
@@ -195,10 +195,15 @@ function rows(ctx, W, drawRow) {
 
 // キャラ絵つきモード (?art=1 またはチェックボックス)。
 // 参照先はサイト本体と同じ character-images/ (takedown 方式で掲載中 — README「権利方針」)。
-// サイト本体を撤去した (USE_CHAR_IMAGES=false) 後は、ここで作った画像も公開しないこと。
+// サイト本体の撤去レバー (tiles.js の USE_CHAR_IMAGES) に連動: false なら ?art=1 でも顔画像を読まない。
 const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
 const faceCache = new Map();
+if (!USE_CHAR_IMAGES) {
+    const cb = document.getElementById('useArt');
+    if (cb) { cb.checked = false; cb.disabled = true; cb.parentElement.append(' [撤去中のため無効]'); }
+}
 function useArt() {
+    if (!USE_CHAR_IMAGES) return false;   // 撤去レバーが最優先 (?art=1 でも無効)
     const q = new URLSearchParams(location.search).get('art');
     if (q != null) return q === '1';
     return !!document.getElementById('useArt')?.checked;

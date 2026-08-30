@@ -143,17 +143,19 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
    権利者への催促はしない
 
 **撤去手順 (要請が来たら即日・この順序で)**:
-1. `js/tiles.js` の `USE_CHAR_IMAGES = false` → commit & push。**これだけでサイト全体+シェアカードが
-   自作タイルに切り替わる**。テストはフラグの値を固定していないので、この1行だけで CI が通りデプロイされる
+1. `js/tiles.js` の `USE_CHAR_IMAGES = false` → commit & push。**これだけでサイト全体+シェアカード+
+   tools/recap.html が自作タイルに切り替わる**。テストはフラグの値を固定していないので、この1行だけで CI が通りデプロイされる
 2. `sw.js` の `CACHEABLE` から `character-images` を外し、`CACHE` の版数を上げる (端末キャッシュからも消す)
-3. `git rm -r character-images assets/blabla-icons` → `node scripts/build-characters.mjs ../shirisu-pad`
-   で `hasImg` を落とす → commit & push。フラグを false にしても画像ファイルがリポジトリに残っていると
+3. `node scripts/build-characters.mjs ../shirisu-pad` — build はフラグ false を読むと**画像を一切コピーせず
+   `character-images/*.webp` を削除し `hasImg` も付けない** (本家OCR画像からの再コピーも起きない) →
+   `git rm -r assets/blabla-icons` → commit & push。画像ファイルがリポジトリに残っていると
    **GitHub Pages の直URLで取得できてしまう** (= 掲載を続けているのと同じ)。
    **`assets/blabla-icons/` (ビルド元の図鑑アイコン) も公開範囲**なので忘れずに
 4. 要請元へ対応完了を返信し、TODO-OPS.md に日時と経緯を記録する
 
-再掲載する場合 (許諾が出た等) は逆順: build-characters で画像と `hasImg` を復元 → フラグ true →
-sw.js の CACHEABLE と版数を戻す (2026-08-31 の commit が実例)。
+再掲載する場合 (許諾が出た等): `git checkout <撤去前のcommit> -- assets/blabla-icons` で図鑑アイコンを戻す →
+フラグ true → build-characters で画像と `hasImg` を復元 → sw.js の CACHEABLE と版数を戻す
+(2026-08-31 の commit a9f887f が実例)。
 
 なお**非営利・著作権表示・非公式である旨の明記**は元々ガイドラインを満たしており、
 論点は画像の複製1点のみ。第3条3項 (ゲームIPを活用したゲームの製作・配布・サービスの禁止)
