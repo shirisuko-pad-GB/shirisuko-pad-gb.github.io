@@ -14,12 +14,14 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
 1. **SLv補正テーブル (slv-ratio) は公開厳禁**。リポジトリ・サイト・Supabase の公開範囲に置かない。
    計算はサーバー側トリガのみ。seed は `scripts/gen-seed.mjs` が生成する gitignore 済みの
    `supabase/seed.local.sql` だけ (データのみ・関数は含めない)。詳細: README「SLv補正テーブルの秘匿」
-2. **キャラ画像は掲載停止中** (2026-08-10 — README「権利方針」が正)。
-   二次創作ガイドライン第1条4項 (複製・トレースは二次創作と認められない) に照らし
-   `js/tiles.js` の `USE_CHAR_IMAGES = false` に切替済み。権利元 (business@shiftup.co.kr) へ
-   **許諾を申請中で、許諾が出るまで独断で true に戻さないこと** (CIのテストが false 固定を担保)。
-   画像ファイル自体と build の仕組みは再開に備えて残してある —
-   手で character-images/ に画像を足さない。属性アイコン等のUI用ゲームアセットは引き続き自作のみ
+2. **キャラ画像は takedown 方式で掲載中** (2026-08-31 — README「権利方針」が正)。
+   個別許諾は得られていない (公式サポート・権利元窓口へ複数回照会したが実質回答なし) ため、
+   **権利者から削除要請が来たら理由を問わず即日撤去する**のが掲載の条件。
+   撤去レバーは `js/tiles.js` の `USE_CHAR_IMAGES` 1つ (false にして push するだけで
+   サイト全体+シェアカードが自作タイルに切り替わる。テストはこの値を固定していない)。
+   完全な手順 (sw.js の版数・画像ファイルと assets/blabla-icons の削除) は README「撤去手順」。
+   画像は build-characters.mjs 経由でのみ追加 (手で character-images/ に足さない)。
+   属性アイコン等のUI用ゲームアセットは引き続き自作のみ
 3. **書き込みRPCは「新規提出 = `submit_measurements`」+「自分の行の後編集 =
    `mark_own_finish` / `correct_own_measurement` (10)」のみ**。後編集は必ず
    client_id + season + attribute の3条件スコープ (他人の行に触れない)。

@@ -194,9 +194,8 @@ function rows(ctx, W, drawRow) {
 }
 
 // キャラ絵つきモード (?art=1 またはチェックボックス)。
-// ⚠ サイト本体は掲載停止中 (USE_CHAR_IMAGES=false)。ここは**この画像を作るときだけ**の経路で、
-//    参照先は gitignore 済みの character-images-local/ (リポジトリには入らない)。
-//    権利元の許諾が出るまで、生成した画像を公開しないこと (運営判断 2026-08-10)。
+// 参照先はサイト本体と同じ character-images/ (takedown 方式で掲載中 — README「権利方針」)。
+// サイト本体を撤去した (USE_CHAR_IMAGES=false) 後は、ここで作った画像も公開しないこと。
 const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
 const faceCache = new Map();
 function useArt() {
@@ -210,7 +209,7 @@ function loadFace(id) {
     const p = new Promise(res => {
         const im = new Image();
         im.onload = () => res(im); im.onerror = () => res(null);
-        im.src = `../character-images-local/${id}`;
+        im.src = `../character-images/${id}`;
     });
     faceCache.set(id, p);
     return p;

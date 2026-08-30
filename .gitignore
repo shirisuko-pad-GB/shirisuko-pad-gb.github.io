@@ -5,5 +5,5 @@ supabase/seed.local.sql
 supabase/base-vote-id.local
 tests/e2e-client-id.local
 
-# ローカル専用: SNS結果画像を作るときだけ使うキャラ画像 (掲載停止中のためコミット禁止)
+# 2026-08-10〜08-30 の掲載停止中に recap 用として使った旧コピー (現在は不要 — 手で削除してよい)
 character-images-local/

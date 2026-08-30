@@ -8,12 +8,11 @@
 // (cache-first なので名前が同じだと古い画像が residents に残る)。
 // キャラ画像・ロゴはファイル名がハッシュ/内容に紐づくため通常は据え置きでよい
 //
-// 【2026-08-10】キャラ画像の掲載停止 (権利方針・README参照) に伴い character-images を
-// キャッシュ対象から外し、版数を v2 に上げた。版数を上げると activate 時に旧キャッシュ
-// (spg-assets-v1) ごと削除されるので、**既に画像を持っている端末からも消える**。
-// 掲載を再開する場合はここを戻すこと
-const CACHE = 'spg-assets-v2';
-const CACHEABLE = /\/assets\/[^/]+\.(png|webp|gif|jpg)$/;
+// 【2026-08-31】キャラ画像を takedown 方式で再掲載 (README「権利方針」) — character-images を
+// キャッシュ対象に戻し、版数を v3 に上げた。撤去時は CACHEABLE から外して版数を上げること
+// (版数を上げると activate 時に旧キャッシュごと削除されるので、**既に画像を持っている端末からも消える**)
+const CACHE = 'spg-assets-v3';
+const CACHEABLE = /\/(assets|character-images)\/[^/]+\.(png|webp|gif|jpg)$/;
 
 self.addEventListener('install', (e) => {
     self.skipWaiting();

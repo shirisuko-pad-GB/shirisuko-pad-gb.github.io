@@ -1,12 +1,13 @@
 {
  "_format": 2,
- "_readme": "build-characters.mjs の生成物。chars: 代表ID→キャラ情報 (hasImg=character-images/に画像あり — 掲載停止中のため現在は無し) / aliases: 旧アイコンID→代表ID",
+ "_readme": "build-characters.mjs の生成物。chars: 代表ID→キャラ情報 (hasImg=character-images/に画像あり) / aliases: 旧アイコンID→代表ID",
  "chars": {
   "49ba7582631e47241f284a64b40e5a06.webp": {
    "name": "2B",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "c6bdf6f65f3845da9085e9ae5790b494.webp": {
    "name": "A2",
@@ -18,199 +19,238 @@
    "name": "D",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "208ac8761729767474b7e3e4ee3080fe.webp": {
    "name": "D：キラーワイフ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "363d6ec11668234f35c4e2fa7616f846.webp": {
    "name": "E.H.",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "a5f3c6a11b03839d46af9fb43c97c188.webp": {
    "name": "K",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "0f077a4571c1177f8b9399c0dc4843a4.webp": {
    "name": "N102",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "ebf477f031121c8e1b5d76305c6de0ac.webp": {
    "name": "アークレンジャー・ブラック",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
+  },
+  "358cc5ccd85e3bfe3421bf0f750259bb.webp": {
+   "name": "アイギス",
+   "burst": "B2",
+   "burstAlt": null,
+   "element": "IRON"
   },
   "017c721c701448281a977fb55f610c25.webp": {
    "name": "アイン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "4c2732829b31d8a57719be33d1b9f574.webp": {
    "name": "アドミ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "d1e1939e581961640e2e377da0606b22.webp": {
    "name": "アニス",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "2020306990ac4f6696c4674b536dca49.webp": {
    "name": "アニス:スター",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "3870984ac10047733bc6b57502f3378c.webp": {
    "name": "アニス：スパークリングサマー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "0ddbf0c8369f2ead779ac1cc26c03629.webp": {
    "name": "アビスタ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "94e5cbd8f6e814a16ef6dd16fb283598.webp": {
    "name": "アヤナミレイ(仮称)",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "c5aca5301378e822d21f8399e3a4516a.webp": {
    "name": "アリア",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "df6dccd98c4365acbd400f74993b658b.webp": {
    "name": "アリス",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "d2050eed5ccc0192bbcb0e0cdcac2c3a.webp": {
    "name": "アリス：ワンダーランドバニー",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "8dcab028be60eb64d7ba0e31496f4671.webp": {
    "name": "アルカナ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "673abb0e091779e2c129716c54575563.webp": {
    "name": "アルカナ：フォーチュンメイト",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "4b8dd5b8c3c6dfd57c5e193ed778cbbd.webp": {
    "name": "アンカー",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "d79376caa8148ed88ae6daea0c3c8146.webp": {
    "name": "アンカー：イノセントメイド",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "5b682cd738500f81044db096ba87c5e7.webp": {
    "name": "イヴ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "adb08d7d27e7c4172aced372fe742772.webp": {
    "name": "イサベル",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "8aefea0336bc8198450860a211257fbc.webp": {
    "name": "ウンファ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "bb6b6b1a200fb208c3e6049276306f37.webp": {
    "name": "ウンファ：タクティカル・アップ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "7393019de5d451989b7be1a264caa192.webp": {
    "name": "エーテル",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "2df1152cd4c67f9b154bd8327ab965a1.webp": {
    "name": "エード",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "4844e4d5e35257607e7dfb58f7a666a9.webp": {
    "name": "エード：エージェントバニー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "537da3f24a2af3ac256579c93854a987.webp": {
    "name": "エイダ・ウォン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "9d9abf5bd1cc5da1473d20ea47190c11.webp": {
    "name": "エクシア",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "feec73f023af1b73990e8dfa73abe3cf.webp": {
    "name": "エヌ：ミラクルフェアリー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "f343c33e0976e15a082f8c1b660dfeaa.webp": {
    "name": "エピネル",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "8c0bd69f092b3d261c9662443c9287e7.webp": {
    "name": "エマ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "6660f92050a3e69add4c2820bdada771.webp": {
    "name": "エマ：タクティカル・アップ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "e0eb68c1e6e5ac8da51d71d9f916f8d8.webp": {
    "name": "エミリア",
@@ -222,115 +262,140 @@
    "name": "エレグ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "7834f83cc5e968ef22c7d96d3ff9e5a7.webp": {
    "name": "エレグ：ブーム・アンド・ショック",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "545a679cbdef00963758382516e878c2.webp": {
    "name": "オーシャン",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "0908803157402a29b9b8832fbe184b4d.webp": {
    "name": "キリ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "6830e1b8e794ac468093d5396b540556.webp": {
    "name": "ギルティ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "30329f02a14ebb70e4c47171d9fc7b49.webp": {
    "name": "キロ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "c6f747fdea1aa4d105061de5c68d2162.webp": {
    "name": "ギロチン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "ab7240313268c1406d6093611042f712.webp": {
    "name": "ギロチン：ウィンタースレイヤー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
+  },
+  "801ed511b269e073e0026735edaabc5f.webp": {
+   "name": "クイーン(新島真)",
+   "burst": "B3",
+   "burstAlt": null,
+   "element": "FIRE"
   },
   "1bbbf1ab8e2981ff654e82f29f58aee6.webp": {
    "name": "クエンシー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "25c119f395d900faba0fc77afbd5d1d8.webp": {
    "name": "クエンシー：エスケープクイーン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "04a73cd1bfa43f3a1078564107ad8336.webp": {
    "name": "クラウン",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "565287e7141c09dd0d43033fd1b4508a.webp": {
    "name": "クラスト",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "796c68cf02600bf69be1122ff616479b.webp": {
    "name": "クルミ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "56461c849a8b1d170e1499f7a400a2c1.webp": {
    "name": "クレア",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "0523975f858491a55ce6b71458a4f26a.webp": {
    "name": "クレイ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "63d53b92567aba6aeb1368a2c6c5e420.webp": {
    "name": "グレイブ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "8a835b9484a0754250afad2a376d0efb.webp": {
    "name": "クロウ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "8f46490f1b512490298efb395080c874.webp": {
    "name": "ココア",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "d6d7a5ae7ab4ba78be9f3219e5143cfd.webp": {
    "name": "サクラ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "f9436fafeac67958ae9943eeb3fa99d1.webp": {
    "name": "サクラ：ブルーム・イン・サマー",
@@ -342,13 +407,15 @@
    "name": "サン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "a34b8ae45a5c200edb8c37e7569e6bb2.webp": {
    "name": "シグナル",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "d781951f4efd7d2e2cad32f8c9b426ef.webp": {
    "name": "シフティー",
@@ -360,7 +427,8 @@
    "name": "ジャッカル",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "31d6ff3d32302525cda8bcd82428ae32.webp": {
    "name": "シュエン",
@@ -372,19 +440,22 @@
    "name": "シュガー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "6de32e492ff90a95075ec82e9b350fed.webp": {
    "name": "ジュリア",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "c9781bcc5762d840080b8051352478c5.webp": {
    "name": "シラツル",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "606ced74c77ba56df6e7489cc294bf0d.webp": {
    "name": "ジル・バレンタイン",
@@ -396,205 +467,245 @@
    "name": "シン",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "59035ecc65d2e661f612d9eea23dbe07.webp": {
    "name": "シンデレラ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "9a54283cdd0c15a9b554810488563775.webp": {
    "name": "シンデレラ:クリスタルウェーブ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "c5bb437c654e1ffa560bfba7b1e3fe6f.webp": {
    "name": "スノーホワイト",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "a94ea06197f9d0921d40db5dd8543f20.webp": {
    "name": "スノーホワイト：イノセントデイズ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "627884de8e4628efd7dbcb7a9e4ecf53.webp": {
    "name": "スノーホワイト：ヘビーアームズ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "f66c08b26047347b46420a769de04837.webp": {
    "name": "センチ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "1f383230c6b4076fcf97d4bd9cb9fe50.webp": {
    "name": "ソーダ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "759b41798fd3ddc2e9f643ac32331c5f.webp": {
    "name": "ソーダ：トゥインクルバニー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "ed21f66d526f8e1c39169242d2af5a3d.webp": {
    "name": "ソラ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
+  },
+  "27cbafc5f7fbd397c6a694ed10001087.webp": {
+   "name": "ソリン",
+   "burst": "B1",
+   "burstAlt": null,
+   "element": "IRON"
   },
   "8b439391ad93e8bd3ae2a1f73fcd6c49.webp": {
    "name": "ソリン：フロストチケット",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "07c5c7974b755031fbb6393c2838a41f.webp": {
    "name": "ソルジャーEG",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "5f439962d4a541383eeb08059842e0d5.webp": {
    "name": "ソルジャーFA",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "2e2592d18176ba0e1306995827fe5e29.webp": {
    "name": "ソルジャーOW",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "18dada991f2c01d7941ee05b9e80db92.webp": {
    "name": "チャイム",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "46f4ce5a484ae76c99a7d1d8b268c518.webp": {
    "name": "ツバイ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "f651010e623d6757be10685dc3da94b8.webp": {
    "name": "ディーゼル",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "6bf2f9261d5b41c4659692a6eb78527a.webp": {
    "name": "ディーゼル：ウィンタースイーツ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "5f04f96984b134bd885b3b473a0efb5f.webp": {
    "name": "ティア",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "865808edaee649ee746e718e20256d32.webp": {
    "name": "デルタ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "b1105630ff0b49cec89d5ac265fe07ae.webp": {
    "name": "デルタ：ニンジャシーフ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "1383a61330140e2106f22a4806208a70.webp": {
    "name": "トーブ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "cadb66925da2c83b0e3dce0ac9153b83.webp": {
    "name": "ドラー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "af22d6d7756efe69915373651b429e11.webp": {
    "name": "トリナ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "998706bd4e149311386045530b37041d.webp": {
    "name": "ドレイク",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "b57ce6b6a2b2cc30472c6cf7179b18ec.webp": {
    "name": "ドロシー",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "8eb1e9dd804ca8ac6788859d45a21432.webp": {
    "name": "ドロシー：セレンディピティ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "3c1e04dd074e1294c7d611ba5ebafc7c.webp": {
    "name": "トロニー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "755dcf2aea00e99952a84bc6b9771f8a.webp": {
    "name": "ナガ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "e3532447b3ca028770c2a5ee149e746e.webp": {
    "name": "ナユタ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "9f9d329fc7f2256fdca6d69effba7046.webp": {
    "name": "ニヒリスター",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "9376d1ec91e2862b54ad9e6deef0d60e.webp": {
    "name": "ネヴェ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "2312b35b2e809fad3d57193826f4b0d7.webp": {
    "name": "ネオン",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "70fb299487aa9bb61a844a4b68e96d89.webp": {
    "name": "ネオン：ビジョン・アイ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "20f5063b836427d92504cb3e939c50fa.webp": {
    "name": "ネオン：ブルーオーシャン",
@@ -606,49 +717,57 @@
    "name": "ネロ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "bd3eb03361cb9c69906db553b63a522a.webp": {
    "name": "ノア",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "f4df4286b30ae811eef34e7fc4f21ff8.webp": {
    "name": "ノイズ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "291ef9d0229760bf506ff7500a771033.webp": {
    "name": "ノベル",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "b6c6f46752e61434f7bcbed790db025b.webp": {
    "name": "ノワール",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "2123c18e403fc0fea4264109a59c635c.webp": {
    "name": "バイパー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "512e1f9660adbcdb4821b71b88dec784.webp": {
    "name": "パスカル",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "c4bca6f0d5f4bbea5210397a320dd058.webp": {
    "name": "ハラン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "ab5af855df2f60a13351cbff958158cc.webp": {
    "name": "パワー",
@@ -660,35 +779,47 @@
    "name": "ビスケット",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "8bf4d98849377616b1dceebeae14c03f.webp": {
    "name": "ファントム",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "1977adeff91fe5f643b8a95a5b83588f.webp": {
    "name": "フォルクヴァン",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "f09f7ebf842847b4f8541bcd76103f89.webp": {
    "name": "フラワー",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "2884d487616b8dbbc109232437e67eeb.webp": {
    "name": "ブラン",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "c4ba87906faff8cfc78af5ba6429e5be.webp": {
    "name": "プリカ",
    "burst": "B2",
+   "burstAlt": null,
+   "element": "WATER",
+   "hasImg": true
+  },
+  "92d36ff7782b177dd02659810229cff2.webp": {
+   "name": "ブリッド",
+   "burst": "B1",
    "burstAlt": null,
    "element": "WATER"
   },
@@ -696,19 +827,22 @@
    "name": "ブリッド：サイレントトラック",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "8af2ca57a2237ea175a791338607c215.webp": {
    "name": "プリバティ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "87c023f11ea129a7bfee0f815452cdb4.webp": {
    "name": "プリバティ：アンカインド・メイド",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "5ef494d2e3eeac6deabaac2f4f6f9322.webp": {
    "name": "プリム",
@@ -720,91 +854,106 @@
    "name": "ブレッディ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "1624c5cb118cd1803d12e0e895529979.webp": {
    "name": "フローラ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "40f4b58340d87bf1e0bb6428b10c0b47.webp": {
    "name": "プロダクト08",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "678ad399e0841881da36bde48e9a9c9e.webp": {
    "name": "プロダクト12",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "479ac77456398fbcc90ac7fd014baf55.webp": {
    "name": "プロダクト23",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "e300f815ed73d208431f9c409116a064.webp": {
    "name": "ベイ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "3fab51880bc39563c449ef7c80b39772.webp": {
    "name": "ベスティー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "6bbfda1753254e1db61c60942c9e0024.webp": {
    "name": "ベスティー：タクティカル・アップ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "7b207ed332b08b744584bf7a1d78a50e.webp": {
    "name": "ペッパー",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "03d1fd97b534b7adbcc378694be6e25e.webp": {
    "name": "ベルベット",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "8719439cdfadcf8b5748fcfc6079a00c.webp": {
    "name": "ヘルム",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "e9a7c3d1ab9791731978c1cdc8a4fdff.webp": {
    "name": "ヘルム：アクアマリン",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "b3d85160f40d5914217e8b17c0d5d454.webp": {
    "name": "ベロータ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "be513be1e96b2958420408845e682117.webp": {
    "name": "ポリ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "a7a911b23d0b6ccbf775b1dd07ee46f6.webp": {
    "name": "ボリューム",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "09b932820996095f25e5794a210e78c6.webp": {
    "name": "マキマ",
@@ -816,7 +965,8 @@
    "name": "マクスウェル",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "3d94199d6b4105c60db3324d34d63273.webp": {
    "name": "マクスウェル：オーディナリーメカニック",
@@ -828,37 +978,43 @@
    "name": "マスト",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "6fe1b0c6425c0bae6413c1e15718b1ba.webp": {
    "name": "マスト：ロマンチックメイド",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "565ee9492f15a4181abf7c562c84776f.webp": {
    "name": "マナ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "091b8ced66cbf8012b34b4750afcbf08.webp": {
    "name": "マリ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "77e1a03a56a0fd32e4a3f6613eb6c849.webp": {
    "name": "マルチャーナ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "22358e5b13dda043a42cca169356c875.webp": {
    "name": "マルチャーナ：マリンスタディ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "b0212882bf0066a3e3a8de0f85be7dd6.webp": {
    "name": "ミカ",
@@ -876,127 +1032,148 @@
    "name": "ミサト",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "8a12c722fa52bcc3cec19ea6eea31d2f.webp": {
    "name": "ミハラ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "ec51dcc7846a88299df91a31ac5c41c2.webp": {
    "name": "ミハラ：ボンディングチェーン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "4423c2ab8b4f037521d5710cfcbe52de.webp": {
    "name": "ミランダ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "b72a29da27d565f4a4d6004714866134.webp": {
    "name": "ミルク",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "49b9119d17d79854c6ffbb602e58ea30.webp": {
    "name": "ミルク：ブルーミングバニー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "31caa32129469999a8c011eba7fc1bac.webp": {
    "name": "ミント",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "738dc944ad37cc43d9d2247a5354ff67.webp": {
    "name": "メアリー",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "dbce3cfeb926f55f8b4c90a570566b06.webp": {
    "name": "メアリー：ベイゴッデス",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "1cf8f7e06e9fbc016834a675a82678b0.webp": {
    "name": "メイデン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "9163759961bd6052bca348f719138ebe.webp": {
    "name": "メイデン：アイスローズ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "37dcc965909d7cfa82fc4e936a9df72b.webp": {
    "name": "モダニア",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "1be4ad890858ba5bb544affbf6a51dfc.webp": {
    "name": "モラン",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "c20531245bb881a7cb3c7d3588338105.webp": {
    "name": "モリー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "5c83d6e214f0691eaad7aedaf629fe25.webp": {
    "name": "ヤン",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "afd65972be85df0d9eb9935cfde47087.webp": {
    "name": "ユニ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "a63a4eef309b189e671ab5d81a693b03.webp": {
    "name": "ユルハ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "2de8b3ce3ef71a14900a277c7b1b3495.webp": {
    "name": "ライ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "49b319971cc87ace8eefa158789400c0.webp": {
    "name": "ラピ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "68aa881ffdc137d2a50da839eaa1adb6.webp": {
    "name": "ラピ:レッドフード",
    "burst": "B3",
    "burstAlt": "B1",
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "8dec662c020f93bc1ed3b8c7ead22f8d.webp": {
    "name": "ラプラス",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "bf220f5352d0c2185e1672877f06508b.webp": {
    "name": "ラプラス：アルティメットヒーロー",
@@ -1008,13 +1185,15 @@
    "name": "ラプンツェル",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "96d47ce117692b9b1cc62bd9fea274e4.webp": {
    "name": "ラプンツェル：ピュアグレイス",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "0e1b05686cb182cb091fa563d3e9bedd.webp": {
    "name": "ラム",
@@ -1026,49 +1205,57 @@
    "name": "リター",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "171c4160829049f2604cde5036b79801.webp": {
    "name": "リトルマーメイド",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "6045c557bca29bcd35a65c8c99745ff0.webp": {
    "name": "リバーレリオ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "d50b14be169c760f139b11ef1f190c2a.webp": {
    "name": "リリー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "f6707743db256def9f7cc01834d2b5f1.webp": {
    "name": "ルージュ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "1fecc94f48abcda753f3dc4576b54394.webp": {
    "name": "ルドミラ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "621008d892598aa5ba1fb3ecdeff95be.webp": {
    "name": "ルドミラ:ウィンターオーナー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "3abe7f70111b772301fb5c50b9a6eae0.webp": {
    "name": "ルピー",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "a4e4190965dfe3efe0df37bbbb701ed0.webp": {
    "name": "ルピー：ウィンターショッパー",
@@ -1080,55 +1267,70 @@
    "name": "ルマニ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "309c99ddffc5232adc19c384e372365f.webp": {
    "name": "レーベル",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "140184abd98aeb95a03860bd312949f8.webp": {
    "name": "レイヴン",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "75b50892f04a20b819ec0196ec5a70bb.webp": {
    "name": "レオナ",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "15f93b4073cd82430710c5d4105fa56d.webp": {
    "name": "レッドフード",
    "burst": "BΛ",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "90809e84cd523f7543a0af5525641219.webp": {
    "name": "レム",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "7f98f30a1e6b65cc5e91bd0519f14c83.webp": {
    "name": "ロザンナ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "784396313cb75c44627c63e1af7226e5.webp": {
    "name": "ロザンナ：シックオーシャン",
    "burst": "B2",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "f4f23d9ac44af108fb13d7fe594b98bf.webp": {
    "name": "井ノ上たきな",
    "burst": "B2",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
+  },
+  "d54e9d11612fdb30e0e03bab783f1f39.webp": {
+   "name": "天城雪子",
+   "burst": "B3",
+   "burstAlt": null,
+   "element": "FIRE"
   },
   "7da657f827e162f9bce28c46a077d1f6.webp": {
    "name": "姫野",
@@ -1140,49 +1342,50 @@
    "name": "式波・アスカ・ラングレー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "cc281c0ef37212ae544dbd988fee7e2a.webp": {
    "name": "式波・アスカ・ラングレー：WILLE",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
-  },
-  "11fe39d67a2ceeeff761bded90dc745a.webp": {
-   "name": "真希波・マリ・イラストリアス",
-   "burst": "B2",
-   "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "WIND",
+   "hasImg": true
   },
   "a26102dc0f5816931c09c85040b11993.webp": {
    "name": "紅蓮",
    "burst": "B3",
    "burstAlt": null,
-   "element": "ELECTRIC"
+   "element": "ELECTRIC",
+   "hasImg": true
   },
   "6e3b8dbfd367f6b1c0977866c27cd40b.webp": {
    "name": "紅蓮：ブラックシャドウ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WIND"
+   "element": "WIND",
+   "hasImg": true
   },
   "dbaf927775773f21d0629d4552fbe7a8.webp": {
    "name": "綾波レイ",
    "burst": "B3",
    "burstAlt": null,
-   "element": "FIRE"
+   "element": "FIRE",
+   "hasImg": true
   },
   "da51b4f7e556d3f41610b93cfb43a02a.webp": {
    "name": "鈴原サクラ",
    "burst": "B1",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "d470fa9615cefc08bf966cfc8671dee2.webp": {
    "name": "錦木千束",
    "burst": "B3",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   }
  },
  "aliases": {
@@ -1335,10 +1538,11 @@
   "47a643f136e656fc17bf620c58aa772d.webp": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
   "ce3b833cd35960c9bf06fce4351e8812.webp": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
   "09834c7019315cce02f02ff0a385f409.webp": "565ee9492f15a4181abf7c562c84776f.webp",
-  "48ed255b433701b307970000d6112694.webp": "11fe39d67a2ceeeff761bded90dc745a.webp",
+  "48ed255b433701b307970000d6112694.webp": "091b8ced66cbf8012b34b4750afcbf08.webp",
   "57a06e50778e4923c6c9806425020498.webp": "091b8ced66cbf8012b34b4750afcbf08.webp",
   "13d78da165fe563e30fe62fe4cc86587.webp": "77e1a03a56a0fd32e4a3f6613eb6c849.webp",
   "70861e36a694dbec1d15913f1d1a26b5.webp": "22358e5b13dda043a42cca169356c875.webp",
+  "6ed2046f351b0b3bec95afdec3ea01f7.webp": "b0212882bf0066a3e3a8de0f85be7dd6.webp",
   "64a17630d436cc945add498b00062a00.webp": "0084c4eafb651c0dba3734f050dd63bb.webp",
   "5e744e61507c5309e300724476b59efb.webp": "8a12c722fa52bcc3cec19ea6eea31d2f.webp",
   "35ed9958bcfe49ae9d2f8d0550eafcbf.webp": "ec51dcc7846a88299df91a31ac5c41c2.webp",
@@ -1416,6 +1620,7 @@
   "d96d3a6d5c55ef7dd76f83181da11869.webp": "738dc944ad37cc43d9d2247a5354ff67.webp",
   "e4bc33b9c6f01f42e9b1ee8ddbabacb5.webp": "d470fa9615cefc08bf966cfc8671dee2.webp",
   "ea134d0cd6c02ed9d3a02cec91d87dbd.webp": "a7a911b23d0b6ccbf775b1dd07ee46f6.webp",
-  "f4d49f875b1e112f42c2daf410aa7aac.webp": "adb08d7d27e7c4172aced372fe742772.webp"
+  "f4d49f875b1e112f42c2daf410aa7aac.webp": "adb08d7d27e7c4172aced372fe742772.webp",
+  "11fe39d67a2ceeeff761bded90dc745a.webp": "091b8ced66cbf8012b34b4750afcbf08.webp"
  }
 }

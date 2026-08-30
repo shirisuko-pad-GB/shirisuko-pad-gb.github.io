@@ -254,29 +254,31 @@ test('tileHTML: キャラ名のXSSペイロードが無害化される', () => {
     assert(html.includes('&lt;'), 'エスケープされていません');
 });
 
-// ★ 権利方針 (2026-08-10): 二次創作ガイドライン第1条4項によりキャラ画像の掲載を停止。
-//   権利元へ許諾申請中で、**許諾が出るまで false 固定**。このテストは「うっかり true に
-//   戻す」ことを CI で止めるための門番なので、方針が変わったときだけ一緒に更新すること
-test('権利方針: キャラ画像の掲載は停止中 (USE_CHAR_IMAGES = false)', () => {
-    assertEq(USE_CHAR_IMAGES, false,
-        'キャラ画像は権利元の許諾が出るまで掲載停止です。true に戻すには許諾の確認が必要');
-});
-
-test('tileHTML: 掲載停止中はどのidでも img を出さない (id経由XSSガードも兼ねる)', () => {
-    // 正規 id + hasImg でも画像は出ない (掲載停止の担保)
-    const ok = tileHTML({ id: 'a'.repeat(32) + '.webp', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
-    assert(!ok.includes('<img'), '掲載停止中なのに画像タイルが出ている');
-    assert(ok.includes('gb-tile-base'), '自作タイルへフォールバックしていない');
-    // 壊れた id (属性インジェクション狙い) → 画像を出さず自作タイルに落ちる
+// ★ 権利方針 (2026-08-31): takedown 方式で掲載中。フラグの値はここでは固定しない —
+//   撤去要請が来たとき「USE_CHAR_IMAGES = false の1行 push」だけで CI が通り即日デプロイ
+//   できることが最優先 (README「撤去手順」)。代わりに、どちらの値でも表示が矛盾しないことを見る
+test('tileHTML: 画像はフラグON かつ 正規id かつ hasImg のときだけ出る (id経由XSSガード込み)', () => {
+    const okId = 'a'.repeat(32) + '.webp';
+    const ok = tileHTML({ id: okId, name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
+    if (USE_CHAR_IMAGES) {
+        assert(ok.includes('<img') && ok.includes(`./character-images/${okId}`), '掲載中なのに正規idで画像タイルが出ない');
+        assertEq(charImgSrc({ id: okId, hasImg: true }), `./character-images/${okId}`, 'charImgSrc が画像パスを返さない');
+    } else {
+        assert(!ok.includes('<img'), '掲載停止中なのに画像タイルが出ている');
+        assert(ok.includes('gb-tile-base'), '自作タイルへフォールバックしていない');
+        assertEq(charImgSrc({ id: okId, hasImg: true }), null, '掲載停止中に charImgSrc が src を返している');
+    }
+    // hasImg なしはフラグに関係なく自作タイル
+    const noImg = tileHTML({ id: okId, name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE' });
+    assert(!noImg.includes('<img') && noImg.includes('gb-tile-base'), 'hasImg なしで画像タイルが出ている');
+    // 壊れた id (属性インジェクション狙い) → フラグに関係なく画像を出さず自作タイルに落ちる
     const evilId = tileHTML({ id: 'x" onerror="alert(1)', name: 'テスト', burst: 'B1', burstAlt: null, element: 'FIRE', hasImg: true });
     assert(!evilId.includes('<img'), '不正idで img タグが出てはいけない');
     assert(!evilId.includes('onerror'), 'onerror が素通りしています');
-    // 掲載再開時に効く id 形式ガードは、フラグに関係なく成立していること
-    // (charImgSrc はフラグで手前 return するので、正規表現を直接検証する — Codex指摘)
+    assertEq(charImgSrc({ id: 'x" onerror="alert(1)', hasImg: true }), null, '不正idで charImgSrc が src を返している');
     assert(!CHAR_ID_RE.test('x" onerror="alert(1)'), '不正idが id 形式ガードを通過している');
     assert(!CHAR_ID_RE.test('../../etc/passwd.webp'), 'パス混入が id 形式ガードを通過している');
-    assert(CHAR_ID_RE.test('a'.repeat(32) + '.webp'), '正規idが弾かれている');
-    assertEq(charImgSrc({ id: 'a'.repeat(32) + '.webp', hasImg: true }), null, '掲載停止中に charImgSrc が src を返している');
+    assert(CHAR_ID_RE.test(okId), '正規idが弾かれている');
 });
 
 test('tileHTML: 未知キャラ・属性未分類はグレーの安全表示', () => {
@@ -393,10 +395,10 @@ test('site.json: xAccount の形式と recruit の構造', () => {
     }
 });
 
-test('キャラ画像アセットの整合ガード (掲載停止中も生成物の対応は保つ)', () => {
+test('キャラ画像アセットの整合ガード (hasImg ↔ character-images/ の一致・撤去レバー・権利表記)', () => {
     // 属性アイコン等のUI用ゲームアセットは引き続き同梱しない (自作SVG/絵文字のまま)
     assert(!existsSync(join(ROOT, 'assets', 'attr')), 'assets/attr/ が復活しています (UI用ゲームアイコンは同梱禁止)');
-    // 掲載可否のレバーは常に存在すること (値の固定は「権利方針」テストが担保)
+    // 掲載可否のレバー (撤去レバー) は常に存在すること (値は固定しない — 上の権利方針コメント参照)
     const tiles = readFileSync(join(ROOT, 'js', 'tiles.js'), 'utf8');
     assert(/export const USE_CHAR_IMAGES = (true|false);/.test(tiles),
         'tiles.js に USE_CHAR_IMAGES フラグ (掲載可否のレバー) がありません');

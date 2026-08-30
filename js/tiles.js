@@ -4,25 +4,26 @@
 // 従来の自作タイル (バースト帯 + キャラ名 + 属性の背景色) に自動フォールバックする。
 // ここが唯一のタイル実装 — 画面側で似た描画を再実装しないこと。
 //
-// 【掲載方針 2026-08-10 更新 — README「権利方針」が正】
-// 二次創作ガイドライン第1条4項「当社オリジナルコンテンツをそのまま再現、複製、コピー、
-// トレースする行為は二次創作活動と認められません」に照らし、**キャラ画像の掲載を停止**した。
-// 権利元 (SHIFT UP CORP. / business@shiftup.co.kr) へ許諾を申請中で、
-// 許諾が得られた場合のみ USE_CHAR_IMAGES を true に戻す。**独断で戻さないこと。**
-// (2026-07-31 の「削除対応前提で掲載」は、公式回答が「ガイドライン参照」で確定したため撤回)
+// 【掲載方針 2026-08-31 更新 — README「権利方針」が正】
+// 公式サポート・権利元窓口 (SHIFT UP CORP.) へ複数回照会したが実質的な回答が得られないため、
+// 「非営利・著作権表示・非公式明記を守り、権利者から削除要請があれば理由を問わず即日撤去する」
+// (takedown 方式) でキャラ画像を掲載する運営判断。個別許諾は得られていない。
+// USE_CHAR_IMAGES が撤去レバー — 要請が来たら false にして push (完全な手順は README「撤去手順」)。
+// (2026-08-10〜08-30 は第1条4項の解釈により掲載停止していた)
 //
 // ⚠ name は本家DB由来の外部入力として扱い、必ずエスケープして DOM に入れる。
 
 import { escapeHtml, ATTR_INFO } from './shared.js';
 
 // キャラ画像を使うか。false = 全面自作タイル (バースト帯 + キャラ名 + 属性色)。
-// ★ 許諾が出るまで false 固定 (上のコメント参照)
-export const USE_CHAR_IMAGES = false;
+// ★ 撤去レバー: 権利者から削除要請が来たらここを false にして即日 push (README「撤去手順」)。
+//   テストはこの値を固定していないので、この1行だけで CI が通りデプロイされる
+export const USE_CHAR_IMAGES = true;
 
 // キャラID = 画像ファイル名の許容形式 (build 生成の 32hex.webp のみ)。
 // characters.json は実行時 fetch なので、壊れた id が src/onerror に混入しないよう再検証する
-// 掲載停止中も形式ガードだけは単体で検証できるよう export する
-// (USE_CHAR_IMAGES=false だと charImgSrc が手前で null を返し、regex まで到達しないため)
+// フラグの値に関係なく形式ガード単体を検証できるよう export する
+// (USE_CHAR_IMAGES=false のときは charImgSrc が手前で null を返し、regex まで到達しないため)
 export const CHAR_ID_RE = /^[0-9a-f]{32}\.webp$/;
 
 // 画像パス (代表IDのみ画像を持つ。hasImg は build-characters.mjs が付与)。
