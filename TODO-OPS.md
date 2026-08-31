@@ -1,5 +1,17 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
+## 🔜 第44回 (2026-09) への切替 — ふるりの模擬待ち (2026-09-01 職場PCで準備)
+
+- 本家に 2026-09 シーズン (id 30・ハード日 9/5・ボス5体) は作成済み。GB の `new-season.mjs` は id 30 を認識する
+  ところまで確認済 (「基準SLv が分かりません」で止まる = 想定どおり)
+- **手順** (ふるりの模擬5属性が本家 fururi_simulation_scores (season_id=30) に入ったら):
+  1. `node scripts/new-season.mjs ../しりすこPAD --slv <ふるりの現SLv (前回 558)>` (職場PCは `../shirisu-pad`)
+  2. SQL Editor: `delete from public.measurements;` → `supabase/seed.local.sql` を実行
+  3. `node tests/run-tests.mjs` → commit & push
+  4. `update public.site_state set status='open', active_season='2026-09', display_season=null, updated_at=now();`
+- キャラ画像は takedown 方式で掲載中 (README「権利方針」)。撤去要請が来たら README「撤去手順」
+- 未着手: 本家の「🔍要確認」キャラ (is_confirmed=false + registered_by) をビルド警告に出す
+
 ## ✅ 済: Supabase 東京リージョン移行の検討 → **見送り** (2026-08-10 ユーザー判断)
 
 GB は **ap-south-1 (ムンバイ)** のまま継続する。**この件を再提案しないこと。**
