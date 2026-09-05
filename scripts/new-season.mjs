@@ -87,20 +87,34 @@ const simByCode = new Map(sims.map(s => [s.boss_code, Number(s.damage_raw)]));
 const monthPath = join(padDir, 'data', `${seasonKey}.json`);
 let actualByCode = new Map(), monthSlv = null;
 const actualTeamByCode = new Map();   // 実凸の編成 (attacks.characters) — 最大ダメージの凸のもの
-// 開催中は月次JSONがまだ無いので、本家 attacks テーブルからふるりの実凸を直接読む
-// (同一ボスに複数凸があれば大きい方 — 締め凸の削りを基準にしない)
-const fururiPlayerId = (await padGet(`players?select=id&name=eq.${encodeURIComponent('ふるり')}`))[0]?.id ?? null;
-if (fururiPlayerId != null) {
-    const atks = await padGet(`attacks?select=boss_code,damage_raw,characters&season_id=eq.${target.id}&player_id=eq.${fururiPlayerId}`);
-    for (const a of atks) {
-        const d = Number(a.damage_raw);
-        if (!a.boss_code || !(d > 0)) continue;
-        if (!actualByCode.has(a.boss_code) || actualByCode.get(a.boss_code) < d) {
+// 開催中は月次JSONがまだ無いので、本家 attacks テーブルからふるりの実凸を直接読む。
+//  - 本家の盤面と同じく attack_date = ハード日 の凸だけ (日付違いの行を拾わない)
+//  - ふるりが締め凸担当 (finish_claims) のボスは除外 (削りの値を基準にしない → 模擬登録が必要になる)
+//  - 同一ボスに複数凸があれば大きい方。同額なら最新の報告 (order で先頭に来るものを採用)
+//  - 本家に届かなくても模擬だけで続行できるよう、失敗は警告止まり
+let fururiPlayerId = null;
+try {
+    fururiPlayerId = (await padGet(`players?select=id&name=eq.${encodeURIComponent('ふるり')}`))[0]?.id ?? null;
+    if (fururiPlayerId != null) {
+        const hard = String(target.hard_date).slice(0, 10);
+        const claims = await padGet(`finish_claims?select=boss_number&season_id=eq.${target.id}&claimed_by=eq.${fururiPlayerId}&date=eq.${hard}`);
+        const finishBoss = new Set(claims.map(c => Number(c.boss_number)));
+        const atks = await padGet(`attacks?select=boss_code,boss_number,damage_raw,characters,reported_at` +
+            `&season_id=eq.${target.id}&player_id=eq.${fururiPlayerId}&attack_date=eq.${hard}&order=damage_raw.desc,reported_at.desc`);
+        const skipped = [];
+        for (const a of atks) {
+            const d = Number(a.damage_raw);
+            if (!a.boss_code || !(d > 0)) continue;
+            if (finishBoss.has(Number(a.boss_number))) { skipped.push(`${a.boss_code}=${(d / 1e9).toFixed(2)}B`); continue; }
+            if (actualByCode.has(a.boss_code)) continue;   // order 済みなので先頭 = 最大 (同額なら最新報告)
             actualByCode.set(a.boss_code, d);
             actualTeamByCode.set(a.boss_code, Array.isArray(a.characters) ? a.characters : null);
         }
+        if (actualByCode.size) console.log(`実凸 (本家 attacks ${hard}): ${[...actualByCode].map(([c, d]) => `${c}=${(d / 1e9).toFixed(2)}B`).join(' ')}`);
+        if (skipped.length) console.log(`  締め凸担当のため除外: ${skipped.join(' ')}`);
     }
-    if (atks.length) console.log(`実凸 (本家 attacks): ${[...actualByCode].map(([c, d]) => `${c}=${(d / 1e9).toFixed(2)}B`).join(' ')}`);
+} catch (e) {
+    console.warn('⚠ 本家 attacks の取得に失敗 — 実凸なし (模擬/月次JSONのみ) で続行:', e?.message ?? e);
 }
 if (existsSync(monthPath)) {
     const month = JSON.parse(readFileSync(monthPath, 'utf8'));
@@ -110,16 +124,20 @@ if (existsSync(monthPath)) {
         for (const a of fururi.attacks || []) {
             const d = Number(a.damage);
             if (a.bossCode && d > 0) {
-                // 同一ボスに複数凸があれば大きい方 (締め凸の削りを基準にしない)
+                // 同一ボスに複数凸があれば大きい方 (締め凸の削りを基準にしない)。
+                // attacks より大きい = 別の凸なので、その編成 (attacks 由来) は捨てて player_damages に委ねる。
+                // 同額なら同じ凸 → attacks の編成をそのまま使う
                 if (!actualByCode.has(a.bossCode) || actualByCode.get(a.bossCode) < d) {
                     actualByCode.set(a.bossCode, d);
-                    actualTeamByCode.delete(a.bossCode);   // 月次JSONは編成を持たない → player_damages に委ねる
+                    actualTeamByCode.delete(a.bossCode);
                 }
             }
         }
     }
 } else {
-    console.log(`(月次JSON ${seasonKey}.json はまだ無い — 模擬スコアだけで基準を組みます)`);
+    console.log(actualByCode.size
+        ? `(月次JSON ${seasonKey}.json はまだ無い — 実凸は本家 attacks から取得。SLv は --slv 指定)`
+        : `(月次JSON ${seasonKey}.json はまだ無い — 模擬スコアだけで基準を組みます)`);
 }
 const baseSlv = slvOverride ?? monthSlv;
 if (!(baseSlv >= 1)) {
@@ -139,6 +157,9 @@ for (const b of bosses) {
     const source = (sim == null || (act != null && Math.round(sim) === Math.round(act))) ? 'actual' : 'simulation';
     bases[attr] = { bossCode: b.boss_code, damage, source };
 }
+// 模擬登録が無く実凸だけで決まった属性は、締め凸の削りだった可能性を運営が確認できるよう明示する
+const actualOnly = Object.entries(bases).filter(([, v]) => v.source === 'actual' && !simByCode.has(v.bossCode)).map(([a]) => a);
+if (actualOnly.length) console.warn(`⚠ 模擬登録なし・実凸のみで基準化: ${actualOnly.join(', ')} — 締め凸 (削り) だった場合は本家の模擬タブに登録して再実行`);
 if (missing.length > 0) {
     console.error(`❌ ふるり基準が揃っていません: ${missing.join(', ')}`);
     console.error('   本家の模擬タブで登録するか、実凸後の月次JSONを待ってから再実行してください。');

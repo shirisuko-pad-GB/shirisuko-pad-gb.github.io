@@ -236,7 +236,7 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
     update public.site_state set status='between', active_season=null, display_season='N',
         message='次シーズン準備中です', updated_at=now();
     → 送信停止・stats は N を read-only 表示 (最終結果)
-      ↓ 本家PADでふるり基準が確定 (模擬タブ登録 or 実凸の月次JSON)
+      ↓ 本家PADでふるり基準が確定 (模擬タブ登録 / 本家 attacks の実凸 (開催中に読める) / 月次JSON)
 [新シーズンN+1 開始]  ★切替オペレーション (VSCode・PC必須)★
   (a) 旧データ削除:   delete from public.measurements;
   (b) node scripts/new-season.mjs        ← ボス5体・ふるり基準 (模擬優先)・roster を全自動生成
@@ -310,8 +310,10 @@ node scripts/update-roster.mjs        # ../しりすこPAD を読む (パス指�
 - 警告が消えたら commit → push
 
 base.json の基準ダメージの出所 (new-season.mjs が自動で解決する):
-- 基準者ふるりの実凸ダメージと編成 → 本家 Supabase の `attacks` (該当 season_id・**開催中でも読める**)。
-  `syncLevel` と実凸のバックアップ → 最新月JSON (`../しりすこPAD/data/YYYY-MM.json`、レイド終了後)
+- 基準者ふるりの実凸ダメージと編成 → 本家 Supabase の `attacks` (該当 season_id・ハード日の凸のみ・
+  ふるりが締め凸担当 (finish_claims) のボスは除外・**開催中でも読める**)。
+  `syncLevel` と実凸の再確認 → 最新月JSON (`../しりすこPAD/data/YYYY-MM.json`、レイド終了後)。
+  月次JSONは編成を持たないので、月次JSONの方が大きい凸は編成を `player_damages` (模擬タブ) に委ねる
 - 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → 本家 Supabase
   `fururi_simulation_scores` (該当 season_id)。**模擬登録がある属性は模擬値を優先**。
   ただし模擬の値が実凸と同額なら (実凸の結果を模擬タブに転記しただけ) `source: actual` として
