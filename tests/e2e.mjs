@@ -62,6 +62,18 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       // between / maintenance: 告知が出て測定UIが隠れていることだけ確認
       check('運用モード告知が表示される', notice?.style.display === 'block' && /準備中|工事中/.test(notice.textContent));
       check('測定UIが隠れている', !fd.querySelector('.atk-card'));
+      // 次シーズンの基準 (base.json) が表示中シーズンと食い違うときは、基準パネルを畳んで出さない
+      // (切替ランブックは seed→push→open の順なので、between 中は base.json が先に次シーズンになる)
+      const baseJson = await (await fetch('/data/base.json')).json();
+      const label = fd.getElementById('baseVersionLabel')?.textContent ?? '';
+      const fold = fd.getElementById('baseFold');
+      const nextSeasonStaged = !label.startsWith(baseJson.version);
+      if (nextSeasonStaged) {
+        check('基準パネルが隠れている (次シーズン分の先出し防止)', fold?.style.display === 'none' && !fd.querySelector('#baseTeams .base-row'));
+        check('基準ラベルに次シーズンの値が出ない', !label.includes(String(baseJson.baseSlv)) && /準備中/.test(label));
+      } else {
+        check('基準パネルは表示中シーズンと一致', fold?.style.display !== 'none' && !!fd.querySelector('#baseTeams .base-row'));
+      }
       R.steps.push({ name: '(closed mode: 測定・分布系は skip)', skip: true });
     } else {
       check('初回バナー非表示', fd.getElementById('recallBanner').style.display === 'none');

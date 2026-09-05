@@ -1,14 +1,25 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
-## 🔜 第44回 (2026-09) への切替 — ふるりの模擬待ち (2026-09-01 職場PCで準備)
+## 🔜 第44回 (2026-09) への切替 — **裏準備は完了・公開待ち** (2026-09-05)
 
-- 本家に 2026-09 シーズン (id 30・ハード日 9/5・ボス5体) は作成済み。GB の `new-season.mjs` は id 30 を認識する
-  ところまで確認済 (「基準SLv が分かりません」で止まる = 想定どおり)
-- **手順** (ふるりの模擬5属性が本家 fururi_simulation_scores (season_id=30) に入ったら):
-  1. `node scripts/new-season.mjs ../しりすこPAD --slv <ふるりの現SLv (前回 558)>` (職場PCは `../shirisu-pad`)
-  2. SQL Editor: `delete from public.measurements;` → `supabase/seed.local.sql` を実行
-  3. `node tests/run-tests.mjs` → commit & push
-  4. `update public.site_state set status='open', active_season='2026-09', display_season=null, updated_at=now();`
+- 済 (2026-09-05 自宅PC): ふるりの模擬5属性を本家 `fururi_simulation_scores` (season_id=30) へ同期
+  (`本家 scripts/sync-fururi-sim.mjs --apply`。以後は模擬タブの手入力不要・毎シーズンこれを回す) →
+  `node scripts/new-season.mjs ../しりすこPAD --slv 585` → raid/base/roster/presets を再生成 → tests → push。
+  site_state は **between のまま** (display_season=2026-08 を read-only 表示中)。
+  index の基準パネルは「表示中シーズン ≠ base.version」のとき自動で伏せる (app.js) ので、
+  push 済みでも第44回の基準・ボスは画面には出ない (data/*.json 自体は公開リポジトリなので秘密ではない)
+- **公開日にやること** (SQL Editor、順序厳守):
+  1. (任意) 前シーズンの保全: `node scripts/export-season.mjs 2026-08` でローカルに書き出し
+  2. `delete from public.measurements;`
+  3. `supabase/seed.local.sql` を実行 (fururi_bases 2026-09 5行 + slv_ratio。**貼り付け先は SQL Editor のみ**)
+  4. `insert into public.score_bounds (season, min_score, max_score) values ('2026-09', 0.1, 2.5) on conflict do nothing;`
+     (行が無いと既定 0.01〜5.0 で緩くなる — 第43回は 0.1〜2.5 で運用)
+  5. `update public.site_state set status='open', active_season='2026-09', display_season=null,
+         message=null, updated_at=now();`
+  6. (任意) `node scripts/seed-base-vote.mjs` で基準者の1票を各属性に置く (open 後でないと弾かれる)
+- ふるりが模擬を更新したら (風は 9/5 に 17.334→18.795 B へ変わった): 公開前なら
+  本家で `sync-fururi-sim.mjs --apply` → GB で `new-season.mjs ... --slv 585` を再実行して push し直すだけ
+  (2026-09 の提出はまだ無いので基準の差し替えに副作用なし)。**open 後は基準を変えない**
 - キャラ画像は takedown 方式で掲載中 (README「権利方針」)。撤去要請が来たら README「撤去手順」
 - 未着手: 本家の「🔍要確認」キャラ (is_confirmed=false + registered_by) をビルド警告に出す
 

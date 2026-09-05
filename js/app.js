@@ -68,8 +68,19 @@ async function init() {
     season = base.version;
     mode = site?.status ?? 'open';   // site_state が読めない (05未適用/未設定) 時は open 扱い
     viewSeason = (mode === 'open') ? season : (site?.display_season ?? null);
-    $('baseVersionLabel').textContent = `${base.version} (基準者${base.basePlayer} SLv ${base.baseSlv})`;
-    renderBaseTeams();
+    // 基準の開示は「今表示しているシーズン」の分だけ。between/maintenance 中は base.json が
+    // 先に次シーズンへ差し替わる (シーズン切替ランブックの順序: seed → push → open) ので、
+    // 分布は前シーズンなのに基準だけ次シーズン、というチグハグを出さない。
+    const baseMatchesView = base.version === viewSeason;
+    $('baseVersionLabel').textContent = baseMatchesView
+        ? `${base.version} (基準者${base.basePlayer} SLv ${base.baseSlv})`
+        : (viewSeason ? `次シーズンを準備中 (表示中: ${viewSeason} シーズンの確定分)` : '次シーズンを準備中');
+    const fold = $('baseFold');
+    if (fold) {
+        fold.open = false;
+        fold.style.display = baseMatchesView ? '' : 'none';
+    }
+    if (baseMatchesView) renderBaseTeams();
     $('thresholdAllLabel').textContent = THRESHOLDS.dist;
     $('thresholdCompLabel').textContent = THRESHOLDS.comp;
     $('slvMinus').addEventListener('click', () => stepSlv(-1));

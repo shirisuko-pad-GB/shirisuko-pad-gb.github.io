@@ -1,12 +1,48 @@
 {
-  "version": "2026-08",
+  "version": "2026-09",
   "description": "ふるり値の基準データ (scripts/new-season.mjs の生成物)。基準者(ふるり)の属性別ダメージ @ 基準SLv。模擬登録がある属性は模擬値を採用",
   "basePlayer": "ふるり",
-  "baseSlv": 558,
+  "baseSlv": 585,
   "bases": {
+    "IRON": {
+      "bossCode": "Z.E.U.S.",
+      "damage": 22002000000,
+      "source": "simulation",
+      "team": [
+        "1be4ad890858ba5bb544affbf6a51dfc.webp",
+        "31caa32129469999a8c011eba7fc1bac.webp",
+        "68aa881ffdc137d2a50da839eaa1adb6.webp",
+        "9a54283cdd0c15a9b554810488563775.webp",
+        "c4ba87906faff8cfc78af5ba6429e5be.webp"
+      ]
+    },
+    "WATER": {
+      "bossCode": "H.S.T.A.",
+      "damage": 18291000000,
+      "source": "simulation",
+      "team": [
+        "04a73cd1bfa43f3a1078564107ad8336.webp",
+        "171c4160829049f2604cde5036b79801.webp",
+        "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+        "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+        "8af2ca57a2237ea175a791338607c215.webp"
+      ]
+    },
+    "FIRE": {
+      "bossCode": "A.N.M.I.",
+      "damage": 13718000000,
+      "source": "simulation",
+      "team": [
+        "171c4160829049f2604cde5036b79801.webp",
+        "6bf2f9261d5b41c4659692a6eb78527a.webp",
+        "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+        "830d9d8541fce0c485950e38050b1c6d.webp",
+        "ec51dcc7846a88299df91a31ac5c41c2.webp"
+      ]
+    },
     "ELECTRIC": {
       "bossCode": "P.S.I.D.",
-      "damage": 20029000000,
+      "damage": 24568000000,
       "source": "simulation",
       "team": [
         "1624c5cb118cd1803d12e0e895529979.webp",
@@ -16,33 +52,9 @@
         "adb08d7d27e7c4172aced372fe742772.webp"
       ]
     },
-    "FIRE": {
-      "bossCode": "A.N.M.I.",
-      "damage": 13660000000,
-      "source": "simulation",
-      "team": [
-        "171c4160829049f2604cde5036b79801.webp",
-        "68aa881ffdc137d2a50da839eaa1adb6.webp",
-        "6bf2f9261d5b41c4659692a6eb78527a.webp",
-        "830d9d8541fce0c485950e38050b1c6d.webp",
-        "ec51dcc7846a88299df91a31ac5c41c2.webp"
-      ]
-    },
-    "WATER": {
-      "bossCode": "H.S.T.A.",
-      "damage": 14340000000,
-      "source": "simulation",
-      "team": [
-        "1be4ad890858ba5bb544affbf6a51dfc.webp",
-        "627884de8e4628efd7dbcb7a9e4ecf53.webp",
-        "8af2ca57a2237ea175a791338607c215.webp",
-        "8eb1e9dd804ca8ac6788859d45a21432.webp",
-        "e3532447b3ca028770c2a5ee149e746e.webp"
-      ]
-    },
     "WIND": {
       "bossCode": "D.M.T.R.",
-      "damage": 17670000000,
+      "damage": 18795000000,
       "source": "simulation",
       "team": [
         "03d1fd97b534b7adbcc378694be6e25e.webp",
@@ -50,18 +62,6 @@
         "6045c557bca29bcd35a65c8c99745ff0.webp",
         "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
         "e3532447b3ca028770c2a5ee149e746e.webp"
-      ]
-    },
-    "IRON": {
-      "bossCode": "Z.E.U.S.",
-      "damage": 19250000000,
-      "source": "simulation",
-      "team": [
-        "04a73cd1bfa43f3a1078564107ad8336.webp",
-        "171c4160829049f2604cde5036b79801.webp",
-        "68aa881ffdc137d2a50da839eaa1adb6.webp",
-        "9a54283cdd0c15a9b554810488563775.webp",
-        "e9a7c3d1ab9791731978c1cdc8a4fdff.webp"
       ]
     }
   }
