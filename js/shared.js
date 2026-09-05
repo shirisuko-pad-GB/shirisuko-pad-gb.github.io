@@ -15,6 +15,63 @@ export const ATTR_INFO = {
 
 export const SITE_URL = 'https://shirisuko-pad-gb.github.io/';
 
+// CanvasRenderingContext2D.roundRect のポリフィル (iOS Safari 16.3以前・古いAndroid WebView)。
+// シェアカードは全面 roundRect で描いているため、これが無い端末では TypeError で
+// 「プレビューが一切出ない」= 実際に寄せられた「画像が表示されない」の一因になる。
+// ⚠ import しただけで入るよう副作用として実行する (sharecard.js / tiles.js は shared.js を
+//   経由するので、描画側が個別に呼ぶ必要をなくす — 呼び忘れを構造的に防ぐため)。
+// 対応する引数形: 数値1つ / [tl,tr,br,bl] の配列 (sharecard.js のミニ分布が配列形を使う)。
+export function installRoundRectPolyfill(g = (typeof globalThis !== 'undefined' ? globalThis : null)) {
+    const C = g && g.CanvasRenderingContext2D;
+    if (!C || typeof C.prototype.roundRect === 'function') return false;
+    C.prototype.roundRect = function (x, y, w, h, radii = 0) {
+        // 仕様どおり 1〜4個を tl,tr,br,bl に展開 (数値単体も配列も受ける)
+        const a = Array.isArray(radii) ? radii : [radii];
+        const n = a.map(v => Math.max(0, Number(v) || 0));
+        const [tl, tr, br, bl] = n.length === 1 ? [n[0], n[0], n[0], n[0]]
+            : n.length === 2 ? [n[0], n[1], n[0], n[1]]
+            : n.length === 3 ? [n[0], n[1], n[2], n[1]]
+            : [n[0], n[1], n[2], n[3]];
+        // 負の幅・高さは辺を反転させて描く (仕様準拠。呼び出し側は使っていないが黙って壊さない)
+        const x0 = w < 0 ? x + w : x, y0 = h < 0 ? y + h : y;
+        const aw = Math.abs(w), ah = Math.abs(h);
+        // 半径の合計が辺を超える場合は一律に縮める (仕様のスケーリング)
+        const k = Math.min(1, aw / Math.max(1e-9, tl + tr), aw / Math.max(1e-9, bl + br),
+            ah / Math.max(1e-9, tl + bl), ah / Math.max(1e-9, tr + br));
+        const [a1, a2, a3, a4] = [tl * k, tr * k, br * k, bl * k];
+        this.moveTo(x0 + a1, y0);
+        this.lineTo(x0 + aw - a2, y0);
+        this.arcTo(x0 + aw, y0, x0 + aw, y0 + a2, a2);
+        this.lineTo(x0 + aw, y0 + ah - a3);
+        this.arcTo(x0 + aw, y0 + ah, x0 + aw - a3, y0 + ah, a3);
+        this.lineTo(x0 + a4, y0 + ah);
+        this.arcTo(x0, y0 + ah, x0, y0 + ah - a4, a4);
+        this.lineTo(x0, y0 + a1);
+        this.arcTo(x0, y0, x0 + a1, y0, a1);
+        this.closePath();
+    };
+    return true;
+}
+installRoundRectPolyfill();
+
+// アプリ内ブラウザ (X / LINE / Facebook / Instagram の WebView) か。
+// ⚠ UA判定なので当てにしすぎない。用途は「保存の導線を切り替える / 案内を1行足す」だけに限り、
+//   機能をブロックしたり数値を変えたりしない (誤検出しても案内が余分に出るだけ、が上限)。
+// なぜ必要か: これらの WebView は <a download> を黙って無視し、blob: 画像の
+//   「写真に追加」も出さないため、通常のダウンロード導線が無反応になる。
+// 判定はモバイルUAであることを前提にする (デスクトップの通常DLを壊さないため)。
+export function isInAppBrowser(ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '')) {
+    const s = String(ua);
+    if (!/iPhone|iPad|iPod|Android/i.test(s)) return false;   // モバイル以外は対象外
+    // 各アプリが名乗る印
+    if (/\bFBAN\/|\bFBAV\/|Instagram|\bLine\/|TwitterAndroid|Twitter for iPhone/i.test(s)) return true;
+    if (/;\s*wv\)/i.test(s)) return true;                     // Android WebView の標準的な印
+    // iOS の WKWebView は Safari を名乗らない (アプリ内ブラウザの強いシグナル)。
+    // Chrome(CriOS)・Firefox(FxiOS)・Edge(EdgiOS) は別ブラウザなので除外する
+    if (/iPhone|iPad|iPod/i.test(s) && !/Safari\//i.test(s) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(s)) return true;
+    return false;
+}
+
 // 分布・集計の解禁しきい値 (表示用)。シーズンごとに 0 から積む前提の値。
 // ⚠ 実際のゲート判定はサーバー (05_seasons.sql) が強制する。ここは進捗表示・説明文用で、
 //    ゲート表示はサーバーが返す need を優先する (ここがズレても実害は説明文の数字のみ)。
