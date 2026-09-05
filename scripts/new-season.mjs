@@ -90,7 +90,9 @@ let actualByCode = new Map(), monthSlv = null;
 // 「同じ凸か」は 0.001B に丸めて比べる (18.291B の手入力 と 18,291,4xx,xxx は同じ凸)
 const UNIT = 1e6;
 const sameAttack = (a, b) => a != null && b != null && Math.round(a / UNIT) === Math.round(b / UNIT);
-const actualTeamByCode = new Map();   // 実凸の編成 (attacks.characters) — 最大ダメージの凸のもの
+// attacks 由来の実凸そのもの (bossCode → {damage, team})。月次JSONとマージした actualByCode とは別に持ち、
+// 編成は「その凸のダメージが最終的な基準ダメージと一致するとき」だけ採用する (別の凸の編成を貼らないため)
+const attackByCode = new Map();
 // 開催中は月次JSONがまだ無いので、本家 attacks テーブルからふるりの実凸を直接読む。
 //  - 本家の盤面と同じく attack_date = ハード日 の凸だけ (日付違いの行を拾わない)
 //  - ふるりが締め凸担当 (finish_claims) のボスは除外 (削りの値を基準にしない → 模擬登録が必要になる)
@@ -112,7 +114,7 @@ try {
             if (finishBoss.has(Number(a.boss_number))) { skipped.push(`${a.boss_code}=${(d / 1e9).toFixed(2)}B`); continue; }
             if (actualByCode.has(a.boss_code)) continue;   // order 済みなので先頭 = 最大 (同額なら最新報告)
             actualByCode.set(a.boss_code, d);
-            actualTeamByCode.set(a.boss_code, Array.isArray(a.characters) ? a.characters : null);
+            attackByCode.set(a.boss_code, { damage: d, team: Array.isArray(a.characters) ? a.characters : null });
         }
         if (actualByCode.size) console.log(`実凸 (本家 attacks ${hard}): ${[...actualByCode].map(([c, d]) => `${c}=${(d / 1e9).toFixed(2)}B`).join(' ')}`);
         if (skipped.length) console.log(`  締め凸担当のため除外: ${skipped.join(' ')}`);
@@ -128,15 +130,11 @@ if (existsSync(monthPath)) {
         for (const a of fururi.attacks || []) {
             const d = Number(a.damage);
             if (a.bossCode && d > 0) {
-                // 同一ボスに複数凸があれば大きい方 (締め凸の削りを基準にしない)。
                 // ⚠ 月次JSONも編成を持つが、本家の画像パス由来IDでGBの代表IDとほぼ一致しないため使わない。
-                //   attacks と 0.001B 単位で同じ凸なら精密値だけ採り、編成は attacks のものを残す。
-                //   丸め誤差を超えて大きい = 別の凸 → 編成を捨てて player_damages (模擬タブ) に委ねる
+                // 同じ凸 (0.001B 単位で一致) なら、手入力の丸め値より月次JSONの精密値を採る。
+                // そうでなければ大きい方 (締め凸の削りを基準にしない)
                 const cur = actualByCode.get(a.bossCode);
-                if (cur == null || cur < d) {
-                    actualByCode.set(a.bossCode, d);
-                    if (!sameAttack(cur, d)) actualTeamByCode.delete(a.bossCode);
-                }
+                if (cur == null || sameAttack(cur, d) || cur < d) actualByCode.set(a.bossCode, d);
             }
         }
     }
@@ -228,10 +226,17 @@ try {
             return ids.length === 5 ? { ids: ids.sort() } : { ids: null, unresolved: names.filter(n => !idByName.has(normName(n))) };
         };
         let attached = 0;
-        // (a) 実凸として採用した属性は、その凸の編成 (attacks.characters) をそのまま使う
+        // (a) 実凸として採用した属性は、その凸の編成 (attacks.characters) をそのまま使う。
+        // ただし「その attacks 行のダメージが基準ダメージと同じ凸」のときだけ —
+        // 月次JSONで別の (より大きい) 凸に入れ替わっていたら、その凸の編成は本家に無いので (b) に委ねる
         for (const [attr, b] of Object.entries(bases)) {
             if (b.source !== 'actual') continue;
-            const chars = actualTeamByCode.get(b.bossCode);
+            const atk = attackByCode.get(b.bossCode);
+            if (!atk || !sameAttack(atk.damage, b.damage)) continue;
+            // ⚠ 残る曖昧さ: 0.001B 以内に別の凸があると値で見分けられない (月次JSONは編成を持たないので
+            //   他に手がかりが無い)。基準ダメージが attacks の値と完全一致しない場合は運営が確認できるよう出す
+            if (atk.damage !== b.damage) console.warn(`⚠ ${attr}: 基準 ${(b.damage / 1e9).toFixed(3)}B に対し実凸記録は ${(atk.damage / 1e9).toFixed(3)}B — 同じ凸とみなして編成を採用`);
+            const chars = atk.team;
             if (!chars) continue;
             const r = resolveTeam(chars);
             if (!r.ids) { console.warn(`⚠ ${attr}: 実凸編成の名前解決に失敗 (${r.unresolved.join(', ') || '5体未満'}) — 模擬編成で再試行`); continue; }
