@@ -1271,23 +1271,35 @@ function onShare() {
 }
 
 // 画像つきでOS標準の共有シートを開く。開始できたら true (結果は非同期)。
-// ⚠ ここから share() までに await を挟まないこと (上のコメント参照)。
-function shareWithFile(blob) {
+// ⚠ 呼び出し元はここへ来るまでに await を挟まないこと (上のコメント参照)。
+// opts.onAbort / opts.onFail で「共有」と「保存」の文脈を出し分ける。
+function shareWithFile(blob, opts = {}) {
     if (!blob || typeof File !== 'function' || !navigator.canShare || !navigator.share) return false;
     let file = null;
     try { file = new File([blob], 'fururi-score.png', { type: 'image/png' }); } catch { return false; }
-    if (!navigator.canShare({ files: [file] })) return false;
-    navigator.share({ files: [file], text: `${shareText()}\n${SITE_URL}` }).catch((e) => {
-        if (e && e.name === 'AbortError') return;   // ユーザーがキャンセル
-        console.warn('share失敗:', e);
-        shareFallback();
-    });
+    try {
+        if (!navigator.canShare({ files: [file] })) return false;
+        navigator.share({ files: [file], text: `${shareText()}\n${SITE_URL}` }).catch((e) => {
+            if (e && e.name === 'AbortError') { (opts.onAbort ?? (() => {}))(); return; }   // ユーザーがキャンセル
+            console.warn('share失敗:', e);
+            (opts.onFail ?? shareFallback)();
+        });
+    } catch (e) {
+        // canShare/share が同期例外を投げる実装への保険 (呼び出し元のフォールバックに委ねる)
+        console.warn('share呼び出し失敗:', e);
+        return false;
+    }
     return true;
 }
 
 // フォールバック: X インテントはテキストとURLしか運べない (画像は絶対に付かない) ので、
 // 「画像は手動で添付する」ことを必ず伝える。無言で終わらせない。
+// 連打で intent を2つ開かないよう短時間は無視する (Codex指摘)。
+let lastFallbackAt = 0;
 function shareFallback(cardFailed = false) {
+    const now = Date.now();
+    if (now - lastFallbackAt < 2000) return;
+    lastFallbackAt = now;
     if (cardFailed) {
         toast('画像を作れませんでした。文章だけ共有します');
     } else {
@@ -1298,8 +1310,20 @@ function shareFallback(cardFailed = false) {
     if (!w) toast('Xを開けませんでした。画像を保存してから手動で投稿してください');
 }
 
-async function onSave() {
+// 保存も共有と同じ制約を受ける。アプリ内ブラウザ (X/LINE等) は <a download> を無視するので
+// 端末標準の共有シート経由で「写真に保存」してもらうが、**ここも await を挟まない** —
+// 挟むと activation が切れて共有シートが出ず、保存できないまま無言で終わる (Codex指摘)。
+function onSave() {
     if (!results) return;
+    if (isInAppBrowser() && shareBlob && shareWithFile(shareBlob, {
+        onAbort: () => toast('保存をやめました。画像を長押しでも保存できます'),
+        onFail: () => toast('この環境では保存できませんでした。画像を長押しして保存してください'),
+    })) return;
+    saveByDownload();
+}
+
+// 通常ブラウザ用の保存 (a[download])。生成がまだなら待ってから落とす。
+async function saveByDownload() {
     let blob;
     try {
         blob = await getShareCard();
@@ -1308,9 +1332,6 @@ async function onSave() {
         toast('画像を作れませんでした。時間をおいて再度お試しください');
         return;
     }
-    // アプリ内ブラウザ (X/LINE等) は download 属性を無視して無反応になる。
-    // そこでは端末標準の共有シート経由なら「画像を保存」できるので、そちらを先に試す。
-    if (isInAppBrowser() && shareWithFile(blob)) return;
     const a = document.createElement('a');
     const url = URL.createObjectURL(blob);
     a.href = url;

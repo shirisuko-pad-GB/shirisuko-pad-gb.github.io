@@ -28,11 +28,15 @@ export function installRoundRectPolyfill(g = (typeof globalThis !== 'undefined' 
         // 仕様どおり 1〜4個を tl,tr,br,bl に展開 (数値単体も配列も受ける)
         const a = Array.isArray(radii) ? radii : [radii];
         const n = a.map(v => Math.max(0, Number(v) || 0));
-        const [tl, tr, br, bl] = n.length === 1 ? [n[0], n[0], n[0], n[0]]
+        const c4 = n.length === 1 ? [n[0], n[0], n[0], n[0]]
             : n.length === 2 ? [n[0], n[1], n[0], n[1]]
             : n.length === 3 ? [n[0], n[1], n[2], n[1]]
             : [n[0], n[1], n[2], n[3]];
-        // 負の幅・高さは辺を反転させて描く (仕様準拠。呼び出し側は使っていないが黙って壊さない)
+        // 負の幅・高さは辺を反転させて描く (仕様準拠。呼び出し側は使っていないが黙って壊さない)。
+        // 反転時は角丸も入れ替える — 左右反転で tl↔tr / bl↔br、上下反転で tl↔bl / tr↔br
+        let [tl, tr, br, bl] = c4;
+        if (w < 0) { [tl, tr] = [tr, tl]; [bl, br] = [br, bl]; }
+        if (h < 0) { [tl, bl] = [bl, tl]; [tr, br] = [br, tr]; }
         const x0 = w < 0 ? x + w : x, y0 = h < 0 ? y + h : y;
         const aw = Math.abs(w), ah = Math.abs(h);
         // 半径の合計が辺を超える場合は一律に縮める (仕様のスケーリング)
