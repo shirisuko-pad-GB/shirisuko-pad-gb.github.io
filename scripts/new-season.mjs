@@ -86,6 +86,10 @@ const simByCode = new Map(sims.map(s => [s.boss_code, Number(s.damage_raw)]));
 
 const monthPath = join(padDir, 'data', `${seasonKey}.json`);
 let actualByCode = new Map(), monthSlv = null;
+// 本家の手入力 (attacks / 模擬タブ) は 0.001B 刻み、月次JSON は拡張機能の精密値。
+// 「同じ凸か」は 0.001B に丸めて比べる (18.291B の手入力 と 18,291,4xx,xxx は同じ凸)
+const UNIT = 1e6;
+const sameAttack = (a, b) => a != null && b != null && Math.round(a / UNIT) === Math.round(b / UNIT);
 const actualTeamByCode = new Map();   // 実凸の編成 (attacks.characters) — 最大ダメージの凸のもの
 // 開催中は月次JSONがまだ無いので、本家 attacks テーブルからふるりの実凸を直接読む。
 //  - 本家の盤面と同じく attack_date = ハード日 の凸だけ (日付違いの行を拾わない)
@@ -125,11 +129,13 @@ if (existsSync(monthPath)) {
             const d = Number(a.damage);
             if (a.bossCode && d > 0) {
                 // 同一ボスに複数凸があれば大きい方 (締め凸の削りを基準にしない)。
-                // attacks より大きい = 別の凸なので、その編成 (attacks 由来) は捨てて player_damages に委ねる。
-                // 同額なら同じ凸 → attacks の編成をそのまま使う
-                if (!actualByCode.has(a.bossCode) || actualByCode.get(a.bossCode) < d) {
+                // ⚠ 月次JSONも編成を持つが、本家の画像パス由来IDでGBの代表IDとほぼ一致しないため使わない。
+                //   attacks と 0.001B 単位で同じ凸なら精密値だけ採り、編成は attacks のものを残す。
+                //   丸め誤差を超えて大きい = 別の凸 → 編成を捨てて player_damages (模擬タブ) に委ねる
+                const cur = actualByCode.get(a.bossCode);
+                if (cur == null || cur < d) {
                     actualByCode.set(a.bossCode, d);
-                    actualTeamByCode.delete(a.bossCode);
+                    if (!sameAttack(cur, d)) actualTeamByCode.delete(a.bossCode);
                 }
             }
         }
@@ -153,8 +159,9 @@ for (const b of bosses) {
     const act = actualByCode.get(b.boss_code);
     const damage = sim ?? act;   // 模擬優先 (本家 buildFururiBaseMap と同じ運用ルール)
     if (!(damage > 0)) { missing.push(`${attr} (${b.boss_code} / ${b.name})`); continue; }
-    // 模擬が実凸と同額 = ふるりが実凸の結果を模擬タブへ転記しただけ → 実凸として開示する
-    const source = (sim == null || (act != null && Math.round(sim) === Math.round(act))) ? 'actual' : 'simulation';
+    // 模擬が実凸と同じ凸 = ふるりが実凸の結果を模擬タブへ転記しただけ → 実凸として開示する
+    // (月次JSON が入ると act が精密値になるので、0.001B 単位で比較しないと「模擬」に戻ってしまう)
+    const source = (sim == null || sameAttack(sim, act)) ? 'actual' : 'simulation';
     bases[attr] = { bossCode: b.boss_code, damage, source };
 }
 // 模擬登録が無く実凸だけで決まった属性は、締め凸の削りだった可能性を運営が確認できるよう明示する
