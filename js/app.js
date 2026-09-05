@@ -1182,16 +1182,8 @@ function distSectionHTML(r, info) {
 }
 
 // ---------- シェアカード ----------
-// 描画は sharecard.js。ここは結果ごとに1度だけ生成してキャッシュする薄いラッパ
-async function getShareCard() {
-    if (shareBlob) return shareBlob;
-    // toBlob は端末によっては null を返す (メモリ不足等)。null をそのまま配ると
-    // createObjectURL / new File が例外になるので、ここで失敗として扱う
-    const blob = await buildShareCard(results, $('shareCanvas'), { infoOf, totalDist });
-    if (!blob) throw new Error('カード画像を生成できませんでした');
-    shareBlob = blob;
-    return shareBlob;
-}
+// 描画は sharecard.js。生成は showShareCardPreview に一本化してある
+//   (押す前に必ず生成済み = 共有経路に await を入れないため)。
 
 // シェアカードを「まず見せる」: 生成してその場にプレビュー表示する
 // (保存は 長押し/右クリック または ボタン — 見えてから保存できるのが正)。
@@ -1207,10 +1199,28 @@ function setPreviewImage(blob) {
     const hint = $('saveHint');
     if (hint) hint.style.display = 'block';
 }
+// カードが出来るまで共有・保存ボタンは押させない。
+// ⚠ これが「準備前に押された」経路をまとめて塞ぐ: その経路は await を挟むため iOS で
+//   activation が切れ (= 画像なしXインテント)、アプリ内ブラウザでは効かない a[download] に
+//   落ちていた (Codex指摘)。押せない状態にすれば、その分岐自体が起きない。
+let cardFailed = false;
+function setShareButtons(state) {   // 'busy' | 'ready' | 'failed'
+    cardFailed = state === 'failed';
+    const busy = state === 'busy';
+    for (const [id, label] of [['shareBtn', '📤 シェアする'], ['saveBtn', '💾 画像を保存']]) {
+        const b = $(id);
+        if (!b) continue;
+        b.disabled = busy;
+        b.style.opacity = busy ? '0.55' : '';
+        if (id === 'shareBtn') b.textContent = busy ? '画像を準備中…' : (cardFailed ? '📤 文章だけ共有' : label);
+        else { b.textContent = label; b.style.display = cardFailed ? 'none' : ''; }   // 画像が無ければ保存は出さない
+    }
+}
 async function showShareCardPreview() {
     const gen = ++previewGen;
     shareBlob = null;
     $('shareCard').style.display = 'block';
+    setShareButtons('busy');
     // 生成中は古いカードを見せない (前回結果の保存事故を防ぐ)
     $('cardPreview').style.display = 'none';
     const hint = $('saveHint');
@@ -1222,9 +1232,12 @@ async function showShareCardPreview() {
         if (!blob) throw new Error('toBlob が null を返しました');
         shareBlob = blob;
         setPreviewImage(blob);
+        setShareButtons('ready');
     } catch (e) {
+        if (gen !== previewGen) return;
         // 無言で「画像だけ出ない」状態にしない (実機からの「画像が表示されない」報告の温床だった)
         console.warn('シェアカード生成失敗:', e);
+        setShareButtons('failed');
         toast('画像を作れませんでした。文章だけでも共有できます');
     }
 }
@@ -1256,18 +1269,14 @@ function shareText() {
 
 // ⚠ navigator.share() は「ユーザー操作中」でないと呼べない (transient user activation)。
 // await を1つでも挟むと iOS では activation が切れて NotAllowedError になり、
-// 画像を運べない X インテントに落ちる = 「共有しても画像が付かない」の原因。
-// そのため送信直後に生成済みの shareBlob をそのまま同期的に渡す (async にしないこと)。
+// 画像を運べない X インテント (テキストとURLのみ) に落ちる = 実機で報告された
+// 「共有しても画像が付かない」の原因。ボタンは準備完了まで disabled なので、
+// ここに来る時点で shareBlob は用意できている (async にしないこと)。
+let shareBusy = false;
 function onShare() {
-    if (!results) return;
-    if (shareBlob && shareWithFile(shareBlob)) return;
-    if (shareBlob) { shareFallback(); return; }
-    // まだ生成中 (押すのが早かった) — 待ってから試す。この経路は activation が切れるので
-    // iOS ではフォールバックになるが、待たずに諦めるよりは良い
-    toast('画像を準備しています…');
-    getShareCard()
-        .then((blob) => { if (!shareWithFile(blob)) shareFallback(); })
-        .catch((e) => { console.warn('シェアカード生成失敗:', e); shareFallback(true); });
+    if (!results || shareBusy) return;
+    if (cardFailed || !shareBlob) { shareFallback(true); return; }   // 画像なしで文章だけ
+    if (!shareWithFile(shareBlob)) shareFallback();
 }
 
 // 画像つきでOS標準の共有シートを開く。開始できたら true (結果は非同期)。
@@ -1279,13 +1288,20 @@ function shareWithFile(blob, opts = {}) {
     try { file = new File([blob], 'fururi-score.png', { type: 'image/png' }); } catch { return false; }
     try {
         if (!navigator.canShare({ files: [file] })) return false;
-        navigator.share({ files: [file], text: `${shareText()}\n${SITE_URL}` }).catch((e) => {
+        shareBusy = true;   // 連打で2つ目の share を投げない (2つ目が拒否されて誤ってXに飛ぶのを防ぐ)
+        // Promise を解決しない実装に当たってもボタンが永久に効かなくならないようにする
+        const unstick = setTimeout(() => { shareBusy = false; }, 30000);
+        navigator.share({ files: [file], text: `${shareText()}\n${SITE_URL}` }).then(() => {
+            clearTimeout(unstick); shareBusy = false;
+        }, (e) => {
+            clearTimeout(unstick); shareBusy = false;
             if (e && e.name === 'AbortError') { (opts.onAbort ?? (() => {}))(); return; }   // ユーザーがキャンセル
             console.warn('share失敗:', e);
             (opts.onFail ?? shareFallback)();
         });
     } catch (e) {
         // canShare/share が同期例外を投げる実装への保険 (呼び出し元のフォールバックに委ねる)
+        shareBusy = false;
         console.warn('share呼び出し失敗:', e);
         return false;
     }
@@ -1294,58 +1310,62 @@ function shareWithFile(blob, opts = {}) {
 
 // フォールバック: X インテントはテキストとURLしか運べない (画像は絶対に付かない) ので、
 // 「画像は手動で添付する」ことを必ず伝える。無言で終わらせない。
-// 連打で intent を2つ開かないよう短時間は無視する (Codex指摘)。
+// 連打で intent を2つ開かないよう短時間は open だけ抑える (案内は毎回出す — Codex指摘)。
 let lastFallbackAt = 0;
-function shareFallback(cardFailed = false) {
+function shareFallback(noImage = false) {
     const now = Date.now();
-    if (now - lastFallbackAt < 2000) return;
+    const recent = now - lastFallbackAt < 2000;
     lastFallbackAt = now;
-    if (cardFailed) {
-        toast('画像を作れませんでした。文章だけ共有します');
+    if (noImage) {
+        toast('画像なしで文章だけ共有します');
     } else {
         previewCard().catch(() => {});
         toast('この環境では画像を自動添付できません。上の画像を保存して添付してください');
     }
+    if (recent) return;
     const w = window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText())}&url=${encodeURIComponent(SITE_URL)}`, '_blank');
-    if (!w) toast('Xを開けませんでした。画像を保存してから手動で投稿してください');
+    // 画像が無いときに「画像を保存して」と言わない (矛盾した案内を出さない — Codex指摘)
+    if (!w) toast(noImage ? 'Xを開けませんでした。もう一度お試しください'
+        : 'Xを開けませんでした。画像を保存してから手動で投稿してください');
 }
 
 // 保存も共有と同じ制約を受ける。アプリ内ブラウザ (X/LINE等) は <a download> を無視するので
 // 端末標準の共有シート経由で「写真に保存」してもらうが、**ここも await を挟まない** —
 // 挟むと activation が切れて共有シートが出ず、保存できないまま無言で終わる (Codex指摘)。
 function onSave() {
-    if (!results) return;
-    if (isInAppBrowser() && shareBlob && shareWithFile(shareBlob, {
+    if (!results || shareBusy || !shareBlob) return;   // 準備前はボタンが disabled なので通常来ない
+    if (isInAppBrowser() && shareWithFile(shareBlob, {
         onAbort: () => toast('保存をやめました。画像を長押しでも保存できます'),
         onFail: () => toast('この環境では保存できませんでした。画像を長押しして保存してください'),
     })) return;
-    saveByDownload();
+    saveByDownload(shareBlob);
 }
 
-// 通常ブラウザ用の保存 (a[download])。生成がまだなら待ってから落とす。
-async function saveByDownload() {
-    let blob;
+// 通常ブラウザ用の保存 (a[download])。DOM/ObjectURL 側の失敗も無言にしない。
+function saveByDownload(blob) {
     try {
-        blob = await getShareCard();
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = `fururi-score.png`;
+        a.click();
+        // ⚠ 同じターンで revoke するとダウンロードが始まる前にURLが無効になり得る (Codex指摘) — 後で捨てる
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
-        console.warn('シェアカード生成失敗:', e);
-        toast('画像を作れませんでした。時間をおいて再度お試しください');
+        console.warn('保存に失敗:', e);
+        toast('保存できませんでした。画像を長押しして保存してください');
         return;
     }
-    const a = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    a.href = url;
-    a.download = `fururi-score.png`;
-    a.click();
-    // ⚠ 同じターンで revoke するとダウンロードが始まる前にURLが無効になり得る (Codex指摘) — 後で捨てる
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    await previewCard();
     if (isInAppBrowser()) toast('保存できないときは画像を長押しして保存してください');
 }
 
-async function previewCard() {
-    const blob = await getShareCard();
-    setPreviewImage(blob);   // Object URL は setPreviewImage が一元管理 (漏れ防止 — Codex指摘)
+// フォールバックからのみ呼ぶ。shareBlob がある前提 (無い場合は呼び出し側が noImage 扱い)
+function previewCard() {
+    return new Promise((res, rej) => {
+        if (!shareBlob) return rej(new Error('カード未生成'));
+        setPreviewImage(shareBlob);   // Object URL は setPreviewImage が一元管理 (漏れ防止 — Codex指摘)
+        res();
+    });
 }
 
 // ---------- misc ----------
