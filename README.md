@@ -310,9 +310,12 @@ node scripts/update-roster.mjs        # ../しりすこPAD を読む (パス指�
 - 警告が消えたら commit → push
 
 base.json の基準ダメージの出所 (new-season.mjs が自動で解決する):
-- 基準者ふるりの `syncLevel` と各属性の実凸ダメージ → 最新月JSON (`../しりすこPAD/data/YYYY-MM.json`)
-- 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → PAD の Supabase
-  `fururi_simulation_scores` (該当 season_id)。**模擬登録がある属性は模擬値を優先**
+- 基準者ふるりの実凸ダメージと編成 → 本家 Supabase の `attacks` (該当 season_id・**開催中でも読める**)。
+  `syncLevel` と実凸のバックアップ → 最新月JSON (`../しりすこPAD/data/YYYY-MM.json`、レイド終了後)
+- 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → 本家 Supabase
+  `fururi_simulation_scores` (該当 season_id)。**模擬登録がある属性は模擬値を優先**。
+  ただし模擬の値が実凸と同額なら (実凸の結果を模擬タブに転記しただけ) `source: actual` として
+  実凸の編成を開示する。開催中に「実凸3属性 + 模擬2属性」で基準を組めるのはこのため
 
 ## Supabase セットアップ (初回のみ)
 

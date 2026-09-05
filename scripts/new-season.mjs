@@ -9,7 +9,9 @@
 //
 // データの出所 (README「シーズン切替の運用ランブック」の手転記2箇所を自動化):
 //   - ボス5体: 本家 Supabase bosses (アクティブな実シーズン)
-//   - 基準ダメージ: 本家 fururi_simulation_scores (模擬・優先) → 月次JSON のふるり実凸
+//   - 基準ダメージ: 本家 fururi_simulation_scores (模擬・優先) → ふるりの実凸
+//       (実凸は本家 attacks テーブル (開催中でも読める) と月次JSON の両方から拾う。
+//        模擬の値が実凸と同額なら「実凸を模擬タブに転記しただけ」なので source は actual)
 //   - 基準SLv: 月次JSON の syncLevel (無ければ --slv 指定が必須)
 //
 // ⚠ これを実行しても DB はまだ変わらない。残りの手順 (実行後に表示):
@@ -78,12 +80,28 @@ const raid = {
     bosses: Object.fromEntries(bosses.map(b => [String(b.weakness).toUpperCase(), b.name])),
 };
 
-// ---- 3) ふるり基準: 模擬 (優先) → 月次JSONの実凸 ----
+// ---- 3) ふるり基準: 模擬 (優先) → 実凸 (本家 attacks テーブル / 月次JSON) ----
 const sims = await padGet(`fururi_simulation_scores?select=boss_code,damage_raw&season_id=eq.${target.id}`);
 const simByCode = new Map(sims.map(s => [s.boss_code, Number(s.damage_raw)]));
 
 const monthPath = join(padDir, 'data', `${seasonKey}.json`);
 let actualByCode = new Map(), monthSlv = null;
+const actualTeamByCode = new Map();   // 実凸の編成 (attacks.characters) — 最大ダメージの凸のもの
+// 開催中は月次JSONがまだ無いので、本家 attacks テーブルからふるりの実凸を直接読む
+// (同一ボスに複数凸があれば大きい方 — 締め凸の削りを基準にしない)
+const fururiPlayerId = (await padGet(`players?select=id&name=eq.${encodeURIComponent('ふるり')}`))[0]?.id ?? null;
+if (fururiPlayerId != null) {
+    const atks = await padGet(`attacks?select=boss_code,damage_raw,characters&season_id=eq.${target.id}&player_id=eq.${fururiPlayerId}`);
+    for (const a of atks) {
+        const d = Number(a.damage_raw);
+        if (!a.boss_code || !(d > 0)) continue;
+        if (!actualByCode.has(a.boss_code) || actualByCode.get(a.boss_code) < d) {
+            actualByCode.set(a.boss_code, d);
+            actualTeamByCode.set(a.boss_code, Array.isArray(a.characters) ? a.characters : null);
+        }
+    }
+    if (atks.length) console.log(`実凸 (本家 attacks): ${[...actualByCode].map(([c, d]) => `${c}=${(d / 1e9).toFixed(2)}B`).join(' ')}`);
+}
 if (existsSync(monthPath)) {
     const month = JSON.parse(readFileSync(monthPath, 'utf8'));
     const fururi = (month.players || []).find(p => p.player === 'ふるり');
@@ -93,7 +111,10 @@ if (existsSync(monthPath)) {
             const d = Number(a.damage);
             if (a.bossCode && d > 0) {
                 // 同一ボスに複数凸があれば大きい方 (締め凸の削りを基準にしない)
-                if (!actualByCode.has(a.bossCode) || actualByCode.get(a.bossCode) < d) actualByCode.set(a.bossCode, d);
+                if (!actualByCode.has(a.bossCode) || actualByCode.get(a.bossCode) < d) {
+                    actualByCode.set(a.bossCode, d);
+                    actualTeamByCode.delete(a.bossCode);   // 月次JSONは編成を持たない → player_damages に委ねる
+                }
             }
         }
     }
@@ -114,7 +135,9 @@ for (const b of bosses) {
     const act = actualByCode.get(b.boss_code);
     const damage = sim ?? act;   // 模擬優先 (本家 buildFururiBaseMap と同じ運用ルール)
     if (!(damage > 0)) { missing.push(`${attr} (${b.boss_code} / ${b.name})`); continue; }
-    bases[attr] = { bossCode: b.boss_code, damage, source: sim != null ? 'simulation' : 'actual' };
+    // 模擬が実凸と同額 = ふるりが実凸の結果を模擬タブへ転記しただけ → 実凸として開示する
+    const source = (sim == null || (act != null && Math.round(sim) === Math.round(act))) ? 'actual' : 'simulation';
+    bases[attr] = { bossCode: b.boss_code, damage, source };
 }
 if (missing.length > 0) {
     console.error(`❌ ふるり基準が揃っていません: ${missing.join(', ')}`);
@@ -124,7 +147,7 @@ if (missing.length > 0) {
 }
 const base = {
     version: seasonKey,
-    description: 'ふるり値の基準データ (scripts/new-season.mjs の生成物)。基準者(ふるり)の属性別ダメージ @ 基準SLv。模擬登録がある属性は模擬値を採用',
+    description: 'ふるり値の基準データ (scripts/new-season.mjs の生成物)。基準者(ふるり)の属性別ダメージ @ 基準SLv。模擬登録がある属性は模擬値を採用 (source: actual=実凸 / simulation=模擬)',
     basePlayer: 'ふるり',
     baseSlv,
     bases,
@@ -166,28 +189,41 @@ try {
     // player_damages はシーズン列を持たない「現在の模擬」テーブルなので、
     // ⚠ 採用は damage_b が今回の基準ダメージと一致する属性だけ (古い模擬の混入を構造的に排除)
     try {
-        const fururiId = (await padGet(`players?select=id&name=eq.${encodeURIComponent(base.basePlayer)}`))[0]?.id;
+        const fururiId = fururiPlayerId;
         const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
         const idByName = new Map();
         if (charData._format === 2) for (const [cid, c] of Object.entries(charData.chars)) idByName.set(normName(c.name), cid);
-        const dmgs = fururiId ? await padGet(`player_damages?select=attribute,slot,damage_b,characters&player_id=eq.${fururiId}`) : [];
+        // 名前配列 → 代表ID5件 (解決できなければ null と未解決名)
+        const resolveTeam = (chars) => {
+            const names = (chars || []).map(n => String(n).split('/').pop());
+            const ids = names.map(n => idByName.get(normName(n))).filter(Boolean);
+            return ids.length === 5 ? { ids: ids.sort() } : { ids: null, unresolved: names.filter(n => !idByName.has(normName(n))) };
+        };
         let attached = 0;
+        // (a) 実凸として採用した属性は、その凸の編成 (attacks.characters) をそのまま使う
+        for (const [attr, b] of Object.entries(bases)) {
+            if (b.source !== 'actual') continue;
+            const chars = actualTeamByCode.get(b.bossCode);
+            if (!chars) continue;
+            const r = resolveTeam(chars);
+            if (!r.ids) { console.warn(`⚠ ${attr}: 実凸編成の名前解決に失敗 (${r.unresolved.join(', ') || '5体未満'}) — 模擬編成で再試行`); continue; }
+            b.team = r.ids;
+            attached++;
+        }
+        // (b) 残りは模擬 (player_damages slot1) の編成。値が基準と一致する属性だけ採用
+        const dmgs = fururiId != null ? await padGet(`player_damages?select=attribute,slot,damage_b,characters&player_id=eq.${fururiId}`) : [];
         for (const d of dmgs) {
             if ((d.slot ?? 1) !== 1) continue;                    // 基準は slot1 (主編成)
             const attr = String(d.attribute).toUpperCase();
             const b = bases[attr];
-            if (!b) continue;
+            if (!b || b.team) continue;
             if (Math.round(Number(d.damage_b) * 1e9) !== Math.round(b.damage)) {
                 console.warn(`⚠ ${attr}: 模擬の値 (${d.damage_b}B) が基準 (${(b.damage / 1e9).toFixed(3)}B) と一致しないため編成を採用しません`);
                 continue;
             }
-            const names = (d.characters || []).map(n => String(n).split('/').pop());
-            const ids = names.map(n => idByName.get(normName(n))).filter(Boolean);
-            if (ids.length !== 5) {
-                console.warn(`⚠ ${attr}: 編成の名前解決に失敗 (${names.filter(n => !idByName.has(normName(n))).join(', ') || '5体未満'})`);
-                continue;
-            }
-            b.team = ids.sort();
+            const r = resolveTeam(d.characters);
+            if (!r.ids) { console.warn(`⚠ ${attr}: 編成の名前解決に失敗 (${r.unresolved.join(', ') || '5体未満'})`); continue; }
+            b.team = r.ids;
             attached++;
         }
         if (attached > 0) {
