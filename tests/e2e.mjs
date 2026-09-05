@@ -64,10 +64,14 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       check('測定UIが隠れている', !fd.querySelector('.atk-card'));
       // 次シーズンの基準 (base.json) が表示中シーズンと食い違うときは、基準パネルを畳んで出さない
       // (切替ランブックは seed→push→open の順なので、between 中は base.json が先に次シーズンになる)
+      // 期待値は検証対象 (ラベル) からではなく、site_state.display_season と base.json から独立に導く
+      // (Codex指摘: ラベル由来だと「between でも基準を出してしまう」回帰を else 側が素通しする)
       const baseJson = await (await fetch('/data/base.json')).json();
       const label = fd.getElementById('baseVersionLabel')?.textContent ?? '';
       const fold = fd.getElementById('baseFold');
-      const nextSeasonStaged = !label.startsWith(baseJson.version);
+      const be = await import('/js/backend.js');
+      const st = await be.fetchSiteState().catch(() => null);
+      const nextSeasonStaged = (st?.display_season ?? null) !== baseJson.version;
       if (nextSeasonStaged) {
         check('基準パネルが隠れている (次シーズン分の先出し防止)', fold?.style.display === 'none' && !fd.querySelector('#baseTeams .base-row'));
         check('基準ラベルに次シーズンの値が出ない', !label.includes(String(baseJson.baseSlv)) && /準備中/.test(label));

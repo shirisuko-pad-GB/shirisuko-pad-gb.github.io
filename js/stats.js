@@ -88,9 +88,10 @@ async function renderEase() {
     } catch (e) { console.warn('通りやすさの算出失敗:', e); }
 }
 
-// 属性タブの順 (raid.order があればそれ)
+// 属性タブの順 (raid.order があればそれ)。between 中は raid.json が次シーズンに先行しているので、
+// 表示中シーズンと一致するときだけ採用 (前シーズンの統計を次シーズンのボス順で並べない)
 function orderedAttrs() {
-    const o = raid?.order;
+    const o = (raid?.season === viewSeason) ? raid?.order : null;
     if (Array.isArray(o) && o.length === 5 && new Set(o).size === 5 && o.every(a => ATTRS.includes(a))) return o;
     return ATTRS;
 }

@@ -30,12 +30,12 @@
     },
     "FIRE": {
       "bossCode": "A.N.M.I.",
-      "damage": 13718000000,
+      "damage": 15523000000,
       "source": "simulation",
       "team": [
         "171c4160829049f2604cde5036b79801.webp",
+        "68aa881ffdc137d2a50da839eaa1adb6.webp",
         "6bf2f9261d5b41c4659692a6eb78527a.webp",
-        "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
         "830d9d8541fce0c485950e38050b1c6d.webp",
         "ec51dcc7846a88299df91a31ac5c41c2.webp"
       ]
