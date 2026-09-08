@@ -16,6 +16,12 @@ function charTileTag(img, { xs = false } = {}) {
 
 const ATTRS = Object.keys(ATTR_INFO);
 
+// RPC由来の «人数» を差し込む前に数値へ落とす。t() は素の文字列を返すだけで
+// エスケープしないので、数値のつもりの値が文字列で返ってきたら innerHTML に
+// そのまま入ってしまう (CLAUDE.md 絶対ルール4)。数値化は escape より強い防御 —
+// HTMLになり得る文字が構造的に残らない (Codex指摘)
+const count = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : fallback);
+
 const $ = (id) => document.getElementById(id);
 let base = null, characters = null, raid = null, site = null;
 let viewSeason = null, current = null;
@@ -118,7 +124,13 @@ function renderTabs() {
         b.addEventListener('click', () => { current = b.dataset.attr; renderTabs(); load(); }));
 }
 
+// タブは await 中でも切り替わる。**この読み込みが対象にした属性**を掴んでおき、
+// 描画にもラベルにもそれを使う (current を後から読むと、遅れて届いた応答が
+// 別属性のラベルで描かれる)。世代トークンで古い応答は捨てる — Codex指摘
+let loadGen = 0;
 async function load() {
+    const attr = current;
+    const gen = ++loadGen;
     $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.loading')}</p>`;
     if (!backendConfigured()) {
         $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.backend_off')}</p>`;
@@ -127,18 +139,22 @@ async function load() {
     try {
         const [dist, ins] = await Promise.all([
             // p_score=0 で呼ぶ (自分の位置は不要・分布だけ使う)
-            fetchDistribution({ attribute: current, season: viewSeason, score: 0 }),
-            fetchCompInsights({ attribute: current, season: viewSeason }),
+            fetchDistribution({ attribute: attr, season: viewSeason, score: 0 }),
+            fetchCompInsights({ attribute: attr, season: viewSeason }),
         ]);
-        renderDist(dist);
-        renderInsights(ins);
+        if (gen !== loadGen) return;   // その間に別タブへ切り替わった → この応答は捨てる
+        renderDist(dist, attr);
+        renderInsights(ins, attr);
     } catch (e) {
         console.warn(e);
+        if (gen !== loadGen) return;
         $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.fetch_failed')}</p>`;
     }
 }
 
-function gateHTML(n, min, what) {
+function gateHTML(rawN, rawMin, what) {
+    const n = count(rawN);
+    const min = count(rawMin, 1) || 1;   // 0除算にしない
     const pct = Math.min(100, Math.round((n / min) * 100));
     return `
     <div class="gate-note">
@@ -148,11 +164,11 @@ function gateHTML(n, min, what) {
     </div>`;
 }
 
-function renderDist(d) {
+function renderDist(d, attr) {
     // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
     if (!d || d.gated || !Array.isArray(d.bins)) {
         $('distArea').innerHTML = gateHTML(d?.n ?? 0, d?.need ?? THRESHOLDS.dist,
-            t('stats.what_dist', { team: t('ui.team_of', { code: attrName(current) }) }));
+            t('stats.what_dist', { team: t('ui.team_of', { code: attrName(attr) }) }));
         return;
     }
     const maxBin = Math.max(...d.bins, 1);
@@ -161,15 +177,15 @@ function renderDist(d) {
         `<div class="bar" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('')}</div>
     <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>${t('ui.axis_median', { v: d.median.toFixed(2) })}</span><span>${d.hi.toFixed(2)}</span></div>
     <p class="dist-note">${t('stats.dist_note', {
-        team: t('ui.team_of', { code: attrName(current) }), n: d.n, v: d.median.toFixed(2),
+        team: t('ui.team_of', { code: attrName(attr) }), n: count(d.n), v: d.median.toFixed(2),
     })}</p>`;
 }
 
-function renderInsights(ins) {
-    const n = ins?.n ?? 0;
+function renderInsights(ins, attr) {
+    const n = count(ins?.n);
     if (!ins || ins.gated || !ins.chars) {   // サーバー閾値未満は本体なし
         $('charsArea').innerHTML = gateHTML(n, ins?.need ?? THRESHOLDS.insights,
-            t('stats.what_comp', { team: t('ui.team_of', { code: attrName(current) }) }));
+            t('stats.what_comp', { team: t('ui.team_of', { code: attrName(attr) }) }));
         $('compsArea').innerHTML = `<p class="hint">${t('stats.comps_gated')}</p>`;
         return;
     }
@@ -187,7 +203,7 @@ function renderInsights(ins) {
         <span class="rank">${i + 1}</span>
         <span class="comp-meta">
             <span>${t('stats.median_strong', { v: Number(cp.median).toFixed(2) })}</span>
-            <span>${t('stats.used_strong', { n: cp.n })}</span>
+            <span>${t('stats.used_strong', { n: count(cp.n) })}</span>
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>
     </div>`);
@@ -205,7 +221,7 @@ function renderInsights(ins) {
         const row = `
         <span class="rank">${i + 1}</span>
         <span class="comp-meta">
-            <span>${t('stats.used_strong', { n: cp.n })}</span>
+            <span>${t('stats.used_strong', { n: count(cp.n) })}</span>
             ${stats}
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>`;
