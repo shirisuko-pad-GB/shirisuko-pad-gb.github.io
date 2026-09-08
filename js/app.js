@@ -60,6 +60,7 @@ async function init() {
     initLang();
     applyStaticI18n();
     mountLangToggle();
+    document.title = t('ui.page_title');   // タブ・ブラウザの共有メニューも表示言語に合わせる
     const [b, p, c, rd, st, sc] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         Promise.resolve(null),   // presets.json (過去シーズンのユニオン実績) は使わない — 今シーズンの提出データを使う

@@ -668,5 +668,28 @@ test('辞書: 差し込み {name} が ja と en で食い違わない', () => {
     assertEq(bad.length, 0, `差し込みが食い違う鍵: ${bad.join(' , ')}`);
 });
 
+test('辞書: HTML の data-i18n が指す鍵が実在する', () => {
+    // 鍵の綴りを間違えると t() は «鍵そのもの» を返す = 画面に 'ui.submit' と出てしまう。
+    // 静的文言は起動時に一括で差し替わるので、綴り違いはページ全体に一気に出る
+    const missing = [];
+    for (const page of ['index.html', 'stats.html']) {
+        const h = readFileSync(join(ROOT, page), 'utf8');
+        const keys = [
+            ...[...h.matchAll(/data-i18n="([^"]+)"/g)].map((m) => m[1]),
+            ...[...h.matchAll(/data-i18n-html="([^"]+)"/g)].map((m) => m[1]),
+            // data-i18n-attr="placeholder:ui.slv_ph alt:ui.card_alt" → 鍵だけ取り出す
+            ...[...h.matchAll(/data-i18n-attr="([^"]+)"/g)]
+                .flatMap((m) => m[1].split(/\s+/).map((p) => p.slice(p.indexOf(':') + 1))),
+        ];
+        assert(keys.length > 0, `${page} に data-i18n がありません (置換の取りこぼし?)`);
+        for (const k of keys) {
+            for (const lang of LANGS) {
+                if (MESSAGES[lang][k] === undefined) missing.push(`${page}: ${k} (${lang})`);
+            }
+        }
+    }
+    assertEq(missing.length, 0, `辞書に無い鍵を HTML が指しています: ${missing.join(' , ')}`);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

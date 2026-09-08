@@ -1,7 +1,8 @@
 // みんなのデータページ (閲覧専用)。集計はすべてサーバー側RPC。
 import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured } from './backend.js';
-import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO, enablePullToRefresh } from './shared.js';
+import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO, enablePullToRefresh, attrName } from './shared.js';
 import { makeCharResolver, tileHTML, sortForDisplay } from './tiles.js';
+import { t, initLang, applyStaticI18n, mountLangToggle } from './i18n.js';
 
 let infoOf = () => null;
 
@@ -20,6 +21,11 @@ let base = null, characters = null, raid = null, site = null;
 let viewSeason = null, current = null;
 
 async function init() {
+    // 表示言語をまず確定 (この後の描画は全部これを見る)
+    initLang();
+    applyStaticI18n();
+    mountLangToggle();
+    document.title = t('stats.page_title');
     [base, characters, raid, site] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         fetch('./data/characters.json').then(x => x.json()).catch(() => null),
@@ -40,13 +46,16 @@ async function init() {
     if (status !== 'open' && viewSeason) {
         const el = document.querySelector('header');
         if (el) el.insertAdjacentHTML('beforeend',
-            `<p class="hint" style="margin-top:6px;color:var(--sub2);">${status === 'between' ? '⏳ 次シーズン準備中' : '🚧 工事中'} — 表示中: ${escapeHtml(viewSeason)} シーズン (確定分)</p>`);
+            `<p class="hint" style="margin-top:6px;color:var(--sub2);">${t('stats.viewing_season', {
+                mode: t(status === 'between' ? 'ui.between_h' : 'ui.maint_h'),
+                season: escapeHtml(viewSeason),
+            })}</p>`);
     }
     enablePullToRefresh();   // PWA standalone にはブラウザの更新ボタンが無いので自前で
     current = orderedAttrs()[0];
     renderTabs();
     if (!viewSeason) {
-        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = '<p class="err">表示できるシーズンがありません。</p>';
+        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.no_season')}</p>`;
         return;
     }
     load();
@@ -72,16 +81,16 @@ async function renderEase() {
             const info = ATTR_INFO[attr];
             if (median == null) return `
             <div class="ease-cell">
-                <span class="e-name" style="color:${info.color};">${info.jp}</span>
+                <span class="e-name" style="color:${info.color};">${attrName(attr)}</span>
                 <span class="e-val" style="color:var(--faint);">—</span>
-                <span class="e-med">集計待ち</span>
+                <span class="e-med">${t('stats.ease_pending')}</span>
             </div>`;
             const v = median / center;
             return `
             <div class="ease-cell${Math.abs(v - 1) < 1e-9 ? ' center' : ''}">
-                <span class="e-name" style="color:${info.color};">${info.jp}</span>
+                <span class="e-name" style="color:${info.color};">${attrName(attr)}</span>
                 <span class="e-val">×${v.toFixed(2)}</span>
-                <span class="e-med">中央値 ${median.toFixed(2)}</span>
+                <span class="e-med">${t('ui.axis_median', { v: median.toFixed(2) })}</span>
             </div>`;
         }).join('');
         $('easeCard').style.display = 'block';
@@ -102,7 +111,7 @@ function renderTabs() {
         return `
         <button type="button" class="attr-tab${a === current ? ' active' : ''}" data-attr="${a}"
                 style="--ac:${i.color};">
-            <span class="ico">${i.jp[0]}</span><span class="name">${i.jp}PT</span>
+            <span class="ico">${escapeHtml(t(`attr.short.${a}`))}</span><span class="name">${escapeHtml(t('ui.team_of', { code: attrName(a) }))}</span>
         </button>`;
     }).join('');
     $('attrTabs').querySelectorAll('.attr-tab').forEach(b =>
@@ -110,10 +119,9 @@ function renderTabs() {
 }
 
 async function load() {
-    const info = ATTR_INFO[current];
-    $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = '<p class="err">読み込み中…</p>';
+    $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.loading')}</p>`;
     if (!backendConfigured()) {
-        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = '<p class="err">データ機能は準備中です</p>';
+        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.backend_off')}</p>`;
         return;
     }
     try {
@@ -122,11 +130,11 @@ async function load() {
             fetchDistribution({ attribute: current, season: viewSeason, score: 0 }),
             fetchCompInsights({ attribute: current, season: viewSeason }),
         ]);
-        renderDist(dist, info);
-        renderInsights(ins, info);
+        renderDist(dist);
+        renderInsights(ins);
     } catch (e) {
         console.warn(e);
-        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = '<p class="err">データを取得できませんでした。時間をおいて再読み込みしてください。</p>';
+        $('distArea').innerHTML = $('charsArea').innerHTML = $('compsArea').innerHTML = `<p class="err">${t('stats.fetch_failed')}</p>`;
     }
 }
 
@@ -135,30 +143,34 @@ function gateHTML(n, min, what) {
     return `
     <div class="gate-note">
         <span>🔒</span>
-        <span>${what}は <strong>${min}人</strong> で解禁 — 現在 <strong>${n}人</strong></span>
+        <span>${t('stats.gate', { what, min, n })}</span>
         <span class="gate-bar"><span style="width:${pct}%"></span></span>
     </div>`;
 }
 
-function renderDist(d, info) {
+function renderDist(d) {
     // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
     if (!d || d.gated || !Array.isArray(d.bins)) {
-        $('distArea').innerHTML = gateHTML(d?.n ?? 0, d?.need ?? THRESHOLDS.dist, `${info.jp}PT の分布`);
+        $('distArea').innerHTML = gateHTML(d?.n ?? 0, d?.need ?? THRESHOLDS.dist,
+            t('stats.what_dist', { team: t('ui.team_of', { code: attrName(current) }) }));
         return;
     }
     const maxBin = Math.max(...d.bins, 1);
     $('distArea').innerHTML = `
     <div class="hist">${d.bins.map(v =>
         `<div class="bar" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('')}</div>
-    <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
-    <p class="dist-note">${info.jp}PT の提出 <strong>${d.n}人</strong>。中央値はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
+    <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>${t('ui.axis_median', { v: d.median.toFixed(2) })}</span><span>${d.hi.toFixed(2)}</span></div>
+    <p class="dist-note">${t('stats.dist_note', {
+        team: t('ui.team_of', { code: attrName(current) }), n: d.n, v: d.median.toFixed(2),
+    })}</p>`;
 }
 
-function renderInsights(ins, info) {
+function renderInsights(ins) {
     const n = ins?.n ?? 0;
     if (!ins || ins.gated || !ins.chars) {   // サーバー閾値未満は本体なし
-        $('charsArea').innerHTML = gateHTML(n, ins?.need ?? THRESHOLDS.insights, `${info.jp}PT の編成データ`);
-        $('compsArea').innerHTML = `<p class="hint">編成を登録した提出が増えると表示されます</p>`;
+        $('charsArea').innerHTML = gateHTML(n, ins?.need ?? THRESHOLDS.insights,
+            t('stats.what_comp', { team: t('ui.team_of', { code: attrName(current) }) }));
+        $('compsArea').innerHTML = `<p class="hint">${t('stats.comps_gated')}</p>`;
         return;
     }
     // キャラ採用率 (img は charTileTag が形式検証 + 名前エスケープ)
@@ -167,40 +179,40 @@ function renderInsights(ins, info) {
             ${charTileTag(c.img)}
             <div class="pct">${Math.round((c.count / n) * 100)}%</div>
         </div>`).join('')}</div>
-    <p class="dist-note">対象: 編成つき提出 ${n}人</p>`;
+    <p class="dist-note">${t('stats.chars_target', { n })}</p>`;
     // 💪 中央値が高い編成 (採用5人以上のみ・サーバーが選抜)。08未適用の旧サーバーでは
     // medianTop が無いので、そのときはセクションごと出さない (静かに劣化)
     const medianTop = (Array.isArray(ins.medianTop) ? ins.medianTop : []).map((cp, i) => `
     <div class="comp-row strong-comp">
         <span class="rank">${i + 1}</span>
         <span class="comp-meta">
-            <span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>
-            <span>採用 <strong>${cp.n}人</strong></span>
+            <span>${t('stats.median_strong', { v: Number(cp.median).toFixed(2) })}</span>
+            <span>${t('stats.used_strong', { n: cp.n })}</span>
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>
     </div>`);
     const medianTopHtml = medianTop.length
-        ? `<p class="sec-label">💪 中央値が高い編成 (採用5人以上)</p>${foldRows(medianTop)}
-           <p class="sec-label" style="margin-top:14px;">📊 よく使われる編成 (使用率順)</p>` : '';
+        ? `<p class="sec-label">${t('stats.sec_median_top')}</p>${foldRows(medianTop)}
+           <p class="sec-label" style="margin-top:14px;">${t('stats.sec_popular')}</p>` : '';
 
     // 編成ランキング (使用率順)。median は採用5人未満だと null (プライバシー下限)。
     // 編成は「同じ5人」で1つ (並び順は評価に無関係なので内訳は出さない — 2026-08-01 運営判断)
     const compRows = (ins.comps || []).map((cp, i) => {
         const stats = Number.isFinite(cp.median)
-            ? `<span>中央値 <strong>${Number(cp.median).toFixed(2)}</strong></span>`
-            : `<span style="color:var(--faint);">スコアは5人以上で表示</span>`;
+            ? `<span>${t('stats.median_strong', { v: Number(cp.median).toFixed(2) })}</span>`
+            : `<span style="color:var(--faint);">${t('stats.score_needs_5')}</span>`;
 
         const row = `
         <span class="rank">${i + 1}</span>
         <span class="comp-meta">
-            <span>採用 <strong>${cp.n}人</strong></span>
+            <span>${t('stats.used_strong', { n: cp.n })}</span>
             ${stats}
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>`;
         return `<div class="comp-row">${row}</div>`;
     });
     $('compsArea').innerHTML = medianTopHtml +
-        (compRows.length ? foldRows(compRows) : '<p class="hint">まだ編成つきの提出がありません</p>');
+        (compRows.length ? foldRows(compRows) : `<p class="hint">${t('stats.comps_empty')}</p>`);
 }
 
 // ランキングの折りたたみ: TOP3 は常時表示、4位以下は <details> に格納 (両ランキング共通)。
@@ -212,12 +224,12 @@ function foldRows(rows) {
     if (rest.length === 0) return head;
     return head + `
     <details class="rank-fold">
-        <summary><span class="chev">▼</span> 4〜${rows.length}位も見る</summary>
+        <summary>${t('stats.show_rest', { last: rows.length })}</summary>
         ${rest.join('')}
     </details>`;
 }
 
 init().catch(e => {
     console.error(e);
-    $('distArea').innerHTML = '<p class="err">読み込みに失敗しました</p>';
+    $('distArea').innerHTML = `<p class="err">${t('stats.load_failed')}</p>`;
 });

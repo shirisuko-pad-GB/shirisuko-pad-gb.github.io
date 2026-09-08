@@ -61,6 +61,15 @@
             padding:8px 16px 8px 8px; font-size:12px; font-weight:800; color:var(--ink); text-decoration:none;
         }
         .back .arr { width:22px; height:22px; border-radius:999px; background:var(--ink); color:var(--onink); display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
+        /* 言語トグル: 押すと「切り替え先の言語」名が出ている方へ入れ替わる (i18n.js) */
+        .lang-btn {
+            margin-left:auto; margin-top:4px; align-self:flex-start; flex-shrink:0;
+            border:1px solid var(--line); background:var(--card); color:var(--sub);
+            border-radius:999px; padding:7px 13px; font-size:11.5px; font-weight:800;
+            cursor:pointer; font-family:inherit; white-space:nowrap;
+            -webkit-tap-highlight-color:transparent;
+        }
+        .lang-btn:hover { color:var(--ink); }
         .card { background:var(--card); border-radius:22px; border:1px solid var(--line); padding:20px; margin-bottom:14px; }
         .card h2 { font-size:13.5px; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:12px; }
         .hint { font-size:11px; color:var(--sub2); }
@@ -151,49 +160,50 @@
     </style>
 </head>
 <body>
-<div class="ptr" id="ptr" aria-live="polite" aria-hidden="true">↓ 引っぱって更新</div>
+<div class="ptr" id="ptr" aria-live="polite" aria-hidden="true" data-i18n="ui.ptr">↓ 引っぱって更新</div>
 <div class="wrap">
     <header>
         <div class="brand-dot">📊</div>
         <div>
             <div class="brand">SHIRISUKO PAD GLOBAL</div>
-            <h1>みんなのデータ</h1>
+            <h1 data-i18n="stats.h1">みんなのデータ</h1>
         </div>
+        <button type="button" class="lang-btn" id="langBtn">English</button>
     </header>
 
-    <a class="back" href="./"><span class="arr">←</span> 測定にもどる</a>
+    <a class="back" href="./" data-i18n-html="stats.back"><span class="arr">←</span> 測定にもどる</a>
 
     <div class="attr-tabs" id="attrTabs"></div>
 
     <!-- ボスごとのダメージの通りやすさ (全属性の中央値から算出・3属性以上解禁で表示) -->
     <section class="card" id="easeCard" style="display:none;">
-        <h2>⚖️ ボスの通りやすさ (今シーズンの補正値)</h2>
-        <p class="hint" style="margin-bottom:10px;">みんなの中央値から算出した「ダメージの出やすさ」。真ん中の属性を <strong>×1.00</strong> として表示。3凸総合の中央値比は、この差を補正したうえで計算されています。</p>
+        <h2 data-i18n="stats.ease_h">⚖️ ボスの通りやすさ (今シーズンの補正値)</h2>
+        <p class="hint" style="margin-bottom:10px;" data-i18n-html="stats.ease_note">みんなの中央値から算出した「ダメージの出やすさ」。真ん中の属性を <strong>×1.00</strong> として表示。3凸総合の中央値比は、この差を補正したうえで計算されています。</p>
         <div class="ease-grid" id="easeArea"></div>
     </section>
 
     <section class="card">
-        <h2>📈 ふるり値の分布</h2>
-        <div id="distArea"><p class="err">読み込み中…</p></div>
+        <h2 data-i18n="stats.dist_h">📈 ふるり値の分布</h2>
+        <div id="distArea"><p class="err" data-i18n="stats.loading">読み込み中…</p></div>
     </section>
 
     <section class="card">
-        <h2>👥 キャラ採用率</h2>
-        <p class="hint" style="margin-bottom:8px;">編成つき提出 (1人1票・ベスト編成) の中で使われている割合</p>
-        <div id="charsArea"><p class="err">読み込み中…</p></div>
+        <h2 data-i18n="stats.chars_h">👥 キャラ採用率</h2>
+        <p class="hint" style="margin-bottom:8px;" data-i18n="stats.chars_note">編成つき提出 (1人1票・ベスト編成) の中で使われている割合</p>
+        <div id="charsArea"><p class="err" data-i18n="stats.loading">読み込み中…</p></div>
     </section>
 
     <section class="card">
-        <h2>🏆 編成ランキング</h2>
-        <p class="hint" style="margin-bottom:4px;">「中央値」がその編成の実力の目安です (特定の1人の記録には依存しません)。編成は<strong>同じ5人なら同じ編成</strong>として集計します (並び順は不問)</p>
-        <div id="compsArea"><p class="err">読み込み中…</p></div>
+        <h2 data-i18n="stats.comps_h">🏆 編成ランキング</h2>
+        <p class="hint" style="margin-bottom:4px;" data-i18n-html="stats.comps_note">「中央値」がその編成の実力の目安です (特定の1人の記録には依存しません)。編成は<strong>同じ5人なら同じ編成</strong>として集計します (並び順は不問)</p>
+        <div id="compsArea"><p class="err" data-i18n="stats.loading">読み込み中…</p></div>
     </section>
 
-    <p class="hint" style="margin:0 2px 8px;">集計ルール: 今シーズンの提出のみ・1端末につき属性ごとベスト1件。ヒストグラムは極端値の影響を抑えるため1〜99パーセンタイルで表示。件数が少ないうちは参考値です。</p>
+    <p class="hint" style="margin:0 2px 8px;" data-i18n="stats.rules">集計ルール: 今シーズンの提出のみ・1端末につき属性ごとベスト1件。ヒストグラムは極端値の影響を抑えるため1〜99パーセンタイルで表示。件数が少ないうちは参考値です。</p>
 
     <footer>
-        <p>『勝利の女神：NIKKE』キャラクター画像・名称: © SHIFT UP CORP. — 本サイトは非公式・非営利のファンコンテンツです。<br>掲載に問題がある場合はご連絡ください。速やかに削除・修正いたします。</p>
-        <p style="margin-top:4px;">運営: ユニオン「推しりをすこれ部」(連絡先: <span class="contact-x">X</span>) / © しりすこPAD GB</p>
+        <p data-i18n-html="ui.footer_rights">『勝利の女神：NIKKE』キャラクター画像・名称: © SHIFT UP CORP. — 本サイトは非公式・非営利のファンコンテンツです。<br>掲載に問題がある場合はご連絡ください。速やかに削除・修正いたします。</p>
+        <p style="margin-top:4px;" data-i18n-html="ui.footer_ops">運営: ユニオン「推しりをすこれ部」(連絡先: <span class="contact-x">X</span>) / © しりすこPAD GB</p>
     </footer>
 </div>
 <script type="module" src="./js/stats.js"></script>
