@@ -82,7 +82,10 @@
             font-family: 'Poppins', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
             background: var(--bg); color: var(--ink);
             line-height: 1.6;
-            padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+            /* 上下とも安全領域を避ける。standalone (ホーム画面起動) では黒半透明の
+               ステータスバーの下にコンテンツが潜り、その帯へのタップは
+               ページに届かない — 上を 0 にしていると最上部のUIが押せなくなる */
+            padding: env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom));
         }
         .wrap { max-width: 560px; margin: 0 auto; }
 
@@ -97,8 +100,14 @@
         h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.3px; line-height: 1.3; }
         .subtitle { font-size: 13px; font-weight: 800; color: var(--sub); margin-top: 1px; letter-spacing: 0.2px; }
         .tagline { font-size: 12px; color: var(--sub); margin-top: 2px; }
+        /* ヘッダー直下のユーティリティ行。狭い画面では折り返し、言語スイッチは右寄せのまま。
+           **スイッチをヘッダー右上に置くと iPhone で届かない** (最上部は安全領域 — 実機FB) */
+        .toprow {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin: 0 0 14px 2px;
+        }
         .toplink {
-            display: inline-flex; align-items: center; gap: 7px; margin: 0 0 14px 2px;
+            display: inline-flex; align-items: center; gap: 7px; margin: 0;
             border: 1px solid var(--line); background: var(--card); border-radius: 999px;
             padding: 8px 8px 8px 16px; font-size: 12px; font-weight: 800; color: var(--ink); text-decoration: none;
         }
@@ -109,15 +118,17 @@
         /* 言語スイッチ: 両方を出して «今の言語» をクリーム面で示す (i18n.js が active を付ける)。
            切り替え先だけを出すと「日本語表示なのに English と書いてある」に見える — 実機FB 2026-09-08 */
         .lang-switch {
-            margin-left: auto; margin-top: 3px; align-self: flex-start; flex-shrink: 0;
+            margin-left: auto; flex-shrink: 0;
             display: inline-flex; gap: 2px; padding: 2px;
             border: 1px solid var(--line); background: var(--card); border-radius: 999px;
         }
+        /* 指で押す前提の余白。iOS の推奨タップ領域 (44pt) に近づける —
+           小さいピルだと «押せない» と言われる (実機FB 2026-09-08) */
         .lang-opt {
             border: 0; background: transparent; color: var(--sub2);
-            border-radius: 999px; padding: 5px 8px; font-size: 10.5px; font-weight: 800;
-            line-height: 1.5; cursor: pointer; font-family: inherit; white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
+            border-radius: 999px; padding: 12px; font-size: 11.5px; font-weight: 800;
+            line-height: 1.4; cursor: pointer; font-family: inherit; white-space: nowrap;
+            min-width: 60px; -webkit-tap-highlight-color: transparent;
         }
         .lang-opt.active { background: var(--cream); color: var(--cream-ink); }
         .lang-opt:not(.active):hover { color: var(--ink); }
@@ -511,7 +522,8 @@
         /* 引っぱって更新 (PWA standalone にはブラウザの更新ボタンが無いため) */
         .ptr {
             position: fixed; top: 0; left: 0; right: 0; z-index: 40;
-            text-align: center; padding: 10px 0; font-size: 12px; font-weight: 800;
+            text-align: center; padding: calc(10px + env(safe-area-inset-top)) 0 10px;
+            font-size: 12px; font-weight: 800;
             color: var(--sub); background: var(--card); border-bottom: 1px solid var(--line);
             transform: translateY(-100%); opacity: 0; pointer-events: none;
             transition: opacity 0.15s;
@@ -556,13 +568,15 @@
             <p class="subtitle" data-i18n="ui.subtitle">ふるり値チェッカー</p>
             <p class="tagline" data-i18n="ui.tagline">NIKKE ユニオンレイドのダメージを SLv 補正して、あなたの「地力」を数値化。</p>
         </div>
+    </header>
+
+    <div class="toprow">
+        <a class="toplink" href="./stats.html" data-i18n-html="ui.toplink">📊 みんなのデータ (分布・採用率・編成) <span class="arr">↗</span></a>
         <div class="lang-switch" id="langSwitch" role="group">
             <button type="button" class="lang-opt" data-lang="ja" lang="ja">日本語</button>
             <button type="button" class="lang-opt" data-lang="en" lang="en">English</button>
         </div>
-    </header>
-
-    <a class="toplink" href="./stats.html" data-i18n-html="ui.toplink">📊 みんなのデータ (分布・採用率・編成) <span class="arr">↗</span></a>
+    </div>
 
     <!-- シーズン運用モードの告知 (between/maintenance 時に app.js が出す) -->
     <div id="siteNotice" style="display:none;"></div>

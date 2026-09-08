@@ -49,29 +49,33 @@
         * { box-sizing:border-box; margin:0; padding:0; }
         /* 自前の「引っぱって更新」と ブラウザ既定のPTR が二重に発動しないようにする */
         html, body { overscroll-behavior-y: contain; }
-        body { font-family:'Poppins','Noto Sans JP',system-ui,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; padding:0 16px calc(28px + env(safe-area-inset-bottom)); }
+        /* 上下とも安全領域を避ける (index.html と同じ理由 — 最上部はタップが届かない) */
+        body { font-family:'Poppins','Noto Sans JP',system-ui,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; padding:env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom)); }
         .wrap { max-width:560px; margin:0 auto; }
         header { padding:26px 4px 12px; display:flex; align-items:flex-start; gap:11px; }
         .brand-dot { width:34px; height:34px; border-radius:999px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; margin-top:3px; }
         .brand { font-size:10.5px; font-weight:800; color:var(--sub2); letter-spacing:2px; }
         h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
+        /* ヘッダー直下のユーティリティ行 (index.html と同じ。最上部は iPhone で届かない) */
+        .toprow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 14px 2px; }
         .back {
-            display:inline-flex; align-items:center; gap:7px; margin:0 0 14px 2px;
+            display:inline-flex; align-items:center; gap:7px; margin:0;
             border:1px solid var(--line); background:var(--card); border-radius:999px;
             padding:8px 16px 8px 8px; font-size:12px; font-weight:800; color:var(--ink); text-decoration:none;
         }
         .back .arr { width:22px; height:22px; border-radius:999px; background:var(--ink); color:var(--onink); display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
         /* 言語スイッチ: 両方を出して «今の言語» をクリーム面で示す (index.html と同じ) */
         .lang-switch {
-            margin-left:auto; margin-top:3px; align-self:flex-start; flex-shrink:0;
+            margin-left:auto; flex-shrink:0;
             display:inline-flex; gap:2px; padding:2px;
             border:1px solid var(--line); background:var(--card); border-radius:999px;
         }
+        /* 指で押す前提の余白 (index.html と同じ) */
         .lang-opt {
             border:0; background:transparent; color:var(--sub2);
-            border-radius:999px; padding:5px 8px; font-size:10.5px; font-weight:800;
-            line-height:1.5; cursor:pointer; font-family:inherit; white-space:nowrap;
-            -webkit-tap-highlight-color:transparent;
+            border-radius:999px; padding:12px; font-size:11.5px; font-weight:800;
+            line-height:1.4; cursor:pointer; font-family:inherit; white-space:nowrap;
+            min-width:60px; -webkit-tap-highlight-color:transparent;
         }
         .lang-opt.active { background:var(--cream); color:var(--cream-ink); }
         .lang-opt:not(.active):hover { color:var(--ink); }
@@ -141,7 +145,8 @@
         .comp-meta strong { color:var(--ink); font-variant-numeric:tabular-nums; }
         .ptr {
             position: fixed; top: 0; left: 0; right: 0; z-index: 40;
-            text-align: center; padding: 10px 0; font-size: 12px; font-weight: 800;
+            text-align: center; padding: calc(10px + env(safe-area-inset-top)) 0 10px;
+            font-size: 12px; font-weight: 800;
             color: var(--sub); background: var(--card); border-bottom: 1px solid var(--line);
             transform: translateY(-100%); opacity: 0; pointer-events: none; transition: opacity 0.15s;
         }
@@ -173,13 +178,15 @@
             <div class="brand">SHIRISUKO PAD GLOBAL</div>
             <h1 data-i18n="stats.h1">みんなのデータ</h1>
         </div>
+    </header>
+
+    <div class="toprow">
+        <a class="back" href="./" data-i18n-html="stats.back"><span class="arr">←</span> 測定にもどる</a>
         <div class="lang-switch" id="langSwitch" role="group">
             <button type="button" class="lang-opt" data-lang="ja" lang="ja">日本語</button>
             <button type="button" class="lang-opt" data-lang="en" lang="en">English</button>
         </div>
-    </header>
-
-    <a class="back" href="./" data-i18n-html="stats.back"><span class="arr">←</span> 測定にもどる</a>
+    </div>
 
     <div class="attr-tabs" id="attrTabs"></div>
 
