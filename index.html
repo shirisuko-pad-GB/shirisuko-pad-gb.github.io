@@ -125,10 +125,12 @@
         /* 指で押す前提の余白。iOS の推奨タップ領域 (44pt) に近づける —
            小さいピルだと «押せない» と言われる (実機FB 2026-09-08) */
         .lang-opt {
+            display: inline-flex; align-items: center; justify-content: center;
             border: 0; background: transparent; color: var(--sub2);
-            border-radius: 999px; padding: 12px; font-size: 11.5px; font-weight: 800;
+            border-radius: 999px; padding: 0 12px; font-size: 11.5px; font-weight: 800;
             line-height: 1.4; cursor: pointer; font-family: inherit; white-space: nowrap;
-            min-width: 60px; -webkit-tap-highlight-color: transparent;
+            /* iOS の推奨タップ領域 44pt を «ボタン本体» で満たす (外側ピルの余白は当たり判定に入らない) */
+            min-width: 60px; min-height: 44px; -webkit-tap-highlight-color: transparent;
         }
         .lang-opt.active { background: var(--cream); color: var(--cream-ink); }
         .lang-opt:not(.active):hover { color: var(--ink); }
