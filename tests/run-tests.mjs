@@ -595,7 +595,8 @@ test('サイト名の整合 (manifest ↔ title ↔ apple-title ↔ h1)', () => 
     }
     // トップの主役はサイト名・「ふるり値チェッカー」はサブ (h1 に入れない)
     const idx = readFileSync(join(ROOT, 'index.html'), 'utf8');
-    const h1 = idx.match(/<h1>([\s\S]*?)<\/h1>/)?.[1]?.replace(/<[^>]+>/g, '') ?? '';
+    // h1 は英語対応で data-i18n-html 属性を持つので、タグの属性は問わない
+    const h1 = idx.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1]?.replace(/<[^>]+>/g, '') ?? '';
     assert(h1.includes('しりすこPAD'), `h1 がサイト名になっていません: ${h1}`);
     assert(!h1.includes('ふるり値'), `h1 に「ふるり値」が入っています (サブタイトルに置くこと): ${h1}`);
 });

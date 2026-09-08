@@ -106,6 +106,16 @@
             width: 22px; height: 22px; border-radius: 999px; background: var(--ink); color: var(--onink);
             display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
         }
+        /* 言語トグル: 押すと「切り替え先の言語」名が出ている方へ入れ替わる (i18n.js) */
+        .lang-btn {
+            margin-left: auto; margin-top: 4px; align-self: flex-start; flex-shrink: 0;
+            border: 1px solid var(--line); background: var(--card); color: var(--sub);
+            border-radius: 999px; padding: 7px 13px; font-size: 11.5px; font-weight: 800;
+            cursor: pointer; font-family: inherit; white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .lang-btn:hover { color: var(--ink); }
+        .card-lang-note { font-size: 11px; color: var(--sub2); text-align: center; margin-top: 8px; }
 
         /* ===== card ===== */
         .card {
@@ -530,19 +540,20 @@
     </style>
 </head>
 <body>
-<div class="ptr" id="ptr" aria-live="polite" aria-hidden="true">↓ 引っぱって更新</div>
+<div class="ptr" id="ptr" aria-live="polite" aria-hidden="true" data-i18n="ui.ptr">↓ 引っぱって更新</div>
 <div class="wrap">
     <header>
         <div class="brand-dot">📊</div>
         <div>
             <div class="brand">SHIRISUKO PAD GLOBAL</div>
-            <h1>しりすこPAD <span class="accent">グローバル</span></h1>
-            <p class="subtitle">ふるり値チェッカー</p>
-            <p class="tagline">NIKKE ユニオンレイドのダメージを SLv 補正して、あなたの「地力」を数値化。</p>
+            <h1 data-i18n-html="ui.h1">しりすこPAD <span class="accent">グローバル</span></h1>
+            <p class="subtitle" data-i18n="ui.subtitle">ふるり値チェッカー</p>
+            <p class="tagline" data-i18n="ui.tagline">NIKKE ユニオンレイドのダメージを SLv 補正して、あなたの「地力」を数値化。</p>
         </div>
+        <button type="button" class="lang-btn" id="langBtn">English</button>
     </header>
 
-    <a class="toplink" href="./stats.html">📊 みんなのデータ (分布・採用率・編成) <span class="arr">↗</span></a>
+    <a class="toplink" href="./stats.html" data-i18n-html="ui.toplink">📊 みんなのデータ (分布・採用率・編成) <span class="arr">↗</span></a>
 
     <!-- シーズン運用モードの告知 (between/maintenance 時に app.js が出す) -->
     <div id="siteNotice" style="display:none;"></div>
@@ -554,10 +565,10 @@
     <div id="measureArea">
     <!-- STEP 1: SLv (全凸共通) -->
     <section class="card">
-        <h2><span class="step-num">1</span>シンクロレベル (SLv)</h2>
+        <h2 data-i18n-html="ui.step1"><span class="step-num">1</span>シンクロレベル (SLv)</h2>
         <div class="field-row">
             <button type="button" class="stepper" id="slvMinus">−</button>
-            <input id="slv" type="number" min="1" max="1183" inputmode="numeric" placeholder="例: 558">
+            <input id="slv" type="number" min="1" max="1183" inputmode="numeric" placeholder="例: 558" data-i18n-attr="placeholder:ui.slv_ph">
             <button type="button" class="stepper" id="slvPlus">＋</button>
         </div>
         <p class="hint" id="slvNote" style="margin-top:8px;text-align:center;"></p>
@@ -565,10 +576,10 @@
 
     <!-- STEP 2: 凸の入力 (1〜3件, app.js が生成) -->
     <div id="attacksArea"></div>
-    <button type="button" class="add-atk-btn" id="addAtkBtn">＋ 凸を追加してまとめて測定 (最大3凸)</button>
+    <button type="button" class="add-atk-btn" id="addAtkBtn" data-i18n="ui.add_attack">＋ 凸を追加してまとめて測定 (最大3凸)</button>
 
-    <button class="submit-btn" id="submitBtn" disabled>送信して測定する</button>
-    <p class="privacy">測定には送信が必要です。送信されるのは属性・SLv・ダメージ・編成 (任意) のみで、<br>個人を特定する情報は収集しません。データは分布の表示にだけ使われます。</p>
+    <button class="submit-btn" id="submitBtn" disabled data-i18n="ui.submit">送信して測定する</button>
+    <p class="privacy" data-i18n-html="ui.privacy">測定には送信が必要です。送信されるのは属性・SLv・ダメージ・編成 (任意) のみで、<br>個人を特定する情報は収集しません。データは分布の表示にだけ使われます。</p>
     </div><!-- /#measureArea -->
 
     <!-- 結果 (app.js が生成) -->
@@ -576,12 +587,15 @@
 
     <!-- シェア (カードは先に見せる → 長押し/右クリック or ボタンで保存) -->
     <section class="card" id="shareCard" style="display:none;">
-        <img id="cardPreview" alt="シェアカード" style="margin-top:0;">
-        <p class="hint" id="saveHint" style="display:none;text-align:center;margin-top:8px;">画像を長押し (PCは右クリック) で保存できます</p>
+        <img id="cardPreview" alt="シェアカード" style="margin-top:0;" data-i18n-attr="alt:ui.card_alt">
+        <p class="hint" id="saveHint" style="display:none;text-align:center;margin-top:8px;" data-i18n="ui.save_hint">画像を長押し (PCは右クリック) で保存できます</p>
         <div class="share-row">
-            <button class="share-btn primary" id="shareBtn">📤 シェアする</button>
-            <button class="share-btn sub" id="saveBtn">💾 画像を保存</button>
+            <button class="share-btn primary" id="shareBtn" data-i18n="ui.share">📤 シェアする</button>
+            <button class="share-btn sub" id="saveBtn" data-i18n="ui.save_img">💾 画像を保存</button>
         </div>
+        <!-- カードは «今見ている言語» で描かれる。日本語で開いた人と英語で開いた人で
+             出来上がりが変わるので、シェアする前に分かるようここに書いておく (app.js が言語名を入れる) -->
+        <p class="card-lang-note" id="cardLangNote"></p>
     </section>
 
     <!-- ユニオン募集 (data/site.json の recruit.enabled で出し入れ — app.js が描画) -->
@@ -590,27 +604,27 @@
 
     <!-- 解説 -->
     <section class="card about">
-        <h2>❓ ふるり値とは</h2>
-        <p>ユニオンレイドのダメージは SLv (シンクロレベル) が上がるほど伸びるため、ダメージの絶対値だけでは「育成の上手さ」は比べられません。<strong>ふるり値</strong>は、基準プレイヤー「ふるり」の同属性ダメージを自分の SLv 相当に換算した値との比率。<strong>1.00 = 基準者と同等の地力</strong>です。</p>
-        <h3>計算式</h3>
-        <p>ふるり値 = あなたのダメージ ÷ (基準ダメージ × SLv補正[あなた] ÷ SLv補正[基準])</p>
-        <h3>📊 みんなの分布 (シーズンごと)</h3>
-        <p>送信されたデータは匿名で蓄積され、<strong>今シーズン</strong>の提出が属性ごとに<strong id="thresholdAllLabel"></strong>人を超えると「みんなの真ん中 (中央値) を100%としたときのあなたの%」が見られるようになります。集計は1端末につきベスト1件で行い、極端な値の影響を受けにくい方法 (中央値・パーセンタイル) を使っています。編成を登録した提出が同一編成で<strong id="thresholdCompLabel"></strong>人を超えると「同じ編成の中での位置」も開放されます。<strong>シーズンが変わると分布はリセット</strong>されます (新キャラ・ボスの違いを公平に扱うため)。</p>
+        <h2 data-i18n="ui.about_h">❓ ふるり値とは</h2>
+        <p data-i18n-html="ui.about_p1">ユニオンレイドのダメージは SLv (シンクロレベル) が上がるほど伸びるため、ダメージの絶対値だけでは「育成の上手さ」は比べられません。<strong>ふるり値</strong>は、基準プレイヤー「ふるり」の同属性ダメージを自分の SLv 相当に換算した値との比率。<strong>1.00 = 基準者と同等の地力</strong>です。</p>
+        <h3 data-i18n="ui.formula_h">計算式</h3>
+        <p data-i18n="ui.formula">ふるり値 = あなたのダメージ ÷ (基準ダメージ × SLv補正[あなた] ÷ SLv補正[基準])</p>
+        <h3 data-i18n="ui.dist_h">📊 みんなの分布 (シーズンごと)</h3>
+        <p data-i18n-html="ui.dist_about">送信されたデータは匿名で蓄積され、<strong>今シーズン</strong>の提出が属性ごとに<strong id="thresholdAllLabel"></strong>人を超えると「みんなの真ん中 (中央値) を100%としたときのあなたの%」が見られるようになります。集計は1端末につきベスト1件で行い、極端な値の影響を受けにくい方法 (中央値・パーセンタイル) を使っています。編成を登録した提出が同一編成で<strong id="thresholdCompLabel"></strong>人を超えると「同じ編成の中での位置」も開放されます。<strong>シーズンが変わると分布はリセット</strong>されます (新キャラ・ボスの違いを公平に扱うため)。</p>
         <!-- 基準記録は縦に長いので既定は畳んでおく (見たい人だけ開く — 実機FB 2026-08-10) -->
         <details class="fold" id="baseFold">
-            <summary>📐 基準はこの記録です<span class="chev">▼</span></summary>
-            <p class="hint" style="margin-bottom:8px;">基準者「ふるり」が今シーズンに出した属性別のダメージと編成です。あなたのふるり値は、これを自分の SLv 相当に換算した値との比率です。</p>
+            <summary data-i18n-html="ui.base_fold">📐 基準はこの記録です<span class="chev">▼</span></summary>
+            <p class="hint" style="margin-bottom:8px;" data-i18n="ui.base_note">基準者「ふるり」が今シーズンに出した属性別のダメージと編成です。あなたのふるり値は、これを自分の SLv 相当に換算した値との比率です。</p>
             <div id="baseTeams"></div>
         </details>
-        <h3>⚠️ 注意</h3>
-        <p>ふるり値は育成効率を可視化する<strong>参考指標</strong>です。ボスのギミック相性・締め凸・戦闘時間などの条件差は考慮されません。基準データ: <span id="baseVersionLabel"></span></p>
-        <h3>🏷️ このサイトについて</h3>
-        <p>本サイトは、ユニオン「推しりをすこれ部」のメンバーが個人で運営する『勝利の女神：NIKKE』の<strong>非公式・非営利のファンコンテンツ</strong>です (広告掲載・収益化は一切していません)。ゲーム本編の開発・運営 (SHIFT UP CORP. / Level Infinite) とは関係ありません。キャラクター画像・名称等の権利は SHIFT UP CORP. をはじめ各権利者に帰属します (公式サポートへ掲載可否を照会済み)。掲載内容について権利者からの削除・修正のご要望には<strong>速やかに対応します</strong> (連絡先: <span class="contact-x">X</span>)。</p>
+        <h3 data-i18n="ui.caution_h">⚠️ 注意</h3>
+        <p data-i18n-html="ui.caution">ふるり値は育成効率を可視化する<strong>参考指標</strong>です。ボスのギミック相性・締め凸・戦闘時間などの条件差は考慮されません。基準データ: <span id="baseVersionLabel"></span></p>
+        <h3 data-i18n="ui.about_site_h">🏷️ このサイトについて</h3>
+        <p data-i18n-html="ui.about_site">本サイトは、ユニオン「推しりをすこれ部」のメンバーが個人で運営する『勝利の女神：NIKKE』の<strong>非公式・非営利のファンコンテンツ</strong>です (広告掲載・収益化は一切していません)。ゲーム本編の開発・運営 (SHIFT UP CORP. / Level Infinite) とは関係ありません。キャラクター画像・名称等の権利は SHIFT UP CORP. をはじめ各権利者に帰属します (公式サポートへ掲載可否を照会済み)。掲載内容について権利者からの削除・修正のご要望には<strong>速やかに対応します</strong> (連絡先: <span class="contact-x">X</span>)。</p>
     </section>
 
     <footer>
-        <p>『勝利の女神：NIKKE』キャラクター画像・名称: © SHIFT UP CORP. — 本サイトは非公式・非営利のファンコンテンツです。<br>掲載に問題がある場合はご連絡ください。速やかに削除・修正いたします。</p>
-        <p style="margin-top:4px;">運営: ユニオン「推しりをすこれ部」(連絡先: <span class="contact-x">X</span>) / © しりすこPAD GB</p>
+        <p data-i18n-html="ui.footer_rights">『勝利の女神：NIKKE』キャラクター画像・名称: © SHIFT UP CORP. — 本サイトは非公式・非営利のファンコンテンツです。<br>掲載に問題がある場合はご連絡ください。速やかに削除・修正いたします。</p>
+        <p style="margin-top:4px;" data-i18n-html="ui.footer_ops">運営: ユニオン「推しりをすこれ部」(連絡先: <span class="contact-x">X</span>) / © しりすこPAD GB</p>
     </footer>
 </div>
 
@@ -619,7 +633,7 @@
 <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite" style="display:none;">
     <div class="loading-box">
         <img id="loadingGifImg" alt="Now Loading…">
-        <p>サーバーでスコアを測定しています…</p>
+        <p data-i18n="ui.loading">サーバーでスコアを測定しています…</p>
     </div>
 </div>
 

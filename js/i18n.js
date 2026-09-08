@@ -102,3 +102,36 @@ export function t(key, params = null, lang = current) {
         Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : whole
     ));
 }
+
+/**
+ * HTML に置いた静的な文言を今の言語に差し替える。**起動の最初に一度だけ**呼ぶ
+ * (app.js が id 付き要素に数値を入れる前に走らせること — 後だと上書きで消える)。
+ *
+ * - `data-i18n="鍵"`      … textContent を差し替え
+ * - `data-i18n-html="鍵"` … innerHTML を差し替え (`<strong>` や id 付き span を含む段落用)
+ * - `data-i18n-attr="placeholder:鍵 alt:鍵"` … 属性を差し替え
+ *
+ * ⚠ innerHTML を使うのは **辞書の値が自分たちの書いた固定文字列だから** (CLAUDE.md 絶対ルール4)。
+ *    DB・ユーザー入力・URL 由来の文字列をここに流してはいけない。
+ */
+export function applyStaticI18n(root = (typeof document !== 'undefined' ? document : null)) {
+    if (!root?.querySelectorAll) return;
+    for (const el of root.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+    for (const el of root.querySelectorAll('[data-i18n-html]')) el.innerHTML = t(el.dataset.i18nHtml);
+    for (const el of root.querySelectorAll('[data-i18n-attr]')) {
+        for (const pair of String(el.dataset.i18nAttr).split(/\s+/)) {
+            const at = pair.indexOf(':');
+            if (at > 0) el.setAttribute(pair.slice(0, at), t(pair.slice(at + 1)));
+        }
+    }
+}
+
+/** 言語トグル (#langBtn) を配線する。押すと ja ⇄ en を入れ替えて開き直す。 */
+export function mountLangToggle(doc = (typeof document !== 'undefined' ? document : null)) {
+    const btn = doc?.getElementById?.('langBtn');
+    if (!btn) return;
+    // ボタンには「切り替え先の言語」を出す (今の言語を出すと押した後が想像できない)
+    btn.textContent = t('common.lang_switch');
+    btn.setAttribute('aria-label', t('common.lang_switch_aria'));
+    btn.addEventListener('click', () => setLang(current === 'ja' ? 'en' : 'ja'));
+}

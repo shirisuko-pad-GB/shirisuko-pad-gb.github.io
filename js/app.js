@@ -3,9 +3,10 @@
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
-import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh, isInAppBrowser } from './shared.js';
+import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh, isInAppBrowser, attrName } from './shared.js';
 import { buildShareCard } from './sharecard.js';
 import { BURST_COLORS, BURST_DARK_TEXT, makeCharResolver, burstsOf, tileHTML, sortForDisplay } from './tiles.js';
+import { t, currentLang, initLang, applyStaticI18n, mountLangToggle } from './i18n.js';
 
 // 解禁しきい値は shared.js の THRESHOLDS に一元化 (実ゲートはサーバーが強制)
 const MAX_ATTACKS = 3;
@@ -55,6 +56,10 @@ const compReady = () => characters?._format === 2;
 
 // ---------- 初期化 ----------
 async function init() {
+    // 表示言語をまず確定 (この後の描画は全部これを見る — 静的文言はここで差し替え済みになる)
+    initLang();
+    applyStaticI18n();
+    mountLangToggle();
     const [b, p, c, rd, st, sc] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         Promise.resolve(null),   // presets.json (過去シーズンのユニオン実績) は使わない — 今シーズンの提出データを使う
@@ -73,8 +78,8 @@ async function init() {
     // 分布は前シーズンなのに基準だけ次シーズン、というチグハグを出さない。
     const baseMatchesView = base.version === viewSeason;
     $('baseVersionLabel').textContent = baseMatchesView
-        ? `${base.version} (基準者${base.basePlayer} SLv ${base.baseSlv})`
-        : (viewSeason ? `次シーズンを準備中 (表示中: ${viewSeason} シーズンの確定分)` : '次シーズンを準備中');
+        ? t('ui.base_version', { v: base.version, player: base.basePlayer, slv: base.baseSlv })
+        : (viewSeason ? t('ui.season_prep_view', { season: viewSeason }) : t('ui.season_prep'));
     const fold = $('baseFold');
     if (fold) {
         fold.open = false;
@@ -128,11 +133,11 @@ function applySiteConf() {
     if (!host || !r?.enabled || !xid) return;
     host.innerHTML = `
     <section class="card recruit-card">
-        <h2>📣 ${escapeHtml(r.title || 'メンバー募集中')}</h2>
+        <h2>📣 ${escapeHtml(r.title || t('ui.recruit_title'))}</h2>
         <img class="recruit-banner" src="./assets/recruit-banner.jpg"
-             alt="ユニオン「推しりをすこれ部」メンバー募集バナー" loading="lazy">
+             alt="${escapeHtml(t('ui.recruit_banner_alt'))}" loading="lazy">
         <p class="recruit-note">${escapeHtml(r.note || '')}</p>
-        <a class="x-btn" href="https://x.com/${xid}" target="_blank" rel="noopener">𝕏 @${xid} を見る →</a>
+        <a class="x-btn" href="https://x.com/${xid}" target="_blank" rel="noopener">${escapeHtml(t('ui.view_x', { id: xid }))}</a>
     </section>`;
     // 画像が読めない環境では静かに消す (inline onerror は XSS 回帰検査で禁止のためリスナーで)
     const banner = host.querySelector('.recruit-banner');
@@ -150,7 +155,7 @@ function renderPartners() {
     if (!host || list.length === 0) return;
     host.innerHTML = `
     <section class="card partner-card">
-        <h2>✨ 素晴らしいユニオンさんたちが掲載中!</h2>
+        <h2>${t('ui.partners_h')}</h2>
         ${list.map(p => {
             const url = escapeHtml(p.url);
             const bannerOk = typeof p.banner === 'string' && !p.banner.includes('..')
@@ -167,10 +172,10 @@ function renderPartners() {
             ${bannerOk ? `
             <a class="partner-link" href="${url}" target="_blank" rel="noopener noreferrer">
                 <img class="partner-banner" src="${escapeHtml(p.banner)}" alt="${escapeHtml(p.name)}" width="${w}" height="${h}" loading="lazy">
-                <span class="partner-tap">👆 ロゴをタップでサイトへ${host ? ` (${escapeHtml(host)})` : ''}</span>
+                <span class="partner-tap">${t('ui.partner_tap')}${host ? ` (${escapeHtml(host)})` : ''}</span>
             </a>`
-                : `<a class="partner-btn" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.name)} を見る →</a>
-                   ${host ? `<p class="partner-host">遷移先: ${escapeHtml(host)}</p>` : ''}`}
+                : `<a class="partner-btn" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('ui.view_site', { name: p.name }))}</a>
+                   ${host ? `<p class="partner-host">${t('ui.partner_dest')}${escapeHtml(host)}</p>` : ''}`}
             ${p.note ? `<p class="partner-note">${escapeHtml(p.note)}</p>` : ''}
         </div>`;
         }).join('')}
@@ -180,7 +185,7 @@ function renderPartners() {
         const link = img.closest('.partner-link');
         if (!link) { img.style.display = 'none'; return; }
         link.className = 'partner-btn';
-        link.innerHTML = `${escapeHtml(img.alt)} を見る →`;
+        link.innerHTML = escapeHtml(t('ui.view_site', { name: img.alt }));
     }));
     host.style.display = 'block';
 }
@@ -233,9 +238,9 @@ function renderBaseTeams() {
             ? `<span class="base-team">${sortForDisplay(b.team, infoOf).map(id => tileHTML(infoOf(id))).join('')}</span>` : '';
         return `
         <div class="base-row" style="--ac:${info.color};">
-            <span class="base-attr">${info.jp}PT</span>
+            <span class="base-attr">${t('ui.team_of', { code: attrName(attr) })}</span>
             <span class="base-dmg">${(b.damage / 1e9).toFixed(2)} B</span>
-            <span class="hint">${b.source === 'actual' ? '実凸' : '模擬'}${boss ? ` · vs ${escapeHtml(boss)}` : ''}</span>
+            <span class="hint">${b.source === 'actual' ? t('ui.src_actual') : t('ui.src_mock')}${boss ? ` · vs ${escapeHtml(boss)}` : ''}</span>
             ${team}
         </div>`;
     }).join('');
@@ -251,13 +256,13 @@ function applyMode() {
     }
     $('measureArea').style.display = 'none';
     if (mode === 'maintenance') {
-        notice.innerHTML = `<div class="notice"><h2>🚧 工事中です</h2>
-            <p>${escapeHtml(site?.message || 'メンテナンス中です。しばらくお待ちください。')}</p></div>`;
+        notice.innerHTML = `<div class="notice"><h2>${t('ui.maint_h')}</h2>
+            <p>${escapeHtml(site?.message || t('ui.maint_msg'))}</p></div>`;
     } else {   // between
         const canView = !!viewSeason;
-        notice.innerHTML = `<div class="notice"><h2>⏳ 次シーズン準備中</h2>
-            <p>${escapeHtml(site?.message || '次のレイドのふるり基準を準備中です。しばらくお待ちください。')}${
-                canView ? '<br>前シーズンの結果は <a href="./stats.html">📊 みんなのデータ</a> で見られます。' : ''}</p></div>`;
+        notice.innerHTML = `<div class="notice"><h2>${t('ui.between_h')}</h2>
+            <p>${escapeHtml(site?.message || t('ui.between_msg'))}${
+                canView ? t('ui.between_link') : ''}</p></div>`;
     }
     notice.style.display = 'block';
 }
@@ -293,11 +298,11 @@ function renderRecallBanner() {
     if (!host) return;
     const last = loadLastResult();
     if (!last || !backendConfigured()) { host.style.display = 'none'; return; }
-    const label = last.items.map(it => `${ATTR_INFO[it.attribute].jp} ${Number(it.score).toFixed(2)}`).join(' / ');
+    const label = last.items.map(it => `${attrName(it.attribute)} ${Number(it.score).toFixed(2)}`).join(' / ');
     host.innerHTML = `
         <div class="recall">
-            <div class="recall-txt">前回の測定: <strong>${escapeHtml(label)}</strong></div>
-            <button type="button" id="recallBtn" class="recall-btn">最新の分布を見る</button>
+            <div class="recall-txt">${escapeHtml(t('ui.recall_label'))}<strong>${escapeHtml(label)}</strong></div>
+            <button type="button" id="recallBtn" class="recall-btn">${escapeHtml(t('ui.recall_btn'))}</button>
         </div>`;
     host.style.display = 'block';
     $('recallBtn').addEventListener('click', () => showRecalledDistribution(last));
@@ -306,7 +311,7 @@ function renderRecallBanner() {
 // 保存済みスコアで分布だけ取り直す (送信=INSERT はしない)
 async function showRecalledDistribution(last) {
     const btn = $('recallBtn');
-    if (btn) { btn.disabled = true; btn.textContent = '確認中…'; }
+    if (btn) { btn.disabled = true; btn.textContent = t('ui.checking'); }
     const items = last.items.map(it => ({
         attribute: it.attribute, slv: it.slv, damage: it.damage,
         characters: it.characters ?? null, score: Number(it.score),
@@ -332,7 +337,7 @@ async function showRecalledDistribution(last) {
     renderResults();
     showShareCardPreview();
     $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (btn) { btn.disabled = false; btn.textContent = '最新の分布を見る'; }
+    if (btn) { btn.disabled = false; btn.textContent = t('ui.recall_btn'); }
 }
 
 function stepSlv(d) {
@@ -375,8 +380,8 @@ function onSlvChanged() {
 function renderSlvNote() {
     const el = $('slvNote');
     if (!el) return;
-    el.textContent = slvOver() ? `🙏 現在は SLv ${SLV_MAX} まで対応しています (補正データを検証中です)`
-        : slvMalformed() ? 'SLv は整数で入力してください (例: 558)'
+    el.textContent = slvOver() ? t('ui.slv_over_note', { max: SLV_MAX })
+        : slvMalformed() ? t('ui.slv_malformed')
         : '';
     el.style.color = (slvOver() || slvMalformed()) ? 'var(--warn)' : '';
 }
@@ -395,13 +400,10 @@ function renderAttacks() {
         // STEP1 が済むまで凸入力は出さない (ガイドだけ表示)
         area.innerHTML = slvOver() ? `
         <section class="card slv-gate">
-            <p class="slv-gate-txt">🙏 <strong>SLv ${SLV_MAX} を超える方はもう少しお待ちください</strong><br>
-            現在の SLv 補正データが <strong>SLv ${SLV_MAX} まで</strong>のため、それより上は正確に測れません。
-            超上位帯の補正値を検証中で、揃い次第対応します。</p>
+            <p class="slv-gate-txt">${t('ui.gate_over', { max: SLV_MAX })}</p>
         </section>` : `
         <section class="card slv-gate">
-            <p class="slv-gate-txt">⬆️ まず <strong>STEP 1 の SLv (シンクロレベル)</strong> を入力してください。<br>
-            入力すると凸の入力があらわれます。</p>
+            <p class="slv-gate-txt">${t('ui.gate_need_slv')}</p>
         </section>`;
         $('addAtkBtn').style.display = 'none';
         $('submitBtn').disabled = true;
@@ -416,18 +418,18 @@ function renderAttacks() {
 function attackCardHTML(a, i) {
     const info = a.attribute ? ATTR_INFO[a.attribute] : null;
     // 修正モード: 属性は置き換え先を固定 (変えると別属性の行を消してしまうため)
-    const title = correcting ? `✏️ ${info ? info.jp + 'PT' : ''} の提出を修正`
-        : attacks.length > 1 ? `凸${i + 1}` : '今回の凸';
+    const title = correcting ? t('ui.correct_title', { team: info ? t('ui.team_of', { code: attrName(a.attribute) }) : '' })
+        : attacks.length > 1 ? t('ui.attack_n', { n: i + 1 }) : t('ui.this_attack');
     const delBtn = correcting
-        ? `<button type="button" class="atk-del corr-cancel">✕ 修正をやめる</button>`
-        : attacks.length > 1 ? `<button type="button" class="atk-del">✕ 削除</button>` : '';
+        ? `<button type="button" class="atk-del corr-cancel">${t('ui.cancel_correct')}</button>`
+        : attacks.length > 1 ? `<button type="button" class="atk-del">${t('ui.delete')}</button>` : '';
     const attrBtns = orderedAttrs().map(attr => {
         const ai = ATTR_INFO[attr];
         return `
         <button type="button" class="attr-btn${a.attribute === attr ? ' active' : ''}" data-attr="${attr}"
                 style="--ac:${ai.color};"${correcting ? ' disabled' : ''}>
-            <span class="ico">${ai.jp[0]}</span>
-            <span class="name">${ai.jp}PT</span>
+            <span class="ico">${escapeHtml(t(`attr.short.${attr}`))}</span>
+            <span class="name">${escapeHtml(t('ui.team_of', { code: attrName(attr) }))}</span>
         </button>`;
     }).join('');
     const dmg = a.damage ? ` value="${escapeHtml(a.damage)}"` : '';
@@ -436,32 +438,31 @@ function attackCardHTML(a, i) {
         <h2><span class="step-num">2</span>${title}${delBtn}</h2>
         <div class="attr-grid">${attrBtns}</div>
         <p class="vs-note">${info && raid?.bosses?.[a.attribute]
-            ? `⚔ 相手は <strong style="color:${ATTR_INFO[info.enemy].color};">${ATTR_INFO[info.enemy].jp}</strong>属性ボス「<strong>${escapeHtml(raid.bosses[a.attribute])}</strong>」 (${escapeHtml(raid.season || '')} シーズン)`
-            : `PT属性を選択してください (そのPTで殴った相手ボスが表示されます)`}</p>
+            ? t('ui.vs_boss', { color: ATTR_INFO[info.enemy].color, code: attrName(info.enemy), boss: escapeHtml(raid.bosses[a.attribute]), season: escapeHtml(raid.season || '') })
+            : t('ui.pick_attr')}</p>
         <div style="margin-top:12px;">
-            <p class="hint" style="margin-bottom:6px;">与えたダメージを <strong>B (10億) 単位</strong>で (例: 13.18)。フル桁の貼り付けもOK</p>
+            <p class="hint" style="margin-bottom:6px;">${t('ui.damage_hint')}</p>
             <div class="dmg-field">
-                <input class="atk-damage" type="text" inputmode="decimal" placeholder="例: 13.18"${dmg}>
+                <input class="atk-damage" type="text" inputmode="decimal" placeholder="${escapeHtml(t('ui.damage_ph'))}"${dmg}>
                 <span class="dmg-unit">B</span>
             </div>
             <p class="preview">${damagePreviewText(a.damage)}</p>
             <label class="finish-check">
                 <input type="checkbox" class="atk-finish"${a.isFinish ? ' checked' : ''}>
-                <span>🏁 締め凸だった <span class="finish-sub">(ボス撃破で戦闘が途中終了した凸)</span></span>
+                <span>${t('ui.finish_check')}<span class="finish-sub">${t('ui.finish_check_sub')}</span></span>
             </label>
-            ${a.isFinish ? `<p class="hint finish-note">締め凸はダメージが途中で打ち切られるため、
-                みんなの分布・編成集計には入りません (測定と記録は普通にできます)</p>` : ''}
+            ${a.isFinish ? `<p class="hint finish-note">${t('ui.finish_note')}</p>` : ''}
         </div>
         <details class="comp"${a.compOpen ? ' open' : ''}>
-            <summary><span class="sum-label">キャラ編成</span><span class="pill">任意</span><span class="sum-faces">${summaryFacesHTML(a)}</span><span class="chev">▼</span></summary>
+            <summary><span class="sum-label">${t('ui.comp_label')}</span><span class="pill">${t('ui.optional')}</span><span class="sum-faces">${summaryFacesHTML(a)}</span><span class="chev">▼</span></summary>
             <div class="comp-body">${compBodyHTML(a)}</div>
         </details>
     </section>`;
 }
 
 function compBodyHTML(a) {
-    if (!a.attribute) return `<p class="hint" style="margin-top:8px;">先にPT属性を選ぶと編成を選択できます</p>`;
-    if (!compReady()) return `<p class="hint" style="margin-top:8px;">キャラデータを読み込めなかったため、今回は編成なしで送信できます</p>`;
+    if (!a.attribute) return `<p class="hint" style="margin-top:8px;">${t('ui.comp_need_attr')}</p>`;
+    if (!compReady()) return `<p class="hint" style="margin-top:8px;">${t('ui.comp_no_data')}</p>`;
     const ap = insightsOf(a.attribute);
     const sel = selChars(a);
     // 使用率TOP: 一覧は小タイルでコンパクトに (TOP3 + もっと見る)。
@@ -476,29 +477,29 @@ function compBodyHTML(a) {
         <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
             <span class="preset-faces">${sortForDisplay(c.chars, infoOf).map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
-                <span class="pill">今シーズンTOP${pi + 1}</span>
-                <span class="hint">${c.count}人が使用${Number.isFinite(c.median) ? ` · 中央値 ${Number(c.median).toFixed(2)}` : ''}</span>
+                <span class="pill">${t('ui.season_top_n', { n: pi + 1 })}</span>
+                <span class="hint">${t('ui.used_by_n', { n: c.count })}${Number.isFinite(c.median) ? t('ui.median_inline', { v: Number(c.median).toFixed(2) }) : ''}</span>
             </span>
         </button>`;
     }).join('') + (moreCount > 0 && !a.presetMore ? `
-        <button type="button" class="preset-more">▼ もっと見る (使用率TOP4〜${3 + moreCount})</button>` : '');
+        <button type="button" class="preset-more">${t('ui.more_presets', { last: 3 + moreCount })}</button>` : '');
     const presetHead = ap.topComps.length
-        ? `<p class="hint" style="margin-top:8px;">👥 今シーズンの提出データから、よく使われている編成です (タップで選択)</p>`
-        : `<p class="hint" style="margin-top:8px;">編成を登録すると「同じ編成の人たちの中での位置」の集計対象になります${ap.loading ? '' : '。今シーズンの提出が集まると「よく使われる編成」もここに出ます'}</p>`;
+        ? `<p class="hint" style="margin-top:8px;">${t('ui.presets_hint')}</p>`
+        : `<p class="hint" style="margin-top:8px;">${t('ui.comp_hint')}${ap.loading ? '' : t('ui.comp_hint_more')}</p>`;
     return `
         ${presetHead}
         ${presetRows}
-        <div class="tmpl-chips">${BURST_TEMPLATES.map(t =>
-            `<button type="button" class="tmpl-chip${a.template === t.id ? ' active' : ''}" data-tmpl="${t.id}">${t.label}</button>`).join('')}
-            ${selChars(a).length >= 2 ? `<button type="button" class="sort-chip">⇅ バースト順に整える</button>` : ''}
+        <div class="tmpl-chips">${BURST_TEMPLATES.map(tp =>
+            `<button type="button" class="tmpl-chip${a.template === tp.id ? ' active' : ''}" data-tmpl="${tp.id}">${t(`ui.tmpl_${tp.id}`)}</button>`).join('')}
+            ${selChars(a).length >= 2 ? `<button type="button" class="sort-chip">${t('ui.sort_burst')}</button>` : ''}
         </div>
-        <p class="hint" style="margin-top:6px;">並び順は評価に影響しません (同じ5人なら同じ編成として集計されます)</p>
+        <p class="hint" style="margin-top:6px;">${t('ui.order_note')}</p>
         <div class="slot-row">${templateById(a.template).slots.map((sb, si) => {
             const img = a.slots[si];
             const color = sb ? BURST_COLORS[sb] : '#8A9097';
             return `
             <button type="button" class="slot${si === a.activeSlot ? ' active' : ''}" data-slot="${si}" style="--sb:${color};">
-                <span class="slot-b${sb && BURST_DARK_TEXT.has(sb) ? ' dark' : ''}">${sb || '自由'}</span>
+                <span class="slot-b${sb && BURST_DARK_TEXT.has(sb) ? ' dark' : ''}">${sb || t('ui.slot_free')}</span>
                 ${img ? tileHTML(infoOf(img), { strip: false }) : `<span class="slot-plus">＋</span>`}
             </button>`;
         }).join('')}</div>
@@ -527,7 +528,7 @@ function pickerGridHTML(a, ap) {
         (info.burst === 'BΛ' ? groups.lambda : !info.burst ? groups.unknown : groups.match).push(id);
     }
     const ordered = [...groups.match, ...groups.lambda, ...groups.unknown];
-    if (ordered.length === 0) return `<p class="hint" style="margin-top:8px;">この枠に合う候補がありません</p>`;
+    if (ordered.length === 0) return `<p class="hint" style="margin-top:8px;">${t('ui.no_candidates')}</p>`;
     const btn = (id) => {
         const si = a.slots.indexOf(id);
         return `
@@ -540,26 +541,26 @@ function pickerGridHTML(a, ap) {
     const quick = ordered.filter(id => (usage.get(id) || 0) > 0).slice(0, 8);
     const rest = quick.length >= 4 ? ordered.filter(id => !quick.includes(id)) : ordered;
     const quickHtml = quick.length >= 4 ? `
-        <p class="hint picker-label">⭐ よく使われるキャラ</p>
+        <p class="hint picker-label">${t('ui.popular_chars')}</p>
         <div class="picker-grid picker-quick">${quick.map(btn).join('')}</div>` : '';
     const label = slotBurst
-        ? `<strong style="color:${BURST_COLORS[slotBurst]};">${slotBurst}</strong> の枠に入れる全キャラ${groups.lambda.length ? ' (Λ含む)' : ''}${groups.unknown.length ? ' + 未分類' : ''}`
-        : `すべてのキャラ`;
-    return `${quickHtml}<p class="hint picker-label">${label} — タップで枠にセット (よく使われる順)</p><div class="picker-grid named">${rest.map(id => btn(id)).join('')}</div>`;
+        ? `${t('ui.picker_burst', { color: BURST_COLORS[slotBurst], burst: slotBurst })}${groups.lambda.length ? t('ui.picker_lambda') : ''}${groups.unknown.length ? t('ui.picker_unknown') : ''}`
+        : t('ui.picker_all');
+    return `${quickHtml}<p class="hint picker-label">${t('ui.picker_tap', { label })}</p><div class="picker-grid named">${rest.map(id => btn(id)).join('')}</div>`;
 }
 
 function compStatusText(a) {
     const n = selChars(a).length;
-    return n === 0 ? '未選択 (編成なしで送信できます)' :
-        n === 5 ? '✓ 5体選択済み — この編成で送信されます' :
-        `${n} / 5 体選択中 (5体そろうと編成つきで送信)`;
+    return n === 0 ? t('ui.comp_none') :
+        n === 5 ? t('ui.comp_full') :
+        t('ui.comp_partial', { n });
 }
 
 function damagePreviewText(v) {
     if (!String(v ?? '').trim()) return ' ';
     const raw = parseDamageInput(v);
-    if (!(raw > 0)) return '数値を確認してください';
-    return `${(raw / 1e9).toFixed(2)} B = ${Math.round(raw).toLocaleString('ja-JP')}`;
+    if (!(raw > 0)) return t('ui.check_number');
+    return `${(raw / 1e9).toFixed(2)} B = ${Math.round(raw).toLocaleString(currentLang() === 'en' ? 'en-US' : 'ja-JP')}`;
 }
 
 function bindAttackCard(card) {
@@ -628,8 +629,8 @@ function bindCompBody(card, a) {
     // に自動整列して枠へ入れる (2026-08-01 運営判断: 編成順は考慮しない)
     const applyComp = (chars) => {
         const ordered = sortForDisplay(chars, infoOf);
-        const tmpl = BURST_TEMPLATES.find(t => t.id !== 'free' &&
-            reslotChars(ordered, burstsOfId, t.slots).dropped.length === 0);
+        const tmpl = BURST_TEMPLATES.find(tp => tp.id !== 'free' &&
+            reslotChars(ordered, burstsOfId, tp.slots).dropped.length === 0);
         a.template = tmpl ? tmpl.id : 'free';
         a.slots = tmpl ? reslotChars(ordered, burstsOfId, tmpl.slots).slots : [...ordered];
         a.activeSlot = 0;
@@ -674,7 +675,7 @@ function bindCompBody(card, a) {
             const { slots, dropped } = reslotChars(selChars(a), burstsOfId, templateById(a.template).slots);
             a.slots = slots;
             a.activeSlot = Math.max(0, slots.indexOf(null));
-            if (dropped.length) toast(`${dropped.map(x => nameOf(x) || '1体').join('・')} は枠が合わないため外れました`);
+            if (dropped.length) toast(t('ui.dropped_chars', { names: dropped.map(x => nameOf(x) || t('ui.one_char')).join('・') }));
             renderCompBody(card, a);
         });
     });
@@ -763,14 +764,14 @@ async function onSubmitCorrection() {
         isFinish: a.isFinish === true,
     };
     if (!ATTRS.includes(item.attribute) || !(item.damage > 0) || !Number.isInteger(slv) || slv < 1 || slv > SLV_MAX) {
-        toast('入力内容を確認してください');
+        toast(t('ui.check_input'));
         return;
     }
     const btn = $('submitBtn');
     try {
         submitting = true;
         btn.disabled = true;
-        btn.textContent = '送信中…';
+        btn.textContent = t('ui.sending');
         showLoading();
         const { score } = await correctOwnMeasurement(item, season);
         // 前回結果の該当属性を置き換え (保存が無い・別シーズンなら単品で作り直す)
@@ -789,20 +790,20 @@ async function onSubmitCorrection() {
         correcting = null;
         attacks = [newAttack()];
         renderAttacks();
-        btn.textContent = '送信して測定する';
-        toast('修正を保存しました (前の提出は置き換えられました)');
+        btn.textContent = t('ui.submit');
+        toast(t('ui.correction_saved'));
         renderRecallBanner();
         const last = loadLastResult();
         if (last) await showRecalledDistribution(last);
     } catch (e) {
         console.warn('修正失敗:', e);
         await hideLoading();
-        toast('修正を保存できませんでした。通信環境を確認して再度お試しください');
+        toast(t('ui.correction_failed'));
     } finally {
         forceCloseLoading();
         submitting = false;
         btn.disabled = false;
-        if (correcting) btn.textContent = '修正して送り直す';   // 失敗時は修正モードのまま再試行できる
+        if (correcting) btn.textContent = t('ui.resubmit');   // 失敗時は修正モードのまま再試行できる
         updateSubmitState();
     }
 }
@@ -818,7 +819,7 @@ async function onSubmit() {
         isFinish: a.isFinish === true,
     }));
     if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !Number.isInteger(slv) || slv < 1 || slv > SLV_MAX) {
-        toast('入力内容を確認してください');
+        toast(t('ui.check_input'));
         return;
     }
 
@@ -826,7 +827,7 @@ async function onSubmit() {
     try {
         submitting = true;
         btn.disabled = true;
-        btn.textContent = '送信中…';
+        btn.textContent = t('ui.sending');
         showLoading();
 
         // 計算はサーバー側 — 送信が通らないとスコアも出ない
@@ -844,14 +845,14 @@ async function onSubmit() {
             // サーバーが理由つきで拒否した場合は、通信障害と混同させない案内にする
             const msg = String(e?.message ?? '');
             const reason = /unknown slv/.test(msg)
-                ? `現在の SLv 補正データは SLv ${SLV_MAX} までです。超上位帯の補正値が揃い次第、対応します。`
+                ? t('ui.err_slv_range', { max: SLV_MAX })
                 : /closed|season not open/.test(msg)
-                    ? '現在この期間の測定は受け付けていません (シーズン切替中の可能性があります)。'
-                    : 'サーバーに接続できませんでした。ふるり値の計算はサーバー側で行うため、通信が復活してから再度お試しください。';
+                    ? t('ui.err_closed')
+                    : t('ui.err_network');
             $('resultsArea').innerHTML = `
             <section class="card">
-                <h2>⚠️ 測定できませんでした</h2>
-                <p class="score-detail">${escapeHtml(reason)} 入力内容はそのまま残っています。</p>
+                <h2>${t('ui.err_h')}</h2>
+                <p class="score-detail">${t('ui.err_kept', { reason: escapeHtml(reason) })}</p>
             </section>`;
             $('shareCard').style.display = 'none';
             $('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -887,12 +888,12 @@ async function onSubmit() {
     } catch (e) {
         // 想定外の例外 (描画等)。送信自体は成功していることがあるので静かに落とさず知らせる
         console.error('onSubmit 想定外エラー:', e);
-        toast('結果の表示に失敗しました。再読み込みしてお試しください');
+        toast(t('ui.err_render'));
     } finally {
         // どの経路 (想定外の例外含む) でも: オーバーレイを閉じ、ボタンを復帰させる
         forceCloseLoading();
         submitting = false;
-        btn.textContent = '送信して測定する';
+        btn.textContent = t('ui.submit');
         updateSubmitState();
     }
 }
@@ -933,7 +934,7 @@ function renderResults() {
         const totalPct = scored.length > 0 && ratios.every(x => x != null)
             ? Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) : null;
         const finishNote = scored.length < results.length
-            ? ` 締め凸 ${results.length - scored.length}凸は打ち切りダメージのため総合に含めていません。` : '';
+            ? t('ui.total_finish_note', { n: results.length - scored.length }) : '';
         // 総合の全体分布 (3凸完走勢)。有効3凸未満の人は数えられず「参考位置」だけ見せる
         let totalHist = '';
         const td = totalDist;
@@ -944,50 +945,44 @@ function renderResults() {
             // 位置の説明: サーバーの正 (属性ごとシーズンベスト) 基準。有効3凸未満は参考扱い
             const myNote = td.my_bin == null ? ''
                 : Number.isFinite(td.my_atk) && td.my_atk < 3
-                    ? `色の違うバーがあなた (母集団は3凸完走のみ — あなたは有効${td.my_atk}凸の平均 ${Math.round(td.my_total * 100)}% での参考位置)。`
-                    : `色の違うバーがあなた (シーズン内の属性ごとベスト凸での総合 ${Math.round(td.my_total * 100)}%)。`;
+                    ? t('ui.total_my_note_ref', { n: td.my_atk, pct: Math.round(td.my_total * 100) })
+                    : t('ui.total_my_note', { pct: Math.round(td.my_total * 100) });
             totalHist = `
             <div class="hist">${bars}</div>
-            <div class="hist-axis"><span>${Math.round(td.lo * 100)}%</span><span>真ん中 ${Math.round(td.median * 100)}%</span><span>${Math.round(td.hi * 100)}%</span></div>
-            <p class="dist-note">3凸完走 ${td.n}人それぞれの「総合」を並べた分布。${myNote}利用者は ${td.users}人です。</p>`;
+            <div class="hist-axis"><span>${Math.round(td.lo * 100)}%</span><span>${t('ui.axis_median_pct', { pct: Math.round(td.median * 100) })}</span><span>${Math.round(td.hi * 100)}%</span></div>
+            <p class="dist-note">${t('ui.total_dist_note', { n: td.n, myNote, users: td.users })}</p>`;
         } else if (td) {
-            totalHist = `<p class="dist-note">みんなの総合の分布は 3凸完走 ${td.need ?? 50}人で解禁 (現在 ${td.n ?? 0}人)。利用者 ${td.users ?? 0}人。</p>`;
+            totalHist = `<p class="dist-note">${t('ui.total_dist_locked', { need: td.need ?? 50, n: td.n ?? 0, users: td.users ?? 0 })}</p>`;
         }
         html += `
         <section class="card set-card">
-            <div class="score-label">🏅 ${scored.length}凸の総合</div>
+            <div class="score-label">${t('ui.total_label', { n: scored.length })}</div>
             <div class="score-big">${totalPct != null ? `${totalPct}<span style="font-size:26px;">%</span>` : '—'}</div>
             <div class="pill-row">
-                <span class="pill">各凸の中央値比の平均</span>
+                <span class="pill">${t('ui.total_pill')}</span>
                 ${results.map((r, ri) => r.isFinish
-                    ? `<span class="pill" style="color:var(--faint);">${ATTR_INFO[r.attribute].jp} 締め凸</span>`
-                    : `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${ATTR_INFO[r.attribute].jp} ${medianRatioOf(r) != null ? `${Math.round(medianRatioOf(r) * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
+                    ? `<span class="pill" style="color:var(--faint);">${t('ui.finish_pill_attr', { code: attrName(r.attribute) })}</span>`
+                    : `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${attrName(r.attribute)} ${medianRatioOf(r) != null ? `${Math.round(medianRatioOf(r) * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
             </div>
             ${totalHist}
             <p class="dist-note">${totalPct != null
-                ? `総合 ${totalPct}% = 各凸を「その属性のみんなの中央値 = 100%」と比べ、${scored.length}凸を同じ重みで平均した到達度です (合計ダメージの比ではありません)。ボスの通りやすさは各属性の中央値で補正済み。${finishNote}`
+                ? t('ui.total_explain', { pct: totalPct, n: scored.length, finishNote })
                 : scored.length === 0
-                    ? `※ 全て締め凸のため総合はありません (締め凸は打ち切りダメージなので比較対象にしません)`
-                    : `※ 総合 (各凸の中央値比の平均) は、凸した全属性の分布が解禁されると表示されます${finishNote}`}</p>
+                    ? t('ui.total_all_finish')
+                    : t('ui.total_pending', { finishNote })}</p>
         </section>`;
     }
     // ❓ 数字の出し方 tips (突っ込まれやすい計算方法を先回りで開示 — 実機FB)
     html += `
     <details class="card tips">
-        <summary>❓ この%はどう計算している?<span class="chev">▼</span></summary>
+        <summary>${t('ui.how_h')}<span class="chev">▼</span></summary>
         <div class="tips-body">
-            <p><strong>イメージ:</strong> 縦軸ダメージ・横軸SLvの散布図に今シーズンの各人のベスト提出を置き、
-            「真ん中の人の曲線」を引く。その曲線上 = 100% で、あなたの%は曲線からどれだけ上か、です。</p>
-            <p>曲線は直線の当てはめではなく <strong>SLv補正の実測カーブ × みんなの中央値</strong>で
-            引いています。SLvの伸びが直線でないことを正確に扱え、平均と違って極端な値に引っ張られません。</p>
-            <p><strong>属性の%</strong> = 同じ属性に凸した人の真ん中との比較。ボスの通りやすさは
-            この割り算で消えます (出やすいボスは分母も大きいため)。</p>
-            <p><strong>同じ編成の%</strong> = 同じ5人編成 (並び順は不問) の真ん中との比較
-            (同一編成${THRESHOLDS.comp}人で解禁)。強力なサポーターの有無など編成の差はこちらで公平に比べられます。</p>
-            <p><strong>総合</strong> = 各凸の%を同じ重みで平均した到達度で、合計ダメージの比では
-            ありません。編成の差は総合では補正しません (どの編成もどこか1凸では使えるため)。</p>
-            <p><strong>締め凸</strong> = ボス撃破で戦闘が途中終了した凸。ダメージが打ち切られて
-            低く出るため、みんなの分布・編成集計・総合には入れません (%は参考値として表示)。</p>
+            <p>${t('ui.how_p1')}</p>
+            <p>${t('ui.how_p2')}</p>
+            <p>${t('ui.how_p3')}</p>
+            <p>${t('ui.how_p4', { n: THRESHOLDS.comp })}</p>
+            <p>${t('ui.how_p5')}</p>
+            <p>${t('ui.how_p6')}</p>
         </div>
     </details>`;
     area.innerHTML = html;
@@ -1021,10 +1016,10 @@ async function onToggleFinish(i) {
         await refreshTotalDist();   // 自分の締め凸の出入りで完走人数・総合も動く
         renderResults();
         showShareCardPreview();
-        toast(next ? '締め凸として集計から外しました' : '締め凸を取り消しました (集計に戻ります)');
+        toast(next ? t('ui.finish_on') : t('ui.finish_off'));
     } catch (e) {
         console.warn('締め凸トグル失敗:', e);
-        toast('変更できませんでした。通信環境を確認して再度お試しください');
+        toast(t('ui.change_failed'));
     } finally {
         editBusy = false;
     }
@@ -1050,8 +1045,8 @@ function startCorrection(i) {
     if (Number.isFinite(r.slv)) { $('slv').value = r.slv; onSlvChanged(); }
     renderAttacks();
     updateSubmitState();
-    $('submitBtn').textContent = '修正して送り直す';
-    toast(`${ATTR_INFO[r.attribute].jp}PT の提出を修正します (送信で置き換え)`);
+    $('submitBtn').textContent = t('ui.resubmit');
+    toast(t('ui.correct_toast', { team: t('ui.team_of', { code: attrName(r.attribute) }) }));
     $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -1060,7 +1055,7 @@ function cancelCorrection() {
     attacks = [newAttack()];
     renderAttacks();
     updateSubmitState();
-    $('submitBtn').textContent = '送信して測定する';
+    $('submitBtn').textContent = t('ui.submit');
 }
 
 // localStorage の前回結果を部分更新 (属性単位)。保存が無ければ何もしない
@@ -1077,11 +1072,11 @@ function updateSavedItem(attribute, patch) {
 
 function resultCardHTML(r, i, multi) {
     const info = ATTR_INFO[r.attribute];
-    const title = multi ? `凸${i + 1} の測定結果` : 'の測定結果';
+    const title = multi ? t('ui.result_title_n', { n: i + 1 }) : t('ui.result_title');
 
     let distHtml = '';
     if (r.fetchError) {
-        distHtml = `<p class="dist-note">分布データを取得できませんでした (スコアは正常です)</p>`;
+        distHtml = `<p class="dist-note">${t('ui.dist_failed')}</p>`;
     } else if (r.dist) {
         distHtml = distSectionHTML(r, info);
     }
@@ -1092,39 +1087,38 @@ function resultCardHTML(r, i, multi) {
     const ratio = medianRatioOf(r);
     const medianPct = ratio != null ? Math.round(ratio * 100) : null;
     const pill = medianPct != null
-        ? `<span class="rank-pill">ふるり値 ${r.score.toFixed(2)}</span>` : '';
+        ? `<span class="rank-pill">${t('ui.fururi_val', { v: r.score.toFixed(2) })}</span>` : '';
     const big = medianPct != null
         ? `${medianPct}<span style="font-size:26px;">%</span>`
         : r.score.toFixed(2);
     const mainPill = medianPct != null
-        ? `<span class="pill">中央値 = 100% ・ ${r.dist.n}人中</span>` : '';
+        ? `<span class="pill">${t('ui.median_100_of_n', { n: r.dist.n })}</span>` : '';
 
     // 使った編成 (5人・順不同保存なのでバースト順で表示)。編成未入力の提出では出さない
     const compRow = (r.characters?.length && compReady())
-        ? `<div class="result-comp"><span class="result-comp-label">編成</span>` +
+        ? `<div class="result-comp"><span class="result-comp-label">${t('ui.comp')}</span>` +
           sortForDisplay(r.characters, infoOf).map(id => tileHTML(infoOf(id), { xs: true })).join('') +
           `</div>`
         : '';
 
     // 締め凸: %は出すが「参考値」であることを明示 (分布・編成集計・総合には不参加)
-    const finishPill = r.isFinish ? `<span class="pill finish-pill">🏁 締め凸</span>` : '';
+    const finishPill = r.isFinish ? `<span class="pill finish-pill">${t('ui.finish_pill')}</span>` : '';
     const finishNote = r.isFinish
-        ? `<p class="dist-note">🏁 締め凸 (ボス撃破で戦闘が途中終了) のため、この凸はみんなの分布・
-           編成集計・総合には入れていません。%は「打ち切られたダメージでもここまで出た」という参考値です。</p>`
+        ? `<p class="dist-note">${t('ui.finish_result_note')}</p>`
         : '';
     // 提出の後編集 (シーズン開催中のみ): 締め凸トグルは自分の行のフラグだけ書き換え、
     // ✏️修正はフォームに再充填して「その属性の自分の行を置き換える」送信になる
     const actions = (mode === 'open' && backendConfigured())
         ? `<div class="res-actions">
-            <button type="button" class="res-act res-finish-toggle" data-i="${i}">${r.isFinish ? '↩️ 締め凸を取り消す' : '🏁 締め凸として除外'}</button>
-            <button type="button" class="res-act res-correct" data-i="${i}">✏️ ダメージ/編成を修正</button>
+            <button type="button" class="res-act res-finish-toggle" data-i="${i}">${r.isFinish ? t('ui.finish_undo') : t('ui.finish_mark')}</button>
+            <button type="button" class="res-act res-correct" data-i="${i}">${t('ui.edit_dmg_comp')}</button>
         </div>`
         : '';
 
     return `
     <section class="card result-card${r.isFinish ? ' finish-card' : ''}">
-        <div class="score-label"><strong style="color:${info.color};">${info.jp}PT</strong> ${title}${finishPill}${pill}</div>
-        <div class="score-big">${big}${r.isFinish ? `<span class="finish-ref">参考</span>` : ''}</div>
+        <div class="score-label"><strong style="color:${info.color};">${t('ui.team_of', { code: attrName(r.attribute) })}</strong> ${title}${finishPill}${pill}</div>
+        <div class="score-big">${big}${r.isFinish ? `<span class="finish-ref">${t('ui.ref')}</span>` : ''}</div>
         <div class="pill-row">
             ${mainPill}
             <span class="pill">SLv ${r.slv}</span>
@@ -1148,12 +1142,12 @@ function distSectionHTML(r, info) {
         if (cratio != null) {
             html += `
             <div class="comp-pct">
-                <span class="lbl">編成内</span>
+                <span class="lbl">${t('ui.in_comp')}</span>
                 <span class="val">${Math.round(cratio * 100)}<small>%</small></span>
-                <span class="lbl">同じ編成 ${cd.n}人の中央値 = 100%</span>
+                <span class="lbl">${t('ui.in_comp_median', { n: cd.n })}</span>
             </div>`;
         } else {
-            html += `<div class="comp-pct gated">🧩 編成内%は同じ編成 ${cd.need ?? THRESHOLDS.comp}人で解禁 (現在 ${cd.n}人)</div>`;
+            html += `<div class="comp-pct gated">${t('ui.in_comp_locked', { need: cd.need ?? THRESHOLDS.comp, n: cd.n })}</div>`;
         }
     }
     const distReady = !d.gated && Array.isArray(d.bins);
@@ -1164,7 +1158,7 @@ function distSectionHTML(r, info) {
         html += `
         <div class="gate-note">
             <span>🔒</span>
-            <span>みんなの分布は <strong>${need}人</strong> で解禁 — 現在 <strong>${d.n}人</strong>。シェアして仲間を増やそう!</span>
+            <span>${t('ui.dist_locked', { need, n: d.n })}</span>
             <span class="gate-bar"><span style="width:${pctBar}%"></span></span>
         </div>`;
     } else {
@@ -1174,9 +1168,8 @@ function distSectionHTML(r, info) {
             `<div class="bar${bi === d.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
         html += `
         <div class="hist">${bars}</div>
-        <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>中央値 ${d.median.toFixed(2)}</span><span>${d.hi.toFixed(2)}</span></div>
-        <p class="dist-note">${info.jp}PT の提出 ${d.n}人 (1人1票・今シーズン) の分布。色の違うバーがあなたの位置。
-            真ん中の人 (=100%) はふるり値 <strong>${d.median.toFixed(2)}</strong> です。</p>`;
+        <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>${t('ui.axis_median', { v: d.median.toFixed(2) })}</span><span>${d.hi.toFixed(2)}</span></div>
+        <p class="dist-note">${t('ui.attr_dist_note', { team: t('ui.team_of', { code: attrName(r.attribute) }), n: d.n, v: d.median.toFixed(2) })}</p>`;
     }
     return html;
 }
@@ -1207,12 +1200,12 @@ let cardFailed = false;
 function setShareButtons(state) {   // 'busy' | 'ready' | 'failed'
     cardFailed = state === 'failed';
     const busy = state === 'busy';
-    for (const [id, label] of [['shareBtn', '📤 シェアする'], ['saveBtn', '💾 画像を保存']]) {
+    for (const [id, label] of [['shareBtn', t('ui.share')], ['saveBtn', t('ui.save_img')]]) {
         const b = $(id);
         if (!b) continue;
         b.disabled = busy;
         b.style.opacity = busy ? '0.55' : '';
-        if (id === 'shareBtn') b.textContent = busy ? '画像を準備中…' : (cardFailed ? '📤 文章だけ共有' : label);
+        if (id === 'shareBtn') b.textContent = busy ? t('ui.preparing_img') : (cardFailed ? t('ui.share_text_only') : label);
         else { b.textContent = label; b.style.display = cardFailed ? 'none' : ''; }   // 画像が無ければ保存は出さない
     }
 }
@@ -1233,38 +1226,42 @@ async function showShareCardPreview() {
         shareBlob = blob;
         setPreviewImage(blob);
         setShareButtons('ready');
+        // «このカードは今見ている言語で作られている» ことを明示 (ユーザー確認済みの方針)
+        const note = $('cardLangNote');
+        if (note) note.textContent = t('ui.card_lang_note', { lang: t('common.lang_name') });
     } catch (e) {
         if (gen !== previewGen) return;
         // 無言で「画像だけ出ない」状態にしない (実機からの「画像が表示されない」報告の温床だった)
         console.warn('シェアカード生成失敗:', e);
         setShareButtons('failed');
-        toast('画像を作れませんでした。文章だけでも共有できます');
+        toast(t('ui.card_failed'));
     }
 }
 
 // シェア文もカードと同じ主従: 中央値比%が主役、ふるり値はサブ (未解禁時のみふるり値が主役)。
 // 総合は締め凸を除いて平均 (画面・カードと同じ数字になること — Codex指摘)
 function shareText() {
+    const tags = t('ui.tags');
     if (results.length > 1) {
         const scored = results.filter(r => !r.isFinish);
         const ratios = scored.map(medianRatioOf);
         const partOf = (r) => r.isFinish
-            ? `${ATTR_INFO[r.attribute].jp}締め凸`
-            : (medianRatioOf(r) != null ? `${ATTR_INFO[r.attribute].jp}${Math.round(medianRatioOf(r) * 100)}%`
-                                        : `${ATTR_INFO[r.attribute].jp}${r.score.toFixed(2)}`);
+            ? t('ui.share_part_finish', { code: attrName(r.attribute) })
+            : (medianRatioOf(r) != null ? `${attrName(r.attribute)}${Math.round(medianRatioOf(r) * 100)}%`
+                                        : `${attrName(r.attribute)}${r.score.toFixed(2)}`);
         if (scored.length > 0 && ratios.every(x => x != null)) {
             const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
-            return `総合 ${totalPct}% (${results.map(partOf).join('/')}) — みんなの中央値=100% #しりすこPADグローバル #NIKKE`;
+            return t('ui.share_total', { pct: totalPct, parts: results.map(partOf).join('/'), tags });
         }
-        return `ふるり値 ${results.map(partOf).join('/')} を測定! #しりすこPADグローバル #NIKKE`;
+        return t('ui.share_scores', { parts: results.map(partOf).join('/'), tags });
     }
     const r = results[0];
     const ratio = medianRatioOf(r);
-    const finishTag = r.isFinish ? '・締め凸につき参考' : '';
+    const finishTag = r.isFinish ? t('ui.share_finish_tag') : '';
     if (ratio != null) {
-        return `中央値比 ${Math.round(ratio * 100)}% (${ATTR_INFO[r.attribute].jp}PT・みんなの真ん中=100%${finishTag}) — ふるり値 ${r.score.toFixed(2)} #しりすこPADグローバル #NIKKE`;
+        return t('ui.share_one_dist', { pct: Math.round(ratio * 100), team: t('ui.team_of', { code: attrName(r.attribute) }), finishTag, v: r.score.toFixed(2), tags });
     }
-    return `ふるり値 ${r.score.toFixed(2)} (${ATTR_INFO[r.attribute].jp}PT${finishTag}) を測定! #しりすこPADグローバル #NIKKE`;
+    return t('ui.share_one', { v: r.score.toFixed(2), team: t('ui.team_of', { code: attrName(r.attribute) }), finishTag, tags });
 }
 
 // ⚠ navigator.share() は「ユーザー操作中」でないと呼べない (transient user activation)。
@@ -1317,16 +1314,15 @@ function shareFallback(noImage = false) {
     const recent = now - lastFallbackAt < 2000;
     lastFallbackAt = now;
     if (noImage) {
-        toast('画像なしで文章だけ共有します');
+        toast(t('ui.share_no_img'));
     } else {
         previewCard().catch(() => {});
-        toast('この環境では画像を自動添付できません。上の画像を保存して添付してください');
+        toast(t('ui.share_attach_manual'));
     }
     if (recent) return;
     const w = window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText())}&url=${encodeURIComponent(SITE_URL)}`, '_blank');
     // 画像が無いときに「画像を保存して」と言わない (矛盾した案内を出さない — Codex指摘)
-    if (!w) toast(noImage ? 'Xを開けませんでした。もう一度お試しください'
-        : 'Xを開けませんでした。画像を保存してから手動で投稿してください');
+    if (!w) toast(noImage ? t('ui.x_open_failed') : t('ui.x_open_failed_img'));
 }
 
 // 保存も共有と同じ制約を受ける。アプリ内ブラウザ (X/LINE等) は <a download> を無視するので
@@ -1335,8 +1331,8 @@ function shareFallback(noImage = false) {
 function onSave() {
     if (!results || shareBusy || !shareBlob) return;   // 準備前はボタンが disabled なので通常来ない
     if (isInAppBrowser() && shareWithFile(shareBlob, {
-        onAbort: () => toast('保存をやめました。画像を長押しでも保存できます'),
-        onFail: () => toast('この環境では保存できませんでした。画像を長押しして保存してください'),
+        onAbort: () => toast(t('ui.save_cancelled')),
+        onFail: () => toast(t('ui.save_unsupported')),
     })) return;
     saveByDownload(shareBlob);
 }
@@ -1353,10 +1349,10 @@ function saveByDownload(blob) {
         setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
         console.warn('保存に失敗:', e);
-        toast('保存できませんでした。画像を長押しして保存してください');
+        toast(t('ui.save_failed'));
         return;
     }
-    if (isInAppBrowser()) toast('保存できないときは画像を長押しして保存してください');
+    if (isInAppBrowser()) toast(t('ui.save_inapp'));
 }
 
 // フォールバックからのみ呼ぶ。shareBlob がある前提 (無い場合は呼び出し側が noImage 扱い)
@@ -1380,5 +1376,5 @@ function toast(msg) {
 
 init().catch(e => {
     console.error(e);
-    toast('データの読み込みに失敗しました。再読み込みしてください。');
+    toast(t('ui.load_failed'));
 });
