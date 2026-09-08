@@ -100,14 +100,11 @@
         h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.3px; line-height: 1.3; }
         .subtitle { font-size: 13px; font-weight: 800; color: var(--sub); margin-top: 1px; letter-spacing: 0.2px; }
         .tagline { font-size: 12px; color: var(--sub); margin-top: 2px; }
-        /* ヘッダー直下のユーティリティ行。狭い画面では折り返し、言語スイッチは右寄せのまま。
-           **スイッチをヘッダー右上に置くと iPhone で届かない** (最上部は安全領域 — 実機FB) */
-        .toprow {
-            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-            margin: 0 0 14px 2px;
-        }
+        /* 言語スイッチの行。ナビのピルより上・右寄せに置く。
+           **ヘッダー右上に置くと iPhone で届かない** (最上部は安全領域 — 実機FB) */
+        .langrow { display: flex; justify-content: flex-end; margin: 0 2px 10px; }
         .toplink {
-            display: inline-flex; align-items: center; gap: 7px; margin: 0;
+            display: inline-flex; align-items: center; gap: 7px; margin: 0 0 14px 2px;
             border: 1px solid var(--line); background: var(--card); border-radius: 999px;
             padding: 8px 8px 8px 16px; font-size: 12px; font-weight: 800; color: var(--ink); text-decoration: none;
         }
@@ -118,19 +115,23 @@
         /* 言語スイッチ: 両方を出して «今の言語» をクリーム面で示す (i18n.js が active を付ける)。
            切り替え先だけを出すと「日本語表示なのに English と書いてある」に見える — 実機FB 2026-09-08 */
         .lang-switch {
-            margin-left: auto; flex-shrink: 0;
+            flex-shrink: 0;
             display: inline-flex; gap: 2px; padding: 2px;
             border: 1px solid var(--line); background: var(--card); border-radius: 999px;
         }
-        /* 指で押す前提の余白。iOS の推奨タップ領域 (44pt) に近づける —
-           小さいピルだと «押せない» と言われる (実機FB 2026-09-08) */
         .lang-opt {
+            position: relative;
             display: inline-flex; align-items: center; justify-content: center;
             border: 0; background: transparent; color: var(--sub2);
-            border-radius: 999px; padding: 0 12px; font-size: 11.5px; font-weight: 800;
+            border-radius: 999px; padding: 0 10px; font-size: 10.5px; font-weight: 800;
             line-height: 1.4; cursor: pointer; font-family: inherit; white-space: nowrap;
-            /* iOS の推奨タップ領域 44pt を «ボタン本体» で満たす (外側ピルの余白は当たり判定に入らない) */
-            min-width: 60px; min-height: 44px; -webkit-tap-highlight-color: transparent;
+            min-width: 52px; min-height: 34px; -webkit-tap-highlight-color: transparent;
+        }
+        /* 見た目は小さく、**指の当たり判定は iOS 推奨の 44pt** のまま
+           (小さいまま押せないと、実機で「触れない」に逆戻りする) */
+        .lang-opt::after {
+            content: ''; position: absolute; left: 0; right: 0;
+            top: 50%; transform: translateY(-50%); height: 44px;
         }
         .lang-opt.active { background: var(--cream); color: var(--cream-ink); }
         .lang-opt:not(.active):hover { color: var(--ink); }
@@ -572,13 +573,14 @@
         </div>
     </header>
 
-    <div class="toprow">
-        <a class="toplink" href="./stats.html" data-i18n-html="ui.toplink">📊 みんなのデータ (分布・採用率・編成) <span class="arr">↗</span></a>
+    <div class="langrow">
         <div class="lang-switch" id="langSwitch" role="group">
             <button type="button" class="lang-opt" data-lang="ja" lang="ja">日本語</button>
             <button type="button" class="lang-opt" data-lang="en" lang="en">English</button>
         </div>
     </div>
+
+    <a class="toplink" href="./stats.html" data-i18n-html="ui.toplink">📊 みんなのデータ (分布・採用率・編成) <span class="arr">↗</span></a>
 
     <!-- シーズン運用モードの告知 (between/maintenance 時に app.js が出す) -->
     <div id="siteNotice" style="display:none;"></div>

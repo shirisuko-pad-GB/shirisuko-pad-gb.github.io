@@ -56,28 +56,32 @@
         .brand-dot { width:34px; height:34px; border-radius:999px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; margin-top:3px; }
         .brand { font-size:10.5px; font-weight:800; color:var(--sub2); letter-spacing:2px; }
         h1 { font-size:24px; font-weight:800; letter-spacing:-0.3px; }
-        /* ヘッダー直下のユーティリティ行 (index.html と同じ。最上部は iPhone で届かない) */
-        .toprow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 14px 2px; }
+        /* 言語スイッチの行 (index.html と同じ位置 — ナビのピルより上・右寄せ) */
+        .langrow { display:flex; justify-content:flex-end; margin:0 2px 10px; }
         .back {
-            display:inline-flex; align-items:center; gap:7px; margin:0;
+            display:inline-flex; align-items:center; gap:7px; margin:0 0 14px 2px;
             border:1px solid var(--line); background:var(--card); border-radius:999px;
             padding:8px 16px 8px 8px; font-size:12px; font-weight:800; color:var(--ink); text-decoration:none;
         }
         .back .arr { width:22px; height:22px; border-radius:999px; background:var(--ink); color:var(--onink); display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
         /* 言語スイッチ: 両方を出して «今の言語» をクリーム面で示す (index.html と同じ) */
         .lang-switch {
-            margin-left:auto; flex-shrink:0;
+            flex-shrink:0;
             display:inline-flex; gap:2px; padding:2px;
             border:1px solid var(--line); background:var(--card); border-radius:999px;
         }
-        /* 指で押す前提の余白 (index.html と同じ) */
         .lang-opt {
+            position:relative;
             display:inline-flex; align-items:center; justify-content:center;
             border:0; background:transparent; color:var(--sub2);
-            border-radius:999px; padding:0 12px; font-size:11.5px; font-weight:800;
+            border-radius:999px; padding:0 10px; font-size:10.5px; font-weight:800;
             line-height:1.4; cursor:pointer; font-family:inherit; white-space:nowrap;
-            /* iOS の推奨タップ領域 44pt を «ボタン本体» で満たす (index.html と同じ) */
-            min-width:60px; min-height:44px; -webkit-tap-highlight-color:transparent;
+            min-width:52px; min-height:34px; -webkit-tap-highlight-color:transparent;
+        }
+        /* 見た目は小さく、当たり判定は 44pt のまま (index.html と同じ) */
+        .lang-opt::after {
+            content:''; position:absolute; left:0; right:0;
+            top:50%; transform:translateY(-50%); height:44px;
         }
         .lang-opt.active { background:var(--cream); color:var(--cream-ink); }
         .lang-opt:not(.active):hover { color:var(--ink); }
@@ -182,13 +186,14 @@
         </div>
     </header>
 
-    <div class="toprow">
-        <a class="back" href="./" data-i18n-html="stats.back"><span class="arr">←</span> 測定にもどる</a>
+    <div class="langrow">
         <div class="lang-switch" id="langSwitch" role="group">
             <button type="button" class="lang-opt" data-lang="ja" lang="ja">日本語</button>
             <button type="button" class="lang-opt" data-lang="en" lang="en">English</button>
         </div>
     </div>
+
+    <a class="back" href="./" data-i18n-html="stats.back"><span class="arr">←</span> 測定にもどる</a>
 
     <div class="attr-tabs" id="attrTabs"></div>
 
