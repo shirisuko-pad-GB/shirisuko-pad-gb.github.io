@@ -141,10 +141,11 @@ export function mountLangToggle(doc = (typeof document !== 'undefined' ? documen
         const lang = btn.dataset.lang;
         const isCurrent = lang === current;
         btn.classList.toggle('active', isCurrent);
+        // 状態は aria-pressed だけで表す。aria-current も付けると
+        // 「pressed」「current」と二重に読み上げられる (Codex指摘)
         btn.setAttribute('aria-pressed', String(isCurrent));
-        // 今の言語は押しても何も起きない — 押せないことを見た目でなく状態で伝える
-        if (isCurrent) btn.setAttribute('aria-current', 'true');
-        else btn.removeAttribute('aria-current');
+        // 今の言語は押しても何も起きない (無駄な再読み込みをしない)。
+        // disabled にはしない — キーボードで到達でき、選択中だと分かる方が親切
         btn.addEventListener('click', () => { if (lang !== current) setLang(lang); });
     }
 }
