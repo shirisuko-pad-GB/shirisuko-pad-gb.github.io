@@ -1,6 +1,11 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
-## 🔜 第44回 (2026-09) への切替 — **裏準備は完了・公開待ち** (2026-09-05)
+## ✅ 済: 第44回 (2026-09) への切替 — **公開済み・稼働中** (2026-09-08 確認)
+
+`site_state` = status:open / active_season:2026-09 / display_season:null、提出も蓄積中。
+**切替手順 (delete → seed → score_bounds → open) は実行済み。もう回さないこと** —
+特に `delete from public.measurements;` は今実行するとシーズンのデータが消える。
+次シーズンの手順は README「シーズン切替の運用ランブック」が正。以下は経緯の記録。
 
 - 済 (2026-09-05 自宅PC): ふるりの模擬5属性を本家 `fururi_simulation_scores` (season_id=30) へ同期
   (`本家 scripts/sync-fururi-sim.mjs --apply`。以後は模擬タブの手入力不要・毎シーズンこれを回す) →
@@ -8,15 +13,6 @@
   site_state は **between のまま** (display_season=2026-08 を read-only 表示中)。
   index の基準パネルは「表示中シーズン ≠ base.version」のとき自動で伏せる (app.js) ので、
   push 済みでも第44回の基準・ボスは画面には出ない (data/*.json 自体は公開リポジトリなので秘密ではない)
-- **公開日にやること** (SQL Editor、順序厳守):
-  1. (任意) 前シーズンの保全: `node scripts/export-season.mjs 2026-08` でローカルに書き出し
-  2. `delete from public.measurements;`
-  3. `supabase/seed.local.sql` を実行 (fururi_bases 2026-09 5行 + slv_ratio。**貼り付け先は SQL Editor のみ**)
-  4. `insert into public.score_bounds (season, min_score, max_score) values ('2026-09', 0.1, 2.5) on conflict do nothing;`
-     (行が無いと既定 0.01〜5.0 で緩くなる — 第43回は 0.1〜2.5 で運用)
-  5. `update public.site_state set status='open', active_season='2026-09', display_season=null,
-         message=null, updated_at=now();`
-  6. (任意) `node scripts/seed-base-vote.mjs` で基準者の1票を各属性に置く (open 後でないと弾かれる)
 - 基準の内訳 (2026-09-05 時点): **実凸3属性** 鉄甲22.002B / 水冷18.291B / 電撃24.568B、
   **模擬2属性** 灼熱15.523B / 風圧18.795B。SLv585。
   実凸は本家 attacks (ハード日・締め凸担当ボスは除外) から自動取得し、模擬タブに同額が
@@ -31,6 +27,19 @@
   図鑑アイコンは未入手なので当面は自作タイル表示 (入手したら本家に登録 → `update-roster.mjs`)
 - キャラ画像は takedown 方式で掲載中 (README「権利方針」)。撤去要請が来たら README「撤去手順」
 - 未着手: 本家の「🔍要確認」キャラ (is_confirmed=false + registered_by) をビルド警告に出す
+
+## 🌐 英語対応で残っている穴 (2026-09-08)
+
+測定画面・シェアカード・みんなのデータは英語化済み (仕組みは README「英語対応」)。
+残りは **データ由来** の2つ。急がないが、英語圏の利用者が増えたら効いてくる。
+
+- **ボス名が日本語のまま** (`data/raid.json`)。英語表示でも「モダニア」等が出る。
+  対応するなら raid.json にボス名の英語を持たせ、new-season.mjs でも引き継ぐ設計が要る
+- **キャラ3体の英語名が未登録**: シフティー / シュエン / プリム。
+  公式表記が分かったら `data/name-en.json` の `names` に足すだけ (`_unknown` にメモ済み)。
+  **推測で埋めないこと** — 未登録なら日本語名のまま出るので実害は小さい
+- 英語のシェア文のタグは `#ShirisukoPADGlobal`、日本語は `#しりすこPADグローバル` と
+  **分かれている**。統一したくなったら `js/messages.js` の `ui.tags`
 
 ## ✅ 済: Supabase 東京リージョン移行の検討 → **見送り** (2026-08-10 ユーザー判断)
 
