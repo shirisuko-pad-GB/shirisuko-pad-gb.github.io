@@ -81,7 +81,7 @@ try {
     }
 } catch { /* 初回・破損時は新規採番 */ }
 
-const characters = {};          // 代表ID → {name, burst, burstAlt, element, hasImg}
+const characters = {};          // 代表ID → {name, en, burst, burstAlt, element, hasImg}
 const aliases = {};             // 旧アイコンID → 代表ID
 const iconCandidates = new Map();   // 代表ID → PADにあるかもしれないアイコンファイル名の候補列
 const noElement = [];
@@ -187,6 +187,39 @@ if (existsSync(overridePath)) {
 // 優先順: ① BlablaLINK 図鑑アイコン (assets/blabla-icons/<resource_id>.webp × data/blabla-map.json —
 //          透過128px統一・全所持キャラ分) → ② 本家PADのOCR由来アイコン (フォールバック)。
 // GB側は常に <代表ID>.webp の名前で持つ。画像が無いキャラは hasImg なし → 自作タイル表示。
+// ── キャラの英語名 (英語表示用) ───────────────────────────────────────────
+// 出どころ: ① blabla-map.json の icons[].en (図鑑由来・大半のキャラを覆う)
+//           ② data/name-en.json (手動の補助表。①に無いキャラを補い、①より優先)
+// **画像の有無とは無関係**なので、画像コピーのループとは分けて集める
+//   (図鑑アイコンを持たないキャラでも英語名だけは付けられる)。
+// 埋まらないキャラは en を付けない → 画面は日本語名にフォールバックする。
+const enByName = new Map();
+{
+    const bp = join(ROOT, 'data', 'blabla-map.json');
+    if (existsSync(bp)) {
+        for (const e of Object.values(JSON.parse(readFileSync(bp, 'utf8')).icons ?? {})) {
+            if (!e?.en) continue;
+            for (const jp of (Array.isArray(e.jp) ? e.jp : [e.jp])) enByName.set(norm(jp), e.en);
+        }
+    }
+    const np = join(ROOT, 'data', 'name-en.json');
+    if (existsSync(np)) {
+        for (const [jp, en] of Object.entries(JSON.parse(readFileSync(np, 'utf8')).names ?? {})) {
+            if (en) enByName.set(norm(jp), en);   // 補助表が勝つ (誤りの上書きにも使える)
+        }
+    }
+}
+const noEn = [];
+for (const c of Object.values(characters)) {
+    const en = enByName.get(norm(c.name));
+    if (en) c.en = en;
+    else noEn.push(c.name);
+}
+if (noEn.length) {
+    console.warn(`⚠ 英語名が無いキャラ ${noEn.length}件 (英語表示では日本語名のまま): ${noEn.join(' / ')}`);
+    console.warn('   → 公式表記が分かったら data/name-en.json の names に足すこと');
+}
+
 const imgDir = join(ROOT, 'character-images');
 mkdirSync(imgDir, { recursive: true });
 // 撤去レバー (tiles.js) の現在値。true 以外はすべて「撤去中」扱い (tiles.js が読めなければ例外で停止 = 何も消さない)

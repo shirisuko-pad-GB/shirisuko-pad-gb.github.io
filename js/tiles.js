@@ -14,6 +14,7 @@
 // ⚠ name は本家DB由来の外部入力として扱い、必ずエスケープして DOM に入れる。
 
 import { escapeHtml, ATTR_INFO } from './shared.js';
+import { t, currentLang } from './i18n.js';
 
 // キャラ画像を使うか。false = 全面自作タイル (バースト帯 + キャラ名 + 属性色)。
 // ★ 撤去レバー: 権利者から削除要請が来たらここを false にして即日 push (README「撤去手順」)。
@@ -66,10 +67,21 @@ export function burstsOf(info) {
     return info.burstAlt ? [info.burst, info.burstAlt] : [info.burst];
 }
 
+/**
+ * 画面に出すキャラ名。英語表示なら characters.json の en を使う。
+ * **en が無いキャラは日本語名のまま** — 推測の英語名を出すより正確 (data/name-en.json 参照)。
+ */
+export function displayName(info) {
+    if (!info) return '';
+    return (currentLang() === 'en' && info.en) ? info.en : (info.name ?? '');
+}
+
 // 「ヘルム：アクアマリン」→ {base:'ヘルム', variant:'アクアマリン'}
+// 英語は図鑑の流儀で「Helm - Aquamarine」なので、半角ハイフン区切りも見る。
+// (「E.H.」のようにピリオドを含む名前を壊さないよう、前後の空白ごと区切りとして扱う)
 export function splitName(name) {
-    const p = String(name ?? '').split(/[：:]/);
-    return { base: p[0] || '？', variant: p.slice(1).join(':') || null };
+    const p = String(name ?? '').split(/\s+-\s+|[：:]/);
+    return { base: p[0] || '？', variant: p.slice(1).join(': ') || null };
 }
 
 // 編成の表示順: バースト順 (B1→B2→B3→Λ→不明) → 名前。保存値はID順不同ソートで
@@ -79,7 +91,8 @@ export function sortForDisplay(ids, infoOf) {
     return [...ids].sort((a, b) => {
         const ia = infoOf(a), ib = infoOf(b);
         const ra = BURST_RANK[ia?.burst] ?? 4, rb = BURST_RANK[ib?.burst] ?? 4;
-        return ra - rb || String(ia?.name ?? '').localeCompare(String(ib?.name ?? ''), 'ja');
+        // 並びは**表示名**で。英語表示のときに日本語の五十音順で並ぶと不自然
+        return ra - rb || displayName(ia).localeCompare(displayName(ib), currentLang());
     });
 }
 
@@ -99,13 +112,14 @@ export function tileHTML(info, { strip = true, xs = false } = {}) {
         return `<span class="gb-tile gb-tile--unknown${xs ? ' gb-tile--xs' : ''}" style="--tile-ac:${UNKNOWN_COLOR};">` +
             `<span class="gb-tile-body"><span class="gb-tile-base">？</span></span></span>`;
     }
-    const { base, variant } = splitName(info.name);
+    const shown = displayName(info);
+    const { base, variant } = splitName(shown);
     const { attr, known } = colorsOf(info);
     const b = info.burst;
     const stripHtml = strip && b
         ? `<span class="gb-tile-strip${BURST_DARK_TEXT.has(b) ? ' dark' : ''}" style="background:${BURST_COLORS[b]};">${BURST_SHORT[b]}</span>`
         : '';
-    const title = escapeHtml(info.name);
+    const title = escapeHtml(shown);
     const src = charImgSrc(info);   // id は build 生成の 32hex.webp のみ (CHAR_IMG_RE 相当) — 外部入力は混ざらない
     if (src) {
         // 画像タイル: 顔 + バースト帯。名前は下端の薄幕オーバーレイ (xs は tooltip のみ)
@@ -129,7 +143,7 @@ export function tileHTML(info, { strip = true, xs = false } = {}) {
         `<span class="gb-tile-body">` +
         `<span class="gb-tile-base">${escapeHtml(base)}</span>` +
         (variant ? `<span class="gb-tile-var">${escapeHtml(variant)}</span>` : '') +
-        (known ? '' : `<span class="gb-tile-var">属性？</span>`) +
+        (known ? '' : `<span class="gb-tile-var">${escapeHtml(t('attr.unknown'))}</span>`) +
         `</span>` +
         (known ? `<span class="gb-tile-dot" style="background:${attr};"></span>` : '') +
         `</span>`;
@@ -139,7 +153,7 @@ export function tileHTML(info, { strip = true, xs = false } = {}) {
 // img (HTMLImageElement) を渡すと顔画像タイルになる (名前は描かない — 顔で伝わる)。
 export function drawTileCanvas(ctx, info, x, y, size, fontFamily, img = null) {
     const r = size * 0.14;
-    const { base, variant } = info ? splitName(info.name) : { base: '？', variant: null };
+    const { base, variant } = info ? splitName(displayName(info)) : { base: '？', variant: null };
     const { attr } = colorsOf(info);
     // 背景 (ダークカード上なので属性色を濃いめに混ぜる)
     ctx.save();
@@ -172,24 +186,27 @@ export function drawTileCanvas(ctx, info, x, y, size, fontFamily, img = null) {
     // 名前 (ベース名 + 衣装違い)
     ctx.fillStyle = '#F1F2F4';
     const bodyY = y + stripH + (size - stripH) / 2;
+    // 幅に収まるまで細らせ、**最小サイズでも無理なら末尾を省く**。
+    // 英語名は日本語より長い ("Sparkling Summer" 対 「スパサマ」) ので、
+    // 縮小だけではタイルからはみ出す (英語対応で実際に溢れた)。
     const fit = (text, px, maxW) => {
         ctx.font = `900 ${px}px ${fontFamily}`;
         while (px > 7 && ctx.measureText(text).width > maxW) {
             px -= 1;
             ctx.font = `900 ${px}px ${fontFamily}`;
         }
-        return text;
+        if (ctx.measureText(text).width <= maxW) return text;
+        let cut = String(text);
+        while (cut.length > 1 && ctx.measureText(cut + '…').width > maxW) cut = cut.slice(0, -1);
+        return cut + '…';
     };
     ctx.textAlign = 'center';
     if (variant) {
-        fit(base, Math.round(size * 0.19), size - 6);
-        ctx.fillText(base, x + size / 2, bodyY);
+        ctx.fillText(fit(base, Math.round(size * 0.19), size - 6), x + size / 2, bodyY);
         ctx.fillStyle = 'rgba(241,242,244,0.75)';
-        fit(variant, Math.round(size * 0.13), size - 6);
-        ctx.fillText(variant, x + size / 2, bodyY + size * 0.17);
+        ctx.fillText(fit(variant, Math.round(size * 0.13), size - 6), x + size / 2, bodyY + size * 0.17);
     } else {
-        fit(base, Math.round(size * 0.2), size - 6);
-        ctx.fillText(base, x + size / 2, bodyY + size * 0.06);
+        ctx.fillText(fit(base, Math.round(size * 0.2), size - 6), x + size / 2, bodyY + size * 0.06);
     }
     ctx.restore();
     ctx.textAlign = 'left';

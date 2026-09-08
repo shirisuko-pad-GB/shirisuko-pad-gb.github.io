@@ -7,7 +7,11 @@
 //   - ふるり値の属性またぎ合算はしない (運営判断)
 //   - 属性は色+漢字 (絵文字なし)。カードは常に暗色 (テーマ非依存)
 // SNS に流れる画像なのでゲームアセットは使わず、権利表記を必ず焼き込む。
-import { ATTR_INFO, SITE_URL, THRESHOLDS } from './shared.js';
+// v7 (2026-09-08): 表示言語に追従 (英語圏からの要望)。カードは幅 1200px 固定で
+//   4列時の1列が 209px しかないため、**英語で溢れる文字は fitText で自動的に縮める**。
+//   訳文そのものも短い言い回しを選んである (messages.js)。
+import { ATTR_INFO, SITE_URL, THRESHOLDS, attrName } from './shared.js';
+import { t } from './i18n.js';
 import { drawTileCanvas, sortForDisplay, charImgSrc } from './tiles.js';
 
 const F = "'Poppins', 'Noto Sans JP', sans-serif";
@@ -83,14 +87,28 @@ function drawBigNum(ctx, x, y, text, size, color, maxW, unit = '%') {
     }
 }
 
+// 幅に収まるまでフォントを細らせて描く。**英語対応で必須** — 日本語前提の固定座標に
+// 1.5〜2倍長い英訳を流すと、隣の列や画像の外へはみ出す。
+// 返り値は実際に使った px (呼ぶ側が次の行の位置を決められるように)。
+function fitText(ctx, text, x, y, maxW, startPx, weight = 700, minPx = 12) {
+    let px = startPx;
+    ctx.font = `${weight} ${px}px ${F}`;
+    while (px > minPx && ctx.measureText(text).width > maxW) {
+        px -= 1;
+        ctx.font = `${weight} ${px}px ${F}`;
+    }
+    ctx.fillText(text, x, y);
+    return px;
+}
+
 // 編成内% の1行 (同一編成の分布が解禁済みなら%、未解禁なら案内)。編成未入力は null
 function compLineOf(r) {
     if (!r.characters?.length || !r.compDist) return null;
     const cd = r.compDist;
     if (!cd.gated && Number.isFinite(cd.median) && cd.median > 0) {
-        return { text: `編成内 ${Math.round((r.score / cd.median) * 100)}% · ${cd.n}人`, ready: true };
+        return { text: t('card.in_comp', { pct: Math.round((r.score / cd.median) * 100), n: cd.n }), ready: true };
     }
-    return { text: `編成内%は${cd.need ?? THRESHOLDS.comp}人で解禁`, ready: false };
+    return { text: t('card.in_comp_locked', { n: cd.need ?? THRESHOLDS.comp }), ready: false };
 }
 
 // 締め凸列のマーキング (打ち切りダメージ = 参考値、を視覚で伝える)。
@@ -106,7 +124,7 @@ function drawFinishMark(ctx, { fx, fy, fw, fh }) {
     ctx.setLineDash([]);
     // 「締め凸」小ピル (枠の上辺右に載せる — 破線を隠すため暗背景で塗ってから細枠)
     ctx.font = `700 15px ${F}`;
-    const label = '締め凸';
+    const label = t('card.finisher');
     const pw = ctx.measureText(label).width + 22, ph = 26;
     const px = fx + fw - pw - 14, py = fy - ph / 2;
     ctx.fillStyle = INK;
@@ -174,12 +192,16 @@ export async function buildShareCard(results, canvas, opts = {}) {
     }
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `800 46px ${F}`;
-    const title = multi ? `測定結果 (${results.length}凸)` : '測定結果';
+    const title = multi ? t('card.results_n', { n: results.length }) : t('card.results');
     ctx.fillText(title, 70, 168);
     const titleW = ctx.measureText(title).width;   // 注記フォントに切り替える前に幅を測る
     ctx.fillStyle = '#8A9097';
     ctx.font = `700 21px ${F}`;
-    ctx.fillText('中央値 = みんなの真ん中 = 100%', 70 + titleW + 28, 164);
+    // 注記はタイトルの右に置く。英語はタイトルも注記も長いので、右端 (W-70) を
+    // 越えるようなら**縮めて**収める (改行するとロゴ帯と干渉する)
+    const noteText = t('card.median_is_100');
+    const noteX = 70 + titleW + 28;
+    fitText(ctx, noteText, noteX, 164, W - 70 - noteX, 21);
 
     // 列構成: 凸の数 + (複数凸なら) 総合列
     const cols = results.map((r, i) => ({ type: 'atk', r, ratio: ratios[i] }));
@@ -208,7 +230,7 @@ export async function buildShareCard(results, canvas, opts = {}) {
             const scored = results.filter(r2 => !r2.isFinish);
             ctx.fillStyle = CREAM;
             ctx.font = `800 26px ${F}`;
-            ctx.fillText('総合', x0, 252);
+            ctx.fillText(t('card.overall'), x0, 252);
             // 未解禁 (分布50人未満) の間は % が出せないので、平均ふるり値を主役にする
             // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)。
             // 全凸締め凸のときも平均ふるり値だが「参考」を明示 (Codex指摘 — 総合を装わない)
@@ -218,34 +240,33 @@ export async function buildShareCard(results, canvas, opts = {}) {
             if (totalPct != null) drawBigNum(ctx, x0, 252 + bigSize + 4, totalPct, bigSize, CREAM, iw);
             else drawBigNum(ctx, x0, 252 + bigSize + 4, avgScore.toFixed(2), bigSize, CREAM, iw, null);
             ctx.fillStyle = '#8A9097';
-            ctx.font = `700 18px ${F}`;
-            ctx.fillText(totalPct != null ? '各凸の中央値比を同じ重みで平均'
-                : allFinish ? `平均ふるり値 (全て締め凸・参考)` : `平均ふるり値 (${avgBase.length}凸)`,
-                x0, 252 + bigSize + 36);
+            const subNote = totalPct != null ? t('card.overall_note')
+                : allFinish ? t('card.avg_fururi_all_finish')
+                            : t('card.avg_fururi_n', { n: avgBase.length });
+            fitText(ctx, subNote, x0, 252 + bigSize + 36, iw, 18);
             ctx.fillStyle = '#A4AAB0';
-            ctx.font = `700 22px ${F}`;
-            const sumLabel = allFinish ? `締め凸${results.length}凸 / SLv ${results[0].slv}`
-                : anyFinish ? `${scored.length}凸 (締め凸除く) / SLv ${results[0].slv}`
-                            : `${results.length}凸 / SLv ${results[0].slv}`;
-            ctx.fillText(sumLabel, x0, 514);   // 属性列の編成内%と同じ高さ
+            const sumLabel = allFinish ? t('card.sub_all_finish', { n: results.length, slv: results[0].slv })
+                : anyFinish ? t('card.sub_excl_finish', { n: scored.length, slv: results[0].slv })
+                            : t('card.sub_plain', { n: results.length, slv: results[0].slv });
+            fitText(ctx, sumLabel, x0, 514, iw, 22);   // 属性列の編成内%と同じ高さ
             // 比較規模: ユニーク利用者数 + 総合分布の母集団 (3凸完走勢)。
             // 11未適用・取得失敗時は従来の「のべ人数」に劣化 (同一人物の重複カウントあり)
             const td = opts.totalDist;
             ctx.fillStyle = '#8A9097';
-            ctx.font = `700 19px ${F}`;
             if (td?.users > 0) {
-                ctx.fillText(`利用者 ${td.users}人`, x0, 548);
-                if (Number.isFinite(td.n) && td.n > 0) ctx.fillText(`3凸完走 ${td.n}人と比較`, x0, 576);
+                fitText(ctx, t('card.users_n', { n: td.users }), x0, 548, iw, 19);
+                if (Number.isFinite(td.n) && td.n > 0) {
+                    fitText(ctx, t('card.vs_completed', { n: td.n }), x0, 576, iw, 19);
+                }
             } else {
                 const totalN = results.filter(r2 => distReady(r2.dist)).reduce((s2, r2) => s2 + r2.dist.n, 0);
-                if (totalN > 0) ctx.fillText(`のべ ${totalN}人の提出と比較`, x0, 548);
+                if (totalN > 0) fitText(ctx, t('card.vs_submissions', { n: totalN }), x0, 548, iw, 19);
             }
             ctx.fillStyle = '#6B7178';
-            ctx.font = `700 16px ${F}`;
-            if (anyFinish) ctx.fillText('締め凸は分布・総合に不参加 (参考)', x0, 600);
-            ctx.fillText('ボスの通りやすさは属性ごとの', x0, anyFinish ? 624 : 596);
-            ctx.fillText('中央値で補正済み。編成内%は', x0, anyFinish ? 648 : 622);
-            ctx.fillText('同じ5人との比較 (並び順は不問)', x0, anyFinish ? 672 : 648);
+            if (anyFinish) fitText(ctx, t('card.finish_excluded'), x0, 600, iw, 16);
+            fitText(ctx, t('card.note_line1'), x0, anyFinish ? 624 : 596, iw, 16);
+            fitText(ctx, t('card.note_line2'), x0, anyFinish ? 648 : 622, iw, 16);
+            fitText(ctx, t('card.note_line3'), x0, anyFinish ? 672 : 648, iw, 16);
             return;
         }
         const { r, ratio } = c;
@@ -256,8 +277,9 @@ export async function buildShareCard(results, canvas, opts = {}) {
             drawFinishMark(ctx, { fx: x0 - 14, fy: 224, fw: iw + 28, fh: multi ? 442 : 502 });
         }
         ctx.fillStyle = info.color;
-        ctx.font = `800 ${multi ? 26 : 30}px ${F}`;
-        ctx.fillText(`${info.jp}PT`, x0, multi ? 252 : 270);
+        // 「灼熱PT」→ 英語は「Fire team」。英語の方が長いので幅に収める
+        fitText(ctx, t('card.team_of', { code: attrName(r.attribute) }),
+            x0, multi ? 252 : 270, iw, multi ? 26 : 30, 800);
         const bigY = (multi ? 252 : 270) + bigSize + 4;
         // damage/slv は localStorage 復元の古い保存に無いことがある → 欠けは静かに省く (NaN対策)
         const dmgB = Number.isFinite(r.damage) ? `${(r.damage / 1e9).toFixed(2)} B` : null;
@@ -269,21 +291,17 @@ export async function buildShareCard(results, canvas, opts = {}) {
         if (multi) {
             // 2行だったふるり値・実ダメージを1行に (空いた分を % の拡大に回す)。
             // 列幅 iw を超えると隣列に食い込むので、縮小 → それでも無理なら実ダメージを落とす
-            const head = mp != null ? `ふるり値 ${r.score.toFixed(2)}` : 'ふるり値';
-            const fitLine = (txt, startPx) => {
-                let px = startPx;
-                ctx.font = `700 ${px}px ${F}`;
-                while (px > 13 && ctx.measureText(txt).width > iw) { px -= 1; ctx.font = `700 ${px}px ${F}`; }
-                return ctx.measureText(txt).width <= iw;
-            };
+            const head = mp != null ? t('card.fururi_val', { v: r.score.toFixed(2) }) : t('card.fururi');
             const full = [head, dmgB].filter(Boolean).join(' · ');
-            if (!fitLine(full, 19)) fitLine(head, 19);   // 収まらなければ実ダメージを省く
-            ctx.fillText(ctx.measureText(full).width <= iw ? full : head, x0, bigY + 34);
+            // 収まらなければ実ダメージを省いて、ふるり値だけにする
+            ctx.font = `700 13px ${F}`;
+            const fits = ctx.measureText(full).width <= iw;
+            fitText(ctx, fits ? full : head, x0, bigY + 34, iw, 19, 700, 13);
         } else {
             // 単発は列幅が広いので1行にまとめる (SLv は総合列が無いのでここに出す)
-            const parts = [mp != null ? `ふるり値 ${r.score.toFixed(2)}` : 'ふるり値',
+            const parts = [mp != null ? t('card.fururi_val', { v: r.score.toFixed(2) }) : t('card.fururi'),
                 Number.isFinite(r.slv) ? `SLv ${r.slv}` : null, dmgB].filter(Boolean);
-            ctx.fillText(parts.join(' · '), x0, bigY + 44);
+            fitText(ctx, parts.join(' · '), x0, bigY + 44, iw, 24);
         }
         // 使った編成 (順不同で保存 — 表示はバースト順に揃える) + 編成内% (同一編成の中央値比)
         const tilesY = multi ? 442 : 448;
@@ -300,8 +318,7 @@ export async function buildShareCard(results, canvas, opts = {}) {
         if (compLine) {
             const clY = tilesY + (canTiles ? ts : 0) + (multi ? 30 : 34);
             ctx.fillStyle = compLine.ready ? '#F1F2F4' : '#6B7178';
-            ctx.font = `700 ${multi ? 17 : 20}px ${F}`;
-            ctx.fillText(compLine.text, x0, clY);
+            fitText(ctx, compLine.text, x0, clY, iw, multi ? 17 : 20);
         }
         // ミニ分布 (解禁前は出さず、案内だけ)
         const histY = multi ? 524 : 566;
@@ -312,8 +329,8 @@ export async function buildShareCard(results, canvas, opts = {}) {
                 bins: r.dist.bins, myBin: r.dist.my_bin, color: info.color,
             });
             ctx.fillStyle = '#8A9097';
-            ctx.font = `700 17px ${F}`;
-            ctx.fillText(`中央値 ${r.dist.median.toFixed(2)} · ${r.dist.n}人`, x0, histY + histH + 30);
+            fitText(ctx, t('card.median_n', { v: r.dist.median.toFixed(2), n: r.dist.n }),
+                x0, histY + histH + 30, iw, 17);
         } else {
             // 未解禁: 分布の領域が空くと間延びするので、解禁までの進捗を描く
             // (「あと◯人」が見えると拡散の動機にもなる)
@@ -322,25 +339,25 @@ export async function buildShareCard(results, canvas, opts = {}) {
             const now = Math.max(0, Math.min(need, Number.isFinite(r.dist?.n) ? r.dist.n : 0));
             const barH = 14, barY = histY + histH - barH - 4;
             ctx.fillStyle = '#8A9097';
-            ctx.font = `700 ${multi ? 17 : 20}px ${F}`;
-            ctx.fillText(`みんなの分布まで あと${Math.max(0, need - now)}人`, x0, barY - 16);
+            fitText(ctx, t('card.until_dist', { n: Math.max(0, need - now) }), x0, barY - 16,
+                iw, multi ? 17 : 20);
             ctx.fillStyle = 'rgba(255,255,255,0.13)';
             ctx.beginPath(); ctx.roundRect(x0, barY, iw, barH, barH / 2); ctx.fill();
             const w = Math.max(barH, iw * (now / need));
             ctx.fillStyle = info.color;
             ctx.beginPath(); ctx.roundRect(x0, barY, w, barH, barH / 2); ctx.fill();
             ctx.fillStyle = '#6B7178';
-            ctx.font = `700 16px ${F}`;
-            ctx.fillText(`現在 ${now} / ${need}人`, x0, histY + histH + 30);
+            fitText(ctx, t('card.progress_n', { now, need }), x0, histY + histH + 30, iw, 16);
         }
     });
 
     // 権利表記 + URL (SNS拡散面の必須表記 — キャラ画像の著作権の在りどころを明記)。
     // 表記が長くなったため左側は2段組 (URL と重ねない)
     ctx.fillStyle = '#6B7178';
-    ctx.font = `700 17px ${F}`;
-    ctx.fillText('非公式ファンコンテンツ — 掲載に問題がある場合は削除対応します', 70, H - 58);
-    ctx.fillText('キャラクター画像・名称: 勝利の女神：NIKKE © SHIFT UP CORP.', 70, H - 30);
+    // 右下の URL と重ならないところまで (英語の権利表記は日本語より長い)
+    const legalW = W - 70 - 360;
+    fitText(ctx, t('card.fanmade'), 70, H - 58, legalW, 17);
+    fitText(ctx, t('card.copyright'), 70, H - 30, legalW, 17);
     ctx.font = `700 24px ${F}`;
     ctx.textAlign = 'right';
     ctx.fillText(SITE_URL.replace('https://', '').replace(/\/$/, ''), W - 70, H - 30);

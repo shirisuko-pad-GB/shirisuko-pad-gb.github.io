@@ -1,0 +1,41 @@
+{
+  "_readme": [
+    "キャラ名の英語表示 (日本語名 → 英語名)。手動メンテ。",
+    "英語名の主な出どころは data/blabla-map.json の icons[].en (図鑑アイコン由来・177件)。",
+    "そこに無いキャラだけをここで補う。ここの値は blabla-map より優先される (上書きにも使える)。",
+    "",
+    "⚠ 推測で埋めないこと。埋めていないキャラは英語表示でも日本語名のまま出る (フォールバック)。",
+    "  間違った英語名を出すより、日本語のまま出す方がまし — build-characters が未登録を警告する。",
+    "スキンの命名は BlablaLINK 図鑑の流儀に合わせる: 「素体名 - スキン名」(半角ハイフン)。"
+  ],
+  "names": {
+    "A2": "A2",
+    "エミリア": "Emilia",
+    "ラム": "Ram",
+    "レム": "Rem",
+    "マキマ": "Makima",
+    "パワー": "Power",
+    "ジル・バレンタイン": "Jill Valentine",
+    "天城雪子": "Yukiko Amagi",
+    "姫野": "Himeno",
+    "クイーン(新島真)": "Queen (Makoto Niijima)",
+    "アイギス": "Aigis",
+
+    "ソリン": "Soline",
+    "ブリッド": "Brid",
+    "ミカ": "Mica",
+    "ミカ：スノーバディ": "Mica - Snow Buddy",
+    "ドレイク：グレイトヴィラン": "Drake - Great Villain",
+    "マクスウェル：オーディナリーメカニック": "Maxwell - Ordinary Mechanic",
+    "メアリー：ベイゴッデス": "Mary - Bay Goddess",
+    "ラプラス：アルティメットヒーロー": "Laplace - Ultimate Hero",
+    "ルピー：ウィンターショッパー": "Rupee - Winter Shopper",
+    "サクラ：ブルーム・イン・サマー": "Sakura - Bloom in Summer",
+    "ネオン：ブルーオーシャン": "Neon - Blue Ocean"
+  },
+  "_unknown": [
+    "英語名が分からず未登録のキャラ (英語表示でも日本語名で出る)。",
+    "公式表記が確認できたら names に足すこと — 英語圏の利用者に聞くのが早い。",
+    "シフティー / シュエン / プリム"
+  ]
+}

@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc, CHAR_ID_RE } from '../js/tiles.js';
+import { detectLang, t, _setLangForTest, LANGS, DEFAULT_LANG } from '../js/i18n.js';
+import { MESSAGES } from '../js/messages.js';
+import { attrName, ATTR_INFO } from '../js/shared.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -419,10 +422,21 @@ test('キャラ画像アセットの整合ガード (hasImg ↔ character-images
     for (const [id, c] of Object.entries(charData.chars)) {
         if (c.hasImg) assert(files.includes(id), `hasImg の ${c.name} (${id}) の画像ファイルがありません`);
     }
-    // 著作権 + 削除対応の表記: シェアカード (SNS拡散面) と 両ページの footer に焼き込まれている
+    // 著作権 + 削除対応の表記: シェアカード (SNS拡散面) と 両ページの footer に焼き込まれている。
+    // カードの文言は辞書 (messages.js) にあるので、**両言語ぶん**を見る —
+    // 英語のカードだけ権利表記が抜ける、が takedown 方式では致命的
     const sc = readFileSync(join(ROOT, 'js', 'sharecard.js'), 'utf8');
-    assert(sc.includes('© SHIFT UP CORP.'), 'sharecard.js に著作権表記がありません');
-    assert(/削除対応|削除・修正/.test(sc), 'sharecard.js に削除対応の明記がありません');
+    assert(/t\('card\.copyright'\)/.test(sc), 'sharecard.js が権利表記を描いていません');
+    assert(/t\('card\.fanmade'\)/.test(sc), 'sharecard.js が削除対応の表記を描いていません');
+    for (const lang of LANGS) {
+        const m = MESSAGES[lang];
+        assert(m['card.copyright']?.includes('© SHIFT UP CORP.'),
+            `${lang} のカード権利表記に著作権表記がありません`);
+        assert(m['card.fanmade'], `${lang} のカードに «非公式・削除対応» の表記がありません`);
+    }
+    // 日本語は従来どおり「削除対応」、英語は removed on request の言い回しで同義
+    assert(/削除対応|削除・修正/.test(MESSAGES.ja['card.fanmade']), 'ja の削除対応の明記がありません');
+    assert(/remov/i.test(MESSAGES.en['card.fanmade']), 'en の削除対応の明記がありません');
     for (const page of ['index.html', 'stats.html']) {
         const h = readFileSync(join(ROOT, page), 'utf8');
         assert(h.includes('© SHIFT UP CORP.'), `${page} の footer に著作権表記がありません`);
@@ -584,6 +598,73 @@ test('サイト名の整合 (manifest ↔ title ↔ apple-title ↔ h1)', () => 
     const h1 = idx.match(/<h1>([\s\S]*?)<\/h1>/)?.[1]?.replace(/<[^>]+>/g, '') ?? '';
     assert(h1.includes('しりすこPAD'), `h1 がサイト名になっていません: ${h1}`);
     assert(!h1.includes('ふるり値'), `h1 に「ふるり値」が入っています (サブタイトルに置くこと): ${h1}`);
+});
+
+console.log('\n表示言語 (英語対応):');
+
+test('言語の決め方: URL > 保存値 > 端末 > 既定', () => {
+    // 共有リンク (?lang=en) が最優先 — 英語圏の人に渡したリンクは英語で開く
+    assertEq(detectLang('?lang=en', 'ja', 'ja-JP'), 'en', 'URL が最優先');
+    assertEq(detectLang('?lang=ja', 'en', 'en-US'), 'ja', 'URL が最優先(逆)');
+    // URL に無ければ、前に選んだ言語
+    assertEq(detectLang('', 'en', 'ja-JP'), 'en', '保存値');
+    // どちらも無ければ端末の言語。日本語圏だけ ja で、他は英語に寄せる
+    assertEq(detectLang('', null, 'ja-JP'), 'ja', '端末 ja');
+    assertEq(detectLang('', null, 'en-US'), 'en', '端末 en');
+    assertEq(detectLang('', null, 'ko-KR'), 'en', '日本語以外は英語');
+    assertEq(detectLang('', null, ''), DEFAULT_LANG, '情報なしは既定');
+    // 知らない値は無視して次の手段へ落ちる (?lang=xx で壊れない)
+    assertEq(detectLang('?lang=xx', null, 'ja-JP'), 'ja', '未知の lang は無視');
+    assertEq(detectLang('?lang=en', 'zzz', ''), 'en', '壊れた保存値でも動く');
+});
+
+test('t(): 訳・差し込み・単複・未訳のフォールバック', () => {
+    _setLangForTest('en');
+    assertEq(t('card.overall'), 'Overall', '英訳');
+    assertEq(t('card.fururi_val', { v: '1.23' }), 'Fururi 1.23', '差し込み');
+    assertEq(t('card.users_n', { n: 1 }), '1 user', '単数');
+    assertEq(t('card.users_n', { n: 5 }), '5 users', '複数');
+    // 鍵ごと無ければ鍵をそのまま返す (未訳が画面で目立ち、気づける)
+    assertEq(t('does.not.exist'), 'does.not.exist', '未知の鍵');
+    _setLangForTest('ja');
+    assertEq(t('card.overall'), '総合', '日本語に戻る');
+    assertEq(t('common.refreshing'), '更新中…', 'ja の値');
+});
+
+test('属性名が言語で切り替わる (ATTR_INFO の全キーに訳がある)', () => {
+    for (const key of Object.keys(ATTR_INFO)) {
+        _setLangForTest('ja');
+        assertEq(attrName(key), ATTR_INFO[key].jp, `ja ${key}`);
+        _setLangForTest('en');
+        const en = attrName(key);
+        assert(/^[A-Za-z]+$/.test(en), `en ${key} が英語になっていない: ${en}`);
+    }
+    _setLangForTest('ja');
+    assertEq(attrName('SOMETHING'), '属性？', '知らないキーは落とす');
+});
+
+test('辞書: en の鍵は ja にも必ずある (綴り間違いの検出)', () => {
+    const ja = new Set(Object.keys(MESSAGES.ja));
+    const orphan = Object.keys(MESSAGES.en).filter((k) => !ja.has(k));
+    assertEq(orphan.length, 0, `ja に無い鍵が en にあります: ${orphan.join(', ')}`);
+    for (const lang of LANGS) assert(MESSAGES[lang], `辞書に ${lang} がありません`);
+});
+
+test('辞書: 差し込み {name} が ja と en で食い違わない', () => {
+    // 片方だけ {n} を書き忘れると、英語だけ数字が消える (画面では気づきにくい)
+    const holes = (v) => {
+        const text = (v && typeof v === 'object') ? Object.values(v).join(' ') : String(v ?? '');
+        return new Set([...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]));
+    };
+    const bad = [];
+    for (const [key, en] of Object.entries(MESSAGES.en)) {
+        const a = holes(MESSAGES.ja[key]);
+        const b = holes(en);
+        if (a.size !== b.size || [...a].some((x) => !b.has(x))) {
+            bad.push(`${key} (ja:${[...a]} / en:${[...b]})`);
+        }
+    }
+    assertEq(bad.length, 0, `差し込みが食い違う鍵: ${bad.join(' , ')}`);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

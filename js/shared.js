@@ -1,10 +1,16 @@
 // 複数モジュール (app.js / stats.js / backend.js / tests) 共通のユーティリティ。
+import { t } from './i18n.js';
+
 // ※ ATTR_INFO や属性色の完全統合は将来課題。今は安全系の共有関数としきい値を置く。
 
 // PT属性の表示情報 (色・和名・相手ボス)。app.js/stats.js/sharecard.js で共用。
 // enemy = そのPTで殴る相手ボスの属性キー (色は ATTR_INFO[enemy].color で引く)。
 // ※ 属性は「色 + 漢字」で表現する。絵文字・ゲーム内アイコン画像は使わない
 //    (絵文字は端末で見た目が揺れるため全廃 — 2026-07-30 運営判断)。
+//
+// **表示名は attrName() を使うこと**。`.jp` は日本語の固定値なので、英語表示では嘘になる
+// (英語版の属性名は NIKKE 公式の Code 表記 = Fire / Water / Electric / Iron / Wind)。
+// `.jp` 自体は辞書 (messages.js の attr.*) と対で残してある。
 export const ATTR_INFO = {
     FIRE:     { jp: '灼熱', color: '#FF3D44', enemy: 'WIND' },
     WATER:    { jp: '水冷', color: '#2E8BFF', enemy: 'FIRE' },
@@ -12,6 +18,9 @@ export const ATTR_INFO = {
     IRON:     { jp: '鉄甲', color: '#FF8A2B', enemy: 'ELECTRIC' },
     WIND:     { jp: '風圧', color: '#18C26B', enemy: 'IRON' },
 };
+
+/** 属性の表示名 (今の言語で)。知らないキーは「属性？」相当に落とす。 */
+export const attrName = (key) => (ATTR_INFO[key] ? t(`attr.${key}`) : t('attr.unknown'));
 
 export const SITE_URL = 'https://shirisuko-pad-gb.github.io/';
 
@@ -153,7 +162,7 @@ export function enablePullToRefresh() {
             firing = true;
             el.classList.add('ready');
             el.setAttribute('aria-hidden', 'false');   // 更新中だけ読み上げ対象に
-            el.textContent = '更新中…';
+            el.textContent = t('common.refreshing');
             location.reload();
             return;   // reload するので状態は戻さない
         }
