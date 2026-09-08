@@ -61,15 +61,20 @@
             padding:8px 16px 8px 8px; font-size:12px; font-weight:800; color:var(--ink); text-decoration:none;
         }
         .back .arr { width:22px; height:22px; border-radius:999px; background:var(--ink); color:var(--onink); display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
-        /* 言語トグル: 押すと「切り替え先の言語」名が出ている方へ入れ替わる (i18n.js) */
-        .lang-btn {
-            margin-left:auto; margin-top:4px; align-self:flex-start; flex-shrink:0;
-            border:1px solid var(--line); background:var(--card); color:var(--sub);
-            border-radius:999px; padding:7px 13px; font-size:11.5px; font-weight:800;
-            cursor:pointer; font-family:inherit; white-space:nowrap;
+        /* 言語スイッチ: 両方を出して «今の言語» をクリーム面で示す (index.html と同じ) */
+        .lang-switch {
+            margin-left:auto; margin-top:3px; align-self:flex-start; flex-shrink:0;
+            display:inline-flex; gap:2px; padding:2px;
+            border:1px solid var(--line); background:var(--card); border-radius:999px;
+        }
+        .lang-opt {
+            border:0; background:transparent; color:var(--sub2);
+            border-radius:999px; padding:5px 8px; font-size:10.5px; font-weight:800;
+            line-height:1.5; cursor:pointer; font-family:inherit; white-space:nowrap;
             -webkit-tap-highlight-color:transparent;
         }
-        .lang-btn:hover { color:var(--ink); }
+        .lang-opt.active { background:var(--cream); color:var(--cream-ink); }
+        .lang-opt:not(.active):hover { color:var(--ink); }
         .card { background:var(--card); border-radius:22px; border:1px solid var(--line); padding:20px; margin-bottom:14px; }
         .card h2 { font-size:13.5px; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:12px; }
         .hint { font-size:11px; color:var(--sub2); }
@@ -168,7 +173,10 @@
             <div class="brand">SHIRISUKO PAD GLOBAL</div>
             <h1 data-i18n="stats.h1">みんなのデータ</h1>
         </div>
-        <button type="button" class="lang-btn" id="langBtn">English</button>
+        <div class="lang-switch" id="langSwitch" role="group">
+            <button type="button" class="lang-opt" data-lang="ja" lang="ja">日本語</button>
+            <button type="button" class="lang-opt" data-lang="en" lang="en">English</button>
+        </div>
     </header>
 
     <a class="back" href="./" data-i18n-html="stats.back"><span class="arr">←</span> 測定にもどる</a>

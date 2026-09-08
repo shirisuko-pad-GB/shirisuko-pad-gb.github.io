@@ -126,12 +126,25 @@ export function applyStaticI18n(root = (typeof document !== 'undefined' ? docume
     }
 }
 
-/** 言語トグル (#langBtn) を配線する。押すと ja ⇄ en を入れ替えて開き直す。 */
+/**
+ * 言語スイッチ (#langSwitch) を配線する。
+ *
+ * **両方の言語を出し、今の言語を選択状態にする**。切り替え先だけを出す形だと
+ * 「日本語表示なのに English と書いてある」= 今が英語だと誤読される (実機FB 2026-09-08)。
+ * ラベルは «その言語自身の表記» なので翻訳しない (日本語で見ても英語で見ても同じ)。
+ */
 export function mountLangToggle(doc = (typeof document !== 'undefined' ? document : null)) {
-    const btn = doc?.getElementById?.('langBtn');
-    if (!btn) return;
-    // ボタンには「切り替え先の言語」を出す (今の言語を出すと押した後が想像できない)
-    btn.textContent = t('common.lang_switch');
-    btn.setAttribute('aria-label', t('common.lang_switch_aria'));
-    btn.addEventListener('click', () => setLang(current === 'ja' ? 'en' : 'ja'));
+    const host = doc?.getElementById?.('langSwitch');
+    if (!host) return;
+    host.setAttribute('aria-label', t('common.lang_group'));
+    for (const btn of host.querySelectorAll('[data-lang]')) {
+        const lang = btn.dataset.lang;
+        const isCurrent = lang === current;
+        btn.classList.toggle('active', isCurrent);
+        btn.setAttribute('aria-pressed', String(isCurrent));
+        // 今の言語は押しても何も起きない — 押せないことを見た目でなく状態で伝える
+        if (isCurrent) btn.setAttribute('aria-current', 'true');
+        else btn.removeAttribute('aria-current');
+        btn.addEventListener('click', () => { if (lang !== current) setLang(lang); });
+    }
 }

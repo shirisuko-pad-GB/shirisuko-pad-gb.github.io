@@ -26,10 +26,9 @@ export const MESSAGES = {
         'attr.short.ELECTRIC': '電',
         'attr.short.IRON': '鉄',
         'attr.short.WIND': '風',
-        'common.lang_switch_aria': '表示言語を English に切り替える',
+        'common.lang_group': '表示言語',
         'common.refreshing': '更新中…',
         'common.lang_name': '日本語',
-        'common.lang_switch': 'English',
 
         // ── シェアカード ──
         'card.team_of': '{code}PT',
@@ -284,10 +283,9 @@ export const MESSAGES = {
         'attr.short.ELECTRIC': 'EL',
         'attr.short.IRON': 'IR',
         'attr.short.WIND': 'WI',
-        'common.lang_switch_aria': 'Switch the language to 日本語',
+        'common.lang_group': 'Language',
         'common.refreshing': 'Refreshing…',
         'common.lang_name': 'English',
-        'common.lang_switch': '日本語',
 
         // ── Share card ──
         // カードは幅が固定なので、日本語より長くなりがちな英語は**短い言い回し**を選ぶ。
