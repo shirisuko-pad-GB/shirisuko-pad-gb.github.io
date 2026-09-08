@@ -292,8 +292,12 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
         (月次JSONがまだ無ければ --slv <ふるりの現在SLv> を付ける。
          基準が揃っていなければエラーで止まる = そのまま open しないこと)
   (c) SQL Editor で supabase/seed.local.sql を実行 (fururi_bases に N+1 を投入)
-  (d) node tests/run-tests.mjs → commit & push
-  (e) 開く:  update public.site_state set status='open', active_season='N+1',
+  (d) スコアの受理範囲を入れる (**忘れると既定 0.01〜5.0 で緩くなる**):
+        insert into public.score_bounds (season, min_score, max_score)
+          values ('N+1', 0.1, 2.5) on conflict do nothing;
+        (第43回・第44回とも 0.1〜2.5 で運用)
+  (e) node tests/run-tests.mjs → commit & push
+  (f) 開く:  update public.site_state set status='open', active_season='N+1',
                  display_season=null, updated_at=now();
     → N+1 が 0 から開始。
 ```
