@@ -362,6 +362,17 @@ function strongCols(W) {
         })).filter(c => c.attrs.length > 0),
     };
 }
+// そのカードを破綻なく描ける最小の寸法。?w=/?h= はここまで引き上げてから使う
+// (座標が固定なので、小さすぎると列が canvas の外に出たり、内容がフッタに重なる)
+const ROW_MIN_H = 760;          // 行レイアウト (①②③) の下端 + 余白
+function minCanvas(kind, w) {
+    const W = Math.max(1200, w);   // 2列の右端が x=660+530=1190 なので 1200 未満は破綻する
+    if (kind !== 'practical') return { W, H: ROW_MIN_H };
+    const per = Math.ceil(ATTRS.length / strongCols(W).n);
+    // 1属性あたり 242 進み、最終行のタイル下端は +208。フッタ (H-34) との間に 24 空ける
+    return { W, H: 248 + (per - 1) * 242 + 208 + 58 };
+}
+
 function drawStrongTop(ctx, W, H, { data, faces, pick, startRank = 2, note }) {
     const { cw: CW, n: nCols, cols } = strongCols(W);
     let lastEndY = 248;
@@ -384,8 +395,14 @@ function drawStrongTop(ctx, W, H, { data, faces, pick, startRank = 2, note }) {
                 ctx.fillText(`${i + startRank}位`, x, ry + 30);
                 drawTeam(ctx, c.chars, x + 40, ry, 48, faces);
                 ctx.textAlign = 'right';
-                ctx.fillStyle = info.color; ctx.font = `800 24px ${F}`;
-                ctx.fillText(rel != null ? `${rel}%` : '—', x + CW, ry + 24);
+                // タイルは x+40 から 5枚 (48px + すき間5) = x+300 まで。
+                // 列が狭いときに % が重ならないよう、収まるまで字を詰める
+                const relTxt = rel != null ? `${rel}%` : '—';
+                let ps = 24;
+                ctx.font = `800 ${ps}px ${F}`;
+                while (ps > 14 && CW - ctx.measureText(relTxt).width < 312) { ps -= 1; ctx.font = `800 ${ps}px ${F}`; }
+                ctx.fillStyle = info.color;
+                ctx.fillText(relTxt, x + CW, ry + 24);
                 ctx.fillStyle = '#8A9097'; ctx.font = `700 14px ${F}`;
                 ctx.fillText(`${c.n}人`, x + CW, ry + 44);
                 ctx.textAlign = 'left';
@@ -539,10 +556,17 @@ window.buildBoth = async () => { await window.build('summary'); await window.bui
     // ?w= / ?h= でキャンバス寸法を変える (X の4枚グリッドは 16:9 に中央トリミングされるため、
     // 最初から 16:9 で描けば切れない)。レイアウトは W 基準なので寸法を渡せば追随する
     if (q.get('w') || q.get('h')) {
+        const kindOf = { c2: 'usage', c3: 'median', c4: 'practical' };
         ids.forEach(id => {
             const cv = document.getElementById(id);
-            if (q.get('w')) cv.width = Math.max(600, Math.min(4000, Number(q.get('w')) || cv.width));
-            if (q.get('h')) cv.height = Math.max(400, Math.min(4000, Number(q.get('h')) || cv.height));
+            const w0 = q.get('w') ? Number(q.get('w')) : cv.width;
+            const h0 = q.get('h') ? Number(q.get('h')) : cv.height;
+            // 座標が固定のレイアウトなので、破綻しない最小寸法まで引き上げてから使う
+            const min = minCanvas(kindOf[id] || 'summary', Number.isFinite(w0) ? w0 : cv.width);
+            const w = Math.min(2400, Math.max(min.W, Number.isFinite(w0) ? w0 : cv.width));
+            const h = Math.min(1600, Math.max(min.H, Number.isFinite(h0) ? h0 : cv.height));
+            if (w !== w0 || h !== h0) console.warn(`[recap] ${id}: 指定 ${w0}x${h0} → 描画可能な ${w}x${h} に調整`);
+            cv.width = w; cv.height = h;
         });
     }
     if (auto === 'all') await window.buildBoth(); else await window.build(auto);

@@ -33,7 +33,7 @@
 // 一切たどれなくなる (第45回の集計時に第44回と比べられず実際に困った — 2026-09-11)。
 
 import { createServer } from 'node:http';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -144,6 +144,8 @@ const server = createServer(async (req, res) => {
             if (!KINDS.some(k => k.key === payload.key)) return;
             try {
                 if (payload.err) {
+                    // 前回の古い PNG を残さない (成功したカードと混ざって投稿事故になる)
+                    await rm(join(OUT, `${payload.key}.png`), { force: true });
                     results.set(payload.key, { err: payload.err });
                 } else {
                     const b64 = String(payload.url ?? '').split(',')[1];
@@ -197,7 +199,11 @@ const child = spawn(chrome, [
     `http://127.0.0.1:${PORT}/__wrap__`,   // サーバは IPv4 ループバック固定なので名前解決に頼らない
 ], { windowsHide: true, stdio: 'ignore' });
 for (let i = 0; i < 300 && results.size < KINDS.length; i++) await new Promise(r => setTimeout(r, 500));
-for (const k of KINDS) if (!results.has(k.key)) results.set(k.key, { err: 'タイムアウト (150秒)' });
+for (const k of KINDS) {
+    if (results.has(k.key)) continue;
+    await rm(join(OUT, `${k.key}.png`), { force: true });   // 古い PNG を残さない
+    results.set(k.key, { err: 'タイムアウト (150秒)' });
+}
 try { child.kill(); } catch { /* 既に落ちている */ }
 server.close();
 
