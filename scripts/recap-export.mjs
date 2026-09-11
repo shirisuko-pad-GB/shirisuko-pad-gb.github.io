@@ -30,6 +30,7 @@ import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
+import { resolveServable, listenLocal } from './lib/local-static.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.RECAP_PORT || 8944);
@@ -79,7 +80,7 @@ const wait = (ms) => new Promise(r => setTimeout(r, ms));
     for (let i = 0; i < 120; i++) {
       const st = d.getElementById('${k.status}')?.textContent || '';
       if (st.includes('✅')) break;
-      if (/失敗|エラー/.test(st)) { err = st; break; }
+      if (st.includes('❌') || /失敗|エラー/.test(st)) { err = st; break; }
       await wait(500);
       if (i === 119) err = 'タイムアウト (60秒)';
     }
@@ -102,11 +103,19 @@ const done = new Promise(r => { resolveDone = r; });
 const server = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/__png__') {
         let body = '';
-        req.on('data', c => { body += c; });
+        let over = false;
+        req.on('data', c => {
+            if (over) return;
+            body += c;
+            if (body.length > 40 * 1024 * 1024) { over = true; body = ''; req.destroy(); }   // 1200x1000 の PNG でも数MB
+        });
         req.on('end', async () => {
             res.end('ok');
+            if (over) return;
             let payload;
             try { payload = JSON.parse(body); } catch { payload = { key: '?', err: '応答を解釈できません' }; }
+            // key は自前のラッパが送る固定値のみ受ける (書き込み先をURLから決めさせない)
+            if (!KINDS.some(k => k.key === payload.key)) return;
             if (payload.err) {
                 results.set(payload.key, { err: payload.err });
             } else {
@@ -125,11 +134,11 @@ const server = createServer(async (req, res) => {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.end(k ? wrapper(k) : '404');
     }
+    const file = await resolveServable(ROOT, req.url);
+    if (!file) { res.statusCode = 404; return res.end('404'); }
     try {
-        const path = join(ROOT, decodeURIComponent(req.url.split('?')[0]));
-        if (!path.startsWith(ROOT)) { res.statusCode = 403; return res.end('no'); }
-        const buf = await readFile(path);
-        res.setHeader('Content-Type', MIME[extname(path)] ?? 'application/octet-stream');
+        const buf = await readFile(file);
+        res.setHeader('Content-Type', MIME[extname(file)] ?? 'application/octet-stream');
         res.end(buf);
     } catch { res.statusCode = 404; res.end('404'); }
 });
@@ -144,7 +153,7 @@ function findChrome() {
     ].filter(Boolean).find(p => existsSync(p));
 }
 
-await new Promise(r => server.listen(PORT, r));
+await listenLocal(server, PORT);   // 外から触れないようループバック固定
 const chrome = findChrome();
 if (!chrome) { console.error('Chrome/Edge が見つかりません (CHROME_PATH で指定可)'); server.close(); process.exit(2); }
 
@@ -158,18 +167,18 @@ for (const k of KINDS) {
         `http://localhost:${PORT}/__wrap__/${k.key}`,
     ], { windowsHide: true, stdio: 'ignore' });
     kids.push(child);
-    // 前の1枚が終わってから次へ (結果が来るまで待つ)
-    const before = results.size;
-    for (let i = 0; i < 140 && results.size === before; i++) await new Promise(r => setTimeout(r, 500));
+    // ⚠ 「今起動した1枚」の結果だけを待つ。results.size の増加で待つと、前の Chrome の
+    //    遅れた結果で抜けてしまい、最後の1枚に猶予が残らない (Codex指摘)
+    for (let i = 0; i < 140 && !results.has(k.key); i++) await new Promise(r => setTimeout(r, 500));
+    if (!results.has(k.key)) results.set(k.key, { err: 'タイムアウト (70秒)' });
 }
-
-await Promise.race([done, new Promise(r => setTimeout(r, 5000))]);
 kids.forEach(c => { try { c.kill(); } catch { /* 既に落ちている */ } });
 server.close();
 
 // 集計値のスナップショット (PNG は捨てても数値は残す)。公開RPCで誰でも取れる値のみ。
 // --only で一部だけ作ったときは既存を壊さないようマージする
 const statsPath = join(OUT, 'stats.json');
+let statsOk = false;
 try {
     const prev = existsSync(statsPath) ? JSON.parse(await readFile(statsPath, 'utf8')) : {};
     const snap = await (async () => {
@@ -192,25 +201,42 @@ try {
         const tot = await rpc('get_total_distribution', { p_season: season });
         return { attributes: per, users: tot?.users ?? null, finishers: tot?.n ?? null, totalMedian: tot?.median ?? null };
     })();
+    // 回数は tools/recap.html の対応表を唯一の正とする (カードの表記と食い違わせない)
+    let raidFromTable = null;
+    try {
+        const html = await readFile(join(ROOT, 'tools', 'recap.html'), 'utf8');
+        const m2 = html.match(/SEASON_RAID_NO\s*=\s*\{([^}]*)\}/);
+        const m3 = m2 && m2[1].match(new RegExp(`'${season}'\\s*:\\s*(\\d+)`));
+        if (m3) raidFromTable = Number(m3[1]);
+    } catch { /* 読めなければ --raid に従う */ }
+    // ⚠ 引き継ぐのは「今回指定されなかった値」だけ。capturedAt と RPC 由来は必ず今回の値になるので、
+    //    avgSlv だけ古いまま残ると日付と中身が食い違う (Codex指摘) → 引き継いだ場合は日付も残す
+    const inheritedSlv = !avgSlv && prev.avgSlv != null;
     const out = {
         _readme: '結果発表カードの集計値スナップショット (scripts/recap-export.mjs の生成物)。'
             + 'シーズン切替で measurements は全削除されるため、次シーズンとの比較はこのファイルが唯一の記録。',
         season,
-        raidNo: raidNo ? Number(raidNo) : null,
+        raidNo: raidNo ? Number(raidNo) : (raidFromTable ?? prev.raidNo ?? null),
         capturedAt: new Date().toISOString().slice(0, 10),
         avgSlv: avgSlv ? Number(avgSlv) : (prev.avgSlv ?? null),
         avgSlvUsers: avgSlvUsers ? Number(avgSlvUsers) : (prev.avgSlvUsers ?? null),
+        avgSlvCapturedAt: avgSlv ? new Date().toISOString().slice(0, 10) : (prev.avgSlvCapturedAt ?? null),
         ...snap,
         note: 'users/finishers は締め凸と score_bounds 外を除いた有効提出ベース (get_total_distribution)。'
-            + 'avgSlv は measurements 直読みの SQL 由来で母集団が少し広い。',
+            + 'avgSlv は measurements 直読みの SQL 由来で母集団が少し広く、取得日も別 (avgSlvCapturedAt)。'
+            + 'シーズンが open の間は提出が増え続けるため、各値は capturedAt 時点のスナップショット'
+            + ' (属性ごとのRPCは逐次取得なので厳密には同時刻ではない)。'
+            + 'median はふるり値スケールの生値 — カードは属性中央値=100%の相対表示で、用途が違う。',
     };
+    if (inheritedSlv) console.warn(`  ⚠ 平均SLv は前回値 ${prev.avgSlv} を引き継ぎました (--avgslv 未指定・取得日 ${prev.avgSlvCapturedAt ?? '不明'})`);
     await writeFile(statsPath, JSON.stringify({ ...prev, ...out }, null, 2) + '\n', 'utf8');
     console.log(`  ✓ 集計値スナップショット → ${statsPath.replace(ROOT + '/', '')}`);
+    statsOk = true;
 } catch (e) {
-    console.warn('  ⚠ stats.json を書けませんでした (画像は出ています):', e?.message ?? e);
+    console.error('  ✗ stats.json を書けませんでした (画像は出ています):', e?.message ?? e);
 }
 
-let fail = 0;
+let fail = statsOk ? 0 : 1;   // 数値が残らないまま「成功」で終わらせない (シーズン削除前の唯一の記録)
 for (const k of KINDS) {
     const r = results.get(k.key);
     if (!r) { console.error(`  ✗ ${k.label}: 結果を回収できませんでした`); fail++; }

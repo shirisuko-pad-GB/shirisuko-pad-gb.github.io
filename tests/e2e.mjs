@@ -13,6 +13,7 @@
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { resolveServable, listenLocal } from '../scripts/lib/local-static.mjs';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { join, dirname, extname } from 'node:path';
@@ -147,11 +148,11 @@ const server = createServer(async (req, res) => {
         res.setHeader('content-type', 'text/html');
         return res.end(HARNESS_HTML.replace('__E2E_CLIENT_ID__', E2E_CLIENT_ID));
     }
+    const file = await resolveServable(ROOT, url);
+    if (!file) { res.statusCode = 404; return res.end('not found'); }
     try {
-        const p = join(ROOT, decodeURIComponent(url));
-        if (!p.startsWith(ROOT) || !existsSync(p)) { res.statusCode = 404; return res.end('not found'); }
-        res.setHeader('content-type', MIME[extname(p)] || 'application/octet-stream');
-        res.end(await readFile(p));
+        res.setHeader('content-type', MIME[extname(file)] || 'application/octet-stream');
+        res.end(await readFile(file));
     } catch { res.statusCode = 500; res.end('err'); }
 });
 
@@ -198,7 +199,7 @@ async function probeErrorLeak() {
     }
 }
 
-await new Promise(r => server.listen(PORT, r));
+await listenLocal(server, PORT);   // 外から触れないようループバック固定
 const chrome = findChrome();
 if (!chrome) { console.error('Chrome/Edge が見つかりません (CHROME_PATH で指定可)'); server.close(); process.exit(2); }
 

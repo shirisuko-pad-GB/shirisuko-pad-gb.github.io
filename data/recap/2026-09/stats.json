@@ -5,6 +5,7 @@
   "capturedAt": "2026-09-11",
   "avgSlv": 745,
   "avgSlvUsers": 1186,
+  "avgSlvCapturedAt": "2026-09-11",
   "attributes": {
     "FIRE": {
       "n": 603,
@@ -30,5 +31,5 @@
   "users": 1152,
   "finishers": 704,
   "totalMedian": 0.982525713822887,
-  "note": "users/finishers は締め凸と score_bounds 外を除いた有効提出ベース (get_total_distribution)。avgSlv は measurements 直読みの SQL 由来で母集団が少し広い。"
+  "note": "users/finishers は締め凸と score_bounds 外を除いた有効提出ベース (get_total_distribution)。avgSlv は measurements 直読みの SQL 由来で母集団が少し広く、取得日も別 (avgSlvCapturedAt)。シーズンが open の間は提出が増え続けるため、各値は capturedAt 時点のスナップショット (属性ごとのRPCは逐次取得なので厳密には同時刻ではない)。median はふるり値スケールの生値 — カードは属性中央値=100%の相対表示で、用途が違う。"
 }

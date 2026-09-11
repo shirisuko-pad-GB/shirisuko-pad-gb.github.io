@@ -14,6 +14,7 @@ import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
+import { resolveServable, listenLocal } from './lib/local-static.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8932;
@@ -90,11 +91,11 @@ const server = createServer(async (req, res) => {
         res.end(page(m[1]));
         return;
     }
+    const file = await resolveServable(ROOT, req.url);
+    if (!file) { res.statusCode = 404; res.end('404'); return; }
     try {
-        const path = join(ROOT, decodeURIComponent(req.url.split('?')[0]));
-        if (!path.startsWith(ROOT)) { res.statusCode = 403; res.end('no'); return; }
-        const buf = await readFile(path);
-        res.setHeader('Content-Type', MIME[extname(path)] ?? 'application/octet-stream');
+        const buf = await readFile(file);
+        res.setHeader('Content-Type', MIME[extname(file)] ?? 'application/octet-stream');
         res.end(buf);
     } catch { res.statusCode = 404; res.end('404'); }
 });
@@ -110,7 +111,7 @@ function findChrome() {
     ].filter(Boolean).find((p) => existsSync(p));
 }
 
-await new Promise((r) => server.listen(PORT, r));
+await listenLocal(server, PORT);   // 外から触れないようループバック固定
 const chrome = findChrome();
 if (!chrome) { console.error('Chrome/Edge が見つかりません (CHROME_PATH で指定可)'); server.close(); process.exit(2); }
 
