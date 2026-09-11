@@ -1,14 +1,23 @@
 #!/usr/bin/env node
 // シーズン結果発表カード (tools/recap.html) を PNG に書き出す (運営が手動実行)。
 //
-//   node scripts/recap-export.mjs --avgslv 720            # 現行シーズン・4枚
-//   node scripts/recap-export.mjs --avgslv 720 --season 2026-09 --raid 44
-//   node scripts/recap-export.mjs --only summary          # 1枚だけ
-//   node scripts/recap-export.mjs --art                   # キャラ絵つき (ローカル専用)
+//   node scripts/recap-export.mjs --avgslv 745 --avgslv-users 1186
+//   ... --season 2026-09 --raid 44     # 既定は base.json のシーズン / 回数は recap.html の対応表
+//   ... --only summary                 # 1枚だけ作り直す
 //
-// なぜ要るか: 第43回まではブラウザで開いて4枚を手で保存していた。毎回同じ手順を踏むので、
-// 「誰がやっても同じ画像が出る」ように headless 化した (e2e.mjs / card-preview.mjs と同じ仕組み:
-//  静的配信 → headless Chrome → canvas を dataURL で回収)。
+// 【既定の形 — 2026-09-12 ユーザー確定。変えないこと】
+//   ・**1422x800 (16:9)** … X に4枚並べると 16:9 に中央トリミングされるため、最初からこの比率で描く。
+//     3:2 や 6:5 のままだと見出しや下段が切れる (第44回の実投稿で確認)
+//   ・**キャラ絵つき** … 掲載方針が takedown 方式に戻った 2026-08-31 以降はこちらが既定
+//   ・**4枚を1つのブラウザ・1回の取得で描く** … 別々に取得すると、その間に提出が入って
+//     「①は2957件・④は2958件」のようにカード間で数字がズレる (シーズンを open のまま
+//     集計するので必ず起きる)
+//   従来の形に戻したいときだけ --narrow (1200幅) / --tiles (自作タイル) を付ける。
+//   変種は data/recap/<season>/<変種名>/ に分けて出す (既定は season 直下)。
+//
+// なぜ要るか: 第43回まではブラウザで4枚を手で保存していた。毎回同じ手順なので
+// 「誰がやっても同じ画像が出る」ように headless 化した
+// (e2e.mjs / card-preview.mjs と同じ仕組み: 静的配信 → Chrome → canvas を dataURL で回収)。
 //
 // ⚠ recap.html 自体は改造しない。iframe 越しに (同一オリジンなので) canvas を読むだけ。
 // ⚠ 平均SLv は公開RPCに無いので --avgslv で渡す (省略すると ① のその欄が「—」になる)。
@@ -19,7 +28,7 @@
 //    → --avgslv <avg_slv> --avgslv-users <users> の2つを渡す (users は stats.json に残すだけ)
 // ⚠ 出力は集計値のみ (個人の記録は載せない — 運営判断 2026-08-10。recap.html 冒頭の注意書きが正)。
 //
-// PNG は gitignore (毎シーズン約1MB)。代わりに同じフォルダの stats.json を commit する。
+// PNG は gitignore (毎シーズン約1.5MB)。代わりに data/recap/<season>/stats.json を commit する。
 // なぜ: シーズン切替で measurements を全削除するため、後から「前回はどうだったか」を
 // 一切たどれなくなる (第45回の集計時に第44回と比べられず実際に困った — 2026-09-11)。
 
@@ -40,58 +49,75 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applica
 
 const args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] ?? null : null; };
-const ART = args.includes('--art');
+// 既定は 16:9 + キャラ絵 (上の「既定の形」)。従来に戻すときだけ打ち消す
+const ART = !args.includes('--tiles');
+const WIDE = !args.includes('--narrow');
 const season = opt('season') ?? JSON.parse(await readFile(join(ROOT, 'data', 'base.json'), 'utf8')).version;
 const raidNo = opt('raid');
 const avgSlv = opt('avgslv');
 const avgSlvUsers = opt('avgslv-users');   // 平均SLvの母集団 (RPC の users とは母集団が違うので併記する)
 const only = opt('only');
+// --wide: X に4枚並べたときのトリミング (16:9 中央切り) を避けるため、最初から 16:9 で描く
+const WIDE_H = 800, WIDE_W = Math.round(WIDE_H * 16 / 9);   // 1422x800 = 16:9
 
 // 投稿順 (recap.html の並びと同じ): ①総まとめ ②使われた ③強かった ④人気かつ強い
 const KINDS = [
-    { key: 'summary', canvas: 'c1', status: 's1', label: '①総まとめ' },
-    { key: 'usage', canvas: 'c2', status: 's2', label: '②使用率が高かった編成' },
-    { key: 'median', canvas: 'c3', status: 's3', label: '③中央値が高かった編成' },
-    { key: 'practical', canvas: 'c4', status: 's4', label: '④人気かつ強かった編成' },
+    { key: 'summary', canvas: 'c1', status: 's1', label: '①総まとめ', h: 800 },
+    { key: 'usage', canvas: 'c2', status: 's2', label: '②使用率が高かった編成', h: 800 },
+    { key: 'median', canvas: 'c3', status: 's3', label: '③中央値が高かった編成', h: 800 },
+    { key: 'practical', canvas: 'c4', status: 's4', label: '④人気かつ強かった編成', h: 1000 },
 ].filter(k => !only || k.key === only);
 if (!KINDS.length) { console.error(`--only は ${['summary', 'usage', 'median', 'practical'].join(' / ')} のいずれか`); process.exit(1); }
 
-const OUT = join(ROOT, 'data', 'recap', season);
+const SEASON_DIR = join(ROOT, 'data', 'recap', season);
+// 既定以外の形は混ざらないよう別フォルダへ (既定は season 直下)
+const variant = [WIDE ? null : 'narrow', ART ? null : 'tiles'].filter(Boolean).join('-');
+const OUT = variant ? join(SEASON_DIR, variant) : SEASON_DIR;
 await mkdir(OUT, { recursive: true });
 
 // recap.html を iframe で開き、描画完了 (ステータスが ✅) を待って canvas を回収するラッパ。
 // ⚠ recap.html を書き換えないのが狙い (運営ツールの中身は1つに保つ)
-const wrapper = (k) => {
-    const q = new URLSearchParams({ auto: k.key, bare: '1', season });
+// recap.html を iframe で開き、描画完了 (各ステータスが ✅) を待って canvas を回収するラッパ。
+// ⚠ 4枚を1つのブラウザで描く (auto=all)。別々に開くとその間に提出が入り、
+//    「①は2957件・④は2958件」のようにカード間で数字がズレる
+const wrapper = () => {
+    const q = new URLSearchParams({ auto: 'all', bare: '1', season });
     if (raidNo) q.set('raid', raidNo);
     if (avgSlv) q.set('avgslv', avgSlv);
     if (ART) q.set('art', '1');
-    return `<!DOCTYPE html><meta charset="utf-8"><title>recap ${k.key}</title>
-<iframe id="f" src="/tools/recap.html?${q}" style="width:1240px;height:1100px;border:0"></iframe>
+    if (WIDE) { q.set('w', String(WIDE_W)); q.set('h', String(WIDE_H)); }
+    const want = JSON.stringify(KINDS.map(k => ({ key: k.key, canvas: k.canvas, status: k.status })));
+    return `<!DOCTYPE html><meta charset="utf-8"><title>recap</title>
+<iframe id="f" src="/tools/recap.html?${q}" style="width:1900px;height:4200px;border:0"></iframe>
 <script>
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+const WANT = ${want};
 (async () => {
   const f = document.getElementById('f');
-  let err = null;
+  const post = (b) => fetch('/__png__', { method: 'POST', body: JSON.stringify(b) });
   try {
     await new Promise(r => { f.onload = r; });
     const d = f.contentDocument;
-    // 描画完了を待つ (取得〜Canvas描画は数秒かかる)
-    for (let i = 0; i < 120; i++) {
-      const st = d.getElementById('${k.status}')?.textContent || '';
-      if (st.includes('✅')) break;
-      if (st.includes('❌') || /失敗|エラー/.test(st)) { err = st; break; }
-      await wait(500);
-      if (i === 119) err = 'タイムアウト (60秒)';
+    const left = new Set(WANT.map(w => w.key));
+    for (let i = 0; i < 240 && left.size; i++) {
+      for (const w of WANT) {
+        if (!left.has(w.key)) continue;
+        const st = d.getElementById(w.status)?.textContent || '';
+        if (st.includes('✅')) {
+          left.delete(w.key);
+          const cv = d.getElementById(w.canvas);
+          await post({ key: w.key, url: cv.toDataURL('image/png'), w: cv.width, h: cv.height });
+        } else if (st.includes('❌') || /失敗|エラー/.test(st)) {
+          left.delete(w.key);
+          await post({ key: w.key, err: st });
+        }
+      }
+      if (left.size) await wait(500);
     }
-    if (!err) {
-      const cv = d.getElementById('${k.canvas}');
-      const url = cv.toDataURL('image/png');
-      await fetch('/__png__', { method: 'POST', body: JSON.stringify({ key: '${k.key}', url, w: cv.width, h: cv.height }) });
-      return;
-    }
-  } catch (e) { err = String(e && e.message || e); }
-  await fetch('/__png__', { method: 'POST', body: JSON.stringify({ key: '${k.key}', err }) });
+    for (const k of left) await post({ key: k, err: 'タイムアウト (120秒)' });
+  } catch (e) {
+    for (const w of WANT) await post({ key: w.key, err: String(e && e.message || e) });
+  }
 })();
 </script>`;
 };
@@ -135,11 +161,9 @@ const server = createServer(async (req, res) => {
         });
         return;
     }
-    const m = req.url.match(/^\/__wrap__\/(\w+)$/);
-    if (m) {
-        const k = KINDS.find(x => x.key === m[1]);
+    if (req.url.split('?')[0] === '/__wrap__') {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.end(k ? wrapper(k) : '404');
+        return res.end(wrapper());
     }
     const file = await resolveServable(ROOT, req.url);
     if (!file) { res.statusCode = 404; return res.end('404'); }
@@ -164,27 +188,22 @@ await listenLocal(server, PORT);   // 外から触れないようループバッ
 const chrome = findChrome();
 if (!chrome) { console.error('Chrome/Edge が見つかりません (CHROME_PATH で指定可)'); server.close(); process.exit(2); }
 
-console.log(`シーズン ${season}${raidNo ? ` (第${raidNo}回)` : ''} / 平均SLv ${avgSlv ?? '(未指定 — ①は「—」表示)'}${ART ? ' / キャラ絵あり' : ''}`);
-// 1枚ずつ順に回す (同時に開くと同じ RPC を4倍叩くため)
-const kids = [];
-for (const k of KINDS) {
-    const child = spawn(chrome, [
-        '--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio',
-        `--user-data-dir=${join(tmpdir(), 'spg-recap-' + k.key)}`,
-        `http://127.0.0.1:${PORT}/__wrap__/${k.key}`,   // サーバは IPv4 ループバック固定なので名前解決に頼らない
-    ], { windowsHide: true, stdio: 'ignore' });
-    kids.push(child);
-    // ⚠ 「今起動した1枚」の結果だけを待つ。results.size の増加で待つと、前の Chrome の
-    //    遅れた結果で抜けてしまい、最後の1枚に猶予が残らない (Codex指摘)
-    for (let i = 0; i < 140 && !results.has(k.key); i++) await new Promise(r => setTimeout(r, 500));
-    if (!results.has(k.key)) results.set(k.key, { err: 'タイムアウト (70秒)' });
-}
-kids.forEach(c => { try { c.kill(); } catch { /* 既に落ちている */ } });
+console.log(`シーズン ${season}${raidNo ? ` (第${raidNo}回)` : ''} / 平均SLv ${avgSlv ?? '(未指定 — ①は「—」表示)'}`
+    + ` / ${WIDE ? `${WIDE_W}x${WIDE_H} (16:9)` : '1200幅 (従来)'} / ${ART ? 'キャラ絵' : '自作タイル'}`);
+// Chrome は1つだけ。4枚とも同じ取得結果から描く (カード間の数字のズレを防ぐ)
+const child = spawn(chrome, [
+    '--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio',
+    `--user-data-dir=${join(tmpdir(), 'spg-recap')}`,
+    `http://127.0.0.1:${PORT}/__wrap__`,   // サーバは IPv4 ループバック固定なので名前解決に頼らない
+], { windowsHide: true, stdio: 'ignore' });
+for (let i = 0; i < 300 && results.size < KINDS.length; i++) await new Promise(r => setTimeout(r, 500));
+for (const k of KINDS) if (!results.has(k.key)) results.set(k.key, { err: 'タイムアウト (150秒)' });
+try { child.kill(); } catch { /* 既に落ちている */ }
 server.close();
 
 // 集計値のスナップショット (PNG は捨てても数値は残す)。公開RPCで誰でも取れる値のみ。
 // --only で一部だけ作ったときは既存を壊さないようマージする
-const statsPath = join(OUT, 'stats.json');
+const statsPath = join(SEASON_DIR, 'stats.json');   // 記録はシーズンに1つ (変種ごとに散らさない)
 let statsOk = false;
 try {
     const prev = existsSync(statsPath) ? JSON.parse(await readFile(statsPath, 'utf8')) : {};

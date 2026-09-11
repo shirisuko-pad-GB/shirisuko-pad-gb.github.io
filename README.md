@@ -307,6 +307,34 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
   揃って初めて送信が通る (テストが version 一致とボス名 typo を検証する)。
 - 現行シーズンの再生成・検証は `node scripts/new-season.mjs --season-id <本家ID>`。
 
+### 結果発表カード (シーズン終了後・SNS投稿用)
+
+レイドが終わって1週間ほどでデータが落ち着いたら、`tools/recap.html` の4枚を書き出して X に投稿する。
+**シーズンを閉じる必要はない** — 第44回は英語圏の利用者のためサーバーを open のまま「区切りの集計」を出した。
+
+```sh
+# ① 平均SLv だけ公開RPCに無いので SQL Editor で取る
+#   with per as (select client_id, max(slv) slv from public.measurements
+#                where season='2026-09' group by client_id)
+#   select count(*) users, round(avg(slv)) avg_slv from per;
+# ② 4枚まとめて書き出す (回数は recap.html の SEASON_RAID_NO から自動)
+node scripts/recap-export.mjs --avgslv 745 --avgslv-users 1186
+```
+
+**既定の形 (2026-09-12 ユーザー確定・変えないこと)**
+
+| | | なぜ |
+|---|---|---|
+| **1422×800 (16:9)** | 4枚とも同じ寸法 | X は4枚投稿を 16:9 に中央トリミングする。3:2 / 6:5 のままだと見出しや下段が切れる |
+| **キャラ絵つき** | `--tiles` で自作タイルに戻せる | 掲載方針が takedown 方式に戻った 2026-08-31 以降はこちらが既定 |
+| **4枚を1回の取得で描く** | Chrome は1つだけ | 別々に取ると途中で提出が入り「①2957件・④2958件」とカード間で数字がズレる |
+
+- 投稿順は **①総まとめ → ②よく使われた編成 → ③結果発表 → ④人気かつ強かった編成**
+- ④は幅に応じて2列⇄3列が切り替わる (1200幅なら従来の2列・16:9 なら3列)
+- PNG は gitignore。**`data/recap/<season>/stats.json` だけ commit する** —
+  シーズン切替で measurements を全削除するので、次シーズンと比べられる記録はこれだけ
+- 従来の形が要るときは `--narrow` / `--tiles` (変種は `data/recap/<season>/<変種名>/` に分かれる)
+
 ## 工事中モード (随時)
 
 サイトを止めたいとき (実際の改修中など) は SQL Editor で:
