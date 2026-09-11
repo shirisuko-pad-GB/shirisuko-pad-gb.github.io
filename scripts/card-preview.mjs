@@ -118,7 +118,7 @@ if (!chrome) { console.error('Chrome/Edge が見つかりません (CHROME_PATH 
 const kids = langs.map((lang) => spawn(chrome, [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio',
     `--user-data-dir=${join(tmpdir(), 'spg-card-' + lang)}`,
-    `http://localhost:${PORT}/__page__/${lang}`,
+    `http://127.0.0.1:${PORT}/__page__/${lang}`,   // サーバは IPv4 ループバック固定
 ], { windowsHide: true, stdio: 'ignore' }));
 
 const timeout = new Promise((r) => setTimeout(() => r('__timeout__'), 60000));

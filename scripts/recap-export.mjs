@@ -116,13 +116,20 @@ const server = createServer(async (req, res) => {
             try { payload = JSON.parse(body); } catch { payload = { key: '?', err: '応答を解釈できません' }; }
             // key は自前のラッパが送る固定値のみ受ける (書き込み先をURLから決めさせない)
             if (!KINDS.some(k => k.key === payload.key)) return;
-            if (payload.err) {
-                results.set(payload.key, { err: payload.err });
-            } else {
-                const png = Buffer.from(payload.url.split(',')[1], 'base64');
-                const file = join(OUT, `${payload.key}.png`);
-                await writeFile(file, png);
-                results.set(payload.key, { file, kb: Math.round(png.length / 1024), size: `${payload.w}x${payload.h}` });
+            try {
+                if (payload.err) {
+                    results.set(payload.key, { err: payload.err });
+                } else {
+                    const b64 = String(payload.url ?? '').split(',')[1];
+                    if (!b64) throw new Error('画像データが空です');
+                    const png = Buffer.from(b64, 'base64');
+                    const file = join(OUT, `${payload.key}.png`);
+                    await writeFile(file, png);
+                    results.set(payload.key, { file, kb: Math.round(png.length / 1024), size: `${payload.w}x${payload.h}` });
+                }
+            } catch (e) {
+                // 壊れた応答でプロセスごと落とさない (その1枚を失敗として記録する)
+                results.set(payload.key, { err: `応答を保存できません: ${e?.message ?? e}` });
             }
             if (results.size === KINDS.length) resolveDone();
         });
@@ -164,7 +171,7 @@ for (const k of KINDS) {
     const child = spawn(chrome, [
         '--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio',
         `--user-data-dir=${join(tmpdir(), 'spg-recap-' + k.key)}`,
-        `http://localhost:${PORT}/__wrap__/${k.key}`,
+        `http://127.0.0.1:${PORT}/__wrap__/${k.key}`,   // サーバは IPv4 ループバック固定なので名前解決に頼らない
     ], { windowsHide: true, stdio: 'ignore' });
     kids.push(child);
     // ⚠ 「今起動した1枚」の結果だけを待つ。results.size の増加で待つと、前の Chrome の
@@ -185,20 +192,24 @@ try {
         const backend = await readFile(join(ROOT, 'js', 'backend.js'), 'utf8');
         const u = backend.match(/https:\/\/[a-z]+\.supabase\.co/)[0];
         const key = backend.match(/sb_publishable_[A-Za-z0-9_-]+/)[0];
+        // ⚠ 失敗を null に潰さない。潰すと「空の snapshot で過去の記録を上書きして成功終了」になり、
+        //    シーズン削除前の唯一の記録を失う (Codex指摘)
         const rpc = async (fn, body) => {
             const r = await fetch(`${u}/rest/v1/rpc/${fn}`, {
                 method: 'POST', body: JSON.stringify(body),
                 headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
             });
-            return r.ok ? r.json() : null;
+            if (!r.ok) throw new Error(`${fn} → ${r.status} ${(await r.text()).slice(0, 120)}`);
+            return r.json();
         };
         const attrs = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
         const per = {};
         for (const a of attrs) {
             const d = await rpc('get_distribution', { p_attribute: a, p_season: season, p_score: 1 });
-            if (d && !d.gated) per[a] = { n: d.n, median: d.median };
+            if (d && !d.gated) per[a] = { n: d.n, median: d.median };   // 未解禁は中身が返らない (0件ではない)
         }
         const tot = await rpc('get_total_distribution', { p_season: season });
+        if (!Object.keys(per).length) throw new Error('解禁済みの属性が1つもありません (集計前？)');
         return { attributes: per, users: tot?.users ?? null, finishers: tot?.n ?? null, totalMedian: tot?.median ?? null };
     })();
     // 回数は tools/recap.html の対応表を唯一の正とする (カードの表記と食い違わせない)
@@ -206,9 +217,12 @@ try {
     try {
         const html = await readFile(join(ROOT, 'tools', 'recap.html'), 'utf8');
         const m2 = html.match(/SEASON_RAID_NO\s*=\s*\{([^}]*)\}/);
-        const m3 = m2 && m2[1].match(new RegExp(`'${season}'\\s*:\\s*(\\d+)`));
+        const m3 = m2 && m2[1].match(new RegExp(`['"\`]${season}['"\`]\\s*:\\s*(\\d+)`));
         if (m3) raidFromTable = Number(m3[1]);
-    } catch { /* 読めなければ --raid に従う */ }
+    } catch { /* 読めなければ下で警告 */ }
+    if (!raidNo && raidFromTable == null && prev.raidNo == null) {
+        console.warn(`  ⚠ 第何回か分かりません (tools/recap.html の SEASON_RAID_NO に '${season}' が無い) — --raid で指定してください`);
+    }
     // ⚠ 引き継ぐのは「今回指定されなかった値」だけ。capturedAt と RPC 由来は必ず今回の値になるので、
     //    avgSlv だけ古いまま残ると日付と中身が食い違う (Codex指摘) → 引き継いだ場合は日付も残す
     const inheritedSlv = !avgSlv && prev.avgSlv != null;
@@ -219,7 +233,8 @@ try {
         raidNo: raidNo ? Number(raidNo) : (raidFromTable ?? prev.raidNo ?? null),
         capturedAt: new Date().toISOString().slice(0, 10),
         avgSlv: avgSlv ? Number(avgSlv) : (prev.avgSlv ?? null),
-        avgSlvUsers: avgSlvUsers ? Number(avgSlvUsers) : (prev.avgSlvUsers ?? null),
+        // 平均SLvを更新したのに母集団だけ前回値、という時点の混在を作らない (Codex指摘)
+        avgSlvUsers: avgSlvUsers ? Number(avgSlvUsers) : (avgSlv ? null : (prev.avgSlvUsers ?? null)),
         avgSlvCapturedAt: avgSlv ? new Date().toISOString().slice(0, 10) : (prev.avgSlvCapturedAt ?? null),
         ...snap,
         note: 'users/finishers は締め凸と score_bounds 外を除いた有効提出ベース (get_total_distribution)。'
