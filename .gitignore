@@ -7,3 +7,6 @@ tests/e2e-client-id.local
 
 # 2026-08-10〜08-30 の掲載停止中に recap 用として使った旧コピー (現在は不要 — 手で削除してよい)
 character-images-local/
+
+# 結果発表カードの画像 (毎シーズン約1MB)。数値は同じフォルダの stats.json に残すのでそちらを commit する
+data/recap/**/*.png

@@ -1,0 +1,34 @@
+{
+  "_readme": "結果発表カードの集計値スナップショット (scripts/recap-export.mjs の生成物)。シーズン切替で measurements は全削除されるため、次シーズンとの比較はこのファイルが唯一の記録。",
+  "season": "2026-09",
+  "raidNo": 44,
+  "capturedAt": "2026-09-11",
+  "avgSlv": 745,
+  "avgSlvUsers": 1186,
+  "attributes": {
+    "FIRE": {
+      "n": 603,
+      "median": 1.208159140533
+    },
+    "WATER": {
+      "n": 456,
+      "median": 0.960769146115155
+    },
+    "ELECTRIC": {
+      "n": 454,
+      "median": 1.04434757285612
+    },
+    "IRON": {
+      "n": 545,
+      "median": 1.01972878099256
+    },
+    "WIND": {
+      "n": 898,
+      "median": 1.23573361082812
+    }
+  },
+  "users": 1152,
+  "finishers": 704,
+  "totalMedian": 0.982525713822887,
+  "note": "users/finishers は締め凸と score_bounds 外を除いた有効提出ベース (get_total_distribution)。avgSlv は measurements 直読みの SQL 由来で母集団が少し広い。"
+}

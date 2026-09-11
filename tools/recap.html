@@ -106,7 +106,7 @@ let infoOf = () => null, logo = null, booted = null;
 // カードの見出しは「2026-08」ではなく「第43回ユニオンレイド」で出す (SNSでの通りが良いため)。
 // 回数はシーズンキーから機械的に導けない (レイドは約3週間おきで、月と1:1で対応しない) ので
 // 明示的な対応表 + 手入力。未知のシーズンはシーズンキーのまま描く (「第回」を出さない)。
-const SEASON_RAID_NO = { '2026-07': 42, '2026-08': 43 };
+const SEASON_RAID_NO = { '2026-07': 42, '2026-08': 43, '2026-09': 44 };
 function raidLabel() {
     const n = Number(document.getElementById('raidNo')?.value);
     return Number.isInteger(n) && n > 0
