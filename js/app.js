@@ -2,6 +2,7 @@
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from './calc.js';
+import { readRaidScreenshot } from './ocr.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh, isInAppBrowser, attrName } from './shared.js';
 import { buildShareCard } from './sharecard.js';
@@ -110,6 +111,17 @@ async function init() {
         attacks.push(newAttack());
         renderAttacks();
         updateSubmitState();
+    });
+    // スクショ読み取り (補助)。ボタン → 隠しファイル入力 → onOcrFiles
+    $('ocrBtn').addEventListener('click', () => {
+        if (!slvValid()) { toast(t('ui.ocr_need_slv')); $('slv').focus(); return; }
+        if (correcting) { toast(t('ui.ocr_correcting')); return; }
+        $('ocrFile').click();
+    });
+    $('ocrFile').addEventListener('change', (e) => {
+        const files = [...(e.target.files || [])];
+        e.target.value = '';   // 同じ画像をもう一度選べるように
+        if (files.length) onOcrFiles(files);
     });
     $('submitBtn').addEventListener('click', onSubmit);
     $('shareBtn').addEventListener('click', onShare);
@@ -1389,6 +1401,58 @@ function previewCard() {
         setPreviewImage(shareBlob);   // Object URL は setPreviewImage が一元管理 (漏れ防止 — Codex指摘)
         res();
     });
+}
+
+// ---------- スクショ読み取り (補助・端末内・AI不使用) ----------
+// 読み取り結果は凸カードに「入れるだけ」。送信は本人が確認してから (自動送信しない)。
+// 空いている凸カードから順に埋め、足りなければ追加 (最大3)。読めなければ手入力に戻るだけ
+let ocrBusy = false;
+async function onOcrFiles(files) {
+    if (ocrBusy) return;
+    ocrBusy = true;
+    const btn = $('ocrBtn');
+    const label = btn.textContent;
+    btn.disabled = true;
+    if (!globalThis.Tesseract) toast(t('ui.ocr_first_time'));
+    let got = 0, full = false, readable = false;
+    try {
+        for (const f of files) {
+            const free = () => MAX_ATTACKS - attacks.filter(a => a.attribute || a.damage).length;
+            if (free() <= 0) { full = true; break; }
+            const r = await readRaidScreenshot(f, {
+                max: free(),
+                onProgress: (status, p) => { btn.textContent = t('ui.ocr_busy', { status: p != null ? `${Math.round(p * 100)}%` : status }); },
+            });
+            if (!r.warnings.includes('no_rows') && !r.warnings.includes('error')) readable = true;
+            for (const atk of r.attacks) {
+                // 空の凸カード (属性もダメージも未入力) があればそこへ、無ければ追加
+                let a = attacks.find(x => !x.attribute && !x.damage);
+                if (!a) {
+                    if (attacks.length >= MAX_ATTACKS) { full = true; break; }
+                    a = newAttack(); attacks.push(a);
+                }
+                a.attribute = atk.attribute;
+                a.damage = atk.damageB.toFixed(2);   // 入力欄は B 単位 (例: 35.51)
+                got++;
+                ensureInsights(a.attribute, () => {   // 属性ボタンを押していないので、ここで今シーズンの編成を取りに行く
+                    const idx = attacks.indexOf(a);
+                    const card = idx >= 0 ? document.querySelector(`.atk-card[data-i="${idx}"]`) : null;
+                    if (card) renderCompBody(card, a);
+                });
+            }
+        }
+    } finally {
+        ocrBusy = false;
+        btn.disabled = false;
+        btn.textContent = label;
+    }
+    renderAttacks();
+    updateSubmitState();
+    if (got === 0) toast(t('ui.ocr_none'));
+    else if (full) toast(t('ui.ocr_full'));
+    else if (!readable) toast(t('ui.ocr_partial', { n: got }));
+    else toast(t('ui.ocr_done', { n: got }));
+    if (got > 0) $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---------- misc ----------

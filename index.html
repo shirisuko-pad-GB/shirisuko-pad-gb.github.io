@@ -601,6 +601,13 @@
         <p class="hint" id="slvNote" style="margin-top:8px;text-align:center;"></p>
     </section>
 
+    <!-- スクショ読み取り (補助・端末内処理・AI不使用 — js/ocr.js)。読めなくても手入力に戻れる -->
+    <div class="ocr-row">
+        <button type="button" class="add-atk-btn" id="ocrBtn" data-i18n="ui.ocr_btn">📷 凸一覧のスクショから読み取る (β)</button>
+        <input type="file" id="ocrFile" accept="image/*" multiple hidden>
+        <p class="hint" style="text-align:center;margin-top:4px;" data-i18n="ui.ocr_privacy">BlaBlaLINK の「凸一覧」画面のスクショから、属性とダメージを入力欄に入れます。画像は端末内で処理され、送信されません</p>
+    </div>
+
     <!-- STEP 2: 凸の入力 (1〜3件, app.js が生成) -->
     <div id="attacksArea"></div>
     <button type="button" class="add-atk-btn" id="addAtkBtn" data-i18n="ui.add_attack">＋ 凸を追加してまとめて測定 (最大3凸)</button>

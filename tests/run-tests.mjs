@@ -7,6 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
+import { classifyHue, ptOfBossAttr, parseDamageWord, isLevelWord, pairAnchorsWithDamages } from '../js/ocr.js';
 import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc, CHAR_ID_RE } from '../js/tiles.js';
 import { detectLang, t, _setLangForTest, LANGS, DEFAULT_LANG } from '../js/i18n.js';
 import { MESSAGES } from '../js/messages.js';
@@ -355,6 +356,68 @@ test('不正な編成は null (XSSペイロード/要素数違い/型違い)', (
     assertEq(sanitizeCharacters('not-an-array'), null);
     assertEq(sanitizeCharacters(null), null);
     assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg, '"><script>']), null);
+});
+
+console.log('スクショ読み取り (js/ocr.js の純関数):');
+
+test('classifyHue: 5色の属性アイコンを判定し、背景・文字・淡い色・オレンジは無視', () => {
+    assertEq(classifyHue(230, 40, 40), 'FIRE', '赤');
+    assertEq(classifyHue(120, 30, 30), 'FIRE', '暗い赤 (アイコンの地)');
+    assertEq(classifyHue(224, 160, 32), 'IRON', '金 (D.M.T.R. の六角形は色相30°前後)');
+    assertEq(classifyHue(240, 210, 40), 'IRON', '黄');
+    assertEq(classifyHue(40, 190, 90), 'WIND', '緑');
+    assertEq(classifyHue(50, 130, 230), 'WATER', '青');
+    assertEq(classifyHue(150, 70, 230), 'ELECTRIC', '紫');
+    assertEq(classifyHue(200, 200, 200), null, '灰 (彩度なし)');
+    assertEq(classifyHue(20, 20, 20), null, '黒');
+    assertEq(classifyHue(240, 116, 46), null, 'オレンジ (HARD バッジ) は属性ではない');
+    assertEq(classifyHue(255, 255, 255), null, '白');
+});
+
+test('ptOfBossAttr: ボス自身の属性 → 殴るPT属性 (ATTR_INFO.enemy の逆引き)', () => {
+    assertEq(ptOfBossAttr('FIRE'), 'WATER');
+    assertEq(ptOfBossAttr('WIND'), 'FIRE');
+    assertEq(ptOfBossAttr('WATER'), 'ELECTRIC');
+    assertEq(ptOfBossAttr('ELECTRIC'), 'IRON');
+    assertEq(ptOfBossAttr('IRON'), 'WIND');
+    assertEq(ptOfBossAttr(null), null);
+    assertEq(ptOfBossAttr('X'), null);
+});
+
+test('parseDamageWord: 桁区切りの10億以上だけを B (0.01 丸め) にする', () => {
+    assertEq(parseDamageWord('35,512,860,640'), 35.51);
+    assertEq(parseDamageWord('9,491,198,815'), 9.49);
+    assertEq(parseDamageWord('11,218,170,432'), 11.22);
+    assertEq(parseDamageWord('794,493'), null, '戦闘力 (3桁×2) は拾わない');
+    assertEq(parseDamageWord('217,938'), null);
+    assertEq(parseDamageWord('12.345.678.901'), null, 'ピリオド区切りは不採用 (数字限定OCRはカンマで返す)');
+    assertEq(parseDamageWord('abc'), null);
+    assertEq(parseDamageWord(''), null);
+    assertEq(parseDamageWord(null), null);
+});
+
+test('isLevelWord: "Level" と OCR の読み揺れ', () => {
+    for (const w of ['Level', 'level', 'Leve1', 'LeveI', 'Leve|', ' Level ']) assert(isLevelWord(w), w);   // 実スクショで観測した揺れ + 末尾1文字の誤読
+    for (const w of ['Lv', 'Levels', 'HARD', '3', '']) assert(!isLevelWord(w), `not: ${w}`);
+});
+
+test('pairAnchorsWithDamages: 各ダメージを直上のボス行へ / 行なし・色不明・重複は捨てる / 上限', () => {
+    const anchors = [{ yc: 200, attribute: 'WATER' }, { yc: 600, attribute: 'FIRE' }, { yc: 1000, attribute: null }];
+    const damages = [{ yc: 380, damageB: 35.51, conf: 90 }, { yc: 760, damageB: 37.41, conf: 88 }, { yc: 1140, damageB: 54.64, conf: 92 }];
+    const r = pairAnchorsWithDamages(anchors, damages);
+    assertEq(r.length, 2, '色不明の行の凸は捨てる');
+    assertEq(`${r[0].attribute} ${r[0].damageB}`, 'WATER 35.51');
+    assertEq(`${r[1].attribute} ${r[1].damageB}`, 'FIRE 37.41');
+    assertEq(pairAnchorsWithDamages(anchors, [{ yc: 100, damageB: 1 }]).length, 0, 'どの行より上のダメージは捨てる');
+    const dup = pairAnchorsWithDamages([{ yc: 200, attribute: 'WATER' }], [{ yc: 300, damageB: 1 }, { yc: 320, damageB: 2 }]);
+    assertEq(dup.length, 1, '同じ行に2つ付いたら最初だけ');
+    assertEq(dup[0].damageB, 1);
+    const capped = pairAnchorsWithDamages(
+        [{ yc: 1, attribute: 'A' }, { yc: 100, attribute: 'B' }, { yc: 200, attribute: 'C' }, { yc: 300, attribute: 'D' }],
+        [{ yc: 50, damageB: 1 }, { yc: 150, damageB: 2 }, { yc: 250, damageB: 3 }, { yc: 350, damageB: 4 }], 3);
+    assertEq(capped.length, 3, '最大3');
+    assertEq(pairAnchorsWithDamages([], damages).length, 0);
+    assert(!('anchorY' in r[0]), '内部用の anchorY は外に出さない');
 });
 
 console.log('前シーズンの人気編成 (フォールバック):');

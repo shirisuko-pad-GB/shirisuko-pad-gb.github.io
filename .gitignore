@@ -10,3 +10,6 @@ character-images-local/
 
 # 結果発表カードの画像 (毎シーズン約1MB)。数値は同じフォルダの stats.json に残すのでそちらを commit する
 data/recap/**/*.png
+
+# OCR 検証用の実スクショ (他の方の名前が写るため公開リポジトリに入れない — 手元専用)
+tests/ocr-fixtures.local/
