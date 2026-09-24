@@ -103,8 +103,10 @@ const TESS = {
 // 受け付ける画像の上限 (縦長・巨大画像でタブごと落ちないように — Codex指摘)。
 // スクショは 3MP 前後・数MB。ヘッダから寸法を先読みして、大きければ縮小しながらデコードする
 const MAX_BYTES = 20 * 1024 * 1024;
-const MAX_PX = 8e6;          // ここまで縮小してから処理する
+const MAX_PX = 4e6;          // ここまで縮小してから処理する (縦長スクショ 1179x3400 でも幅は保てる。
+                             //  処理中はカラー+前処理+ImageData で画素×12B ≈ 48MB — スマホでも収まる範囲)
 const HARD_MAX_PX = 40e6;    // これ以上は読まない (デコードだけで数百MB)
+const UNKNOWN_DIMS_MAX_BYTES = 2 * 1024 * 1024;   // ヘッダで寸法が分からない形式はこの大きさまで
 const MAX_W = 1400;          // これ以上は縮小してから読む (端末の負荷を抑える。1179px 基準で十分読めている)
 const MIN_W = 700;           // これ未満は読めない可能性が高い (警告だけ出して試す)
 // アイコン探索窓 (Level 行の左・少し上)。1179px 幅での実測 x 12〜24% / y -75〜+15px を比率に
@@ -138,7 +140,9 @@ async function getWorker(onProgress, langPath = TESS.langPath) {
     return workerPromise;
 }
 
-// ヘッダから寸法だけ読む (PNG / JPEG / WebP)。分からなければ null (その場合はデコード後に判定)
+// ヘッダから寸法だけ読む (PNG / JPEG / WebP)。分からなければ null。
+// JPEG は SOF マーカーが EXIF/ICC の後ろに来ることがあるので、渡されたバイト列の中を
+// 長さ付きセグメントで飛びながら最後まで探す (デコードではないので 20MB でも一瞬)
 export function probeImageDims(bytes) {
     const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
     const be32 = (i) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
@@ -149,8 +153,10 @@ export function probeImageDims(bytes) {
         let i = 2;
         while (i + 9 < b.length && b[i] === 0xFF) {
             const m = b[i + 1];
-            if (m === 0xD8 || (m >= 0xD0 && m <= 0xD7) || m === 0x01) { i += 2; continue; }
+            if (m === 0xFF) { i += 1; continue; }                                  // パディング
+            if (m === 0xD8 || (m >= 0xD0 && m <= 0xD7) || m === 0x01) { i += 2; continue; }   // 長さ無し
             const len = be16(i + 2);
+            if (len < 2) return null;
             if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: be16(i + 5), w: be16(i + 7) };
             i += 2 + len;
         }
@@ -160,6 +166,10 @@ export function probeImageDims(bytes) {
         const tag = String.fromCharCode(b[12], b[13], b[14], b[15]);
         if (tag === 'VP8X') return { w: 1 + le24(24), h: 1 + le24(27) };
         if (tag === 'VP8 ') return { w: be16(26) & 0x3FFF, h: be16(28) & 0x3FFF };
+        if (tag === 'VP8L' && b[20] === 0x2F) {   // 可逆: 署名 0x2F の後に 14bit 幅-1 / 14bit 高さ-1 (LE ビット詰め)
+            const bits = b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24);
+            return { w: (bits & 0x3FFF) + 1, h: ((bits >>> 14) & 0x3FFF) + 1 };
+        }
         return null;
     }
     return null;
@@ -170,19 +180,30 @@ export function probeImageDims(bytes) {
 async function toCanvas(file) {
     if (file.size === 0) throw new Error('empty');
     if (file.size > MAX_BYTES) throw new Error('too_large');
-    const head = new Uint8Array(await file.slice(0, 65536).arrayBuffer());
-    const dims = probeImageDims(head);
+    // JPEG は SOF が EXIF/ICC の後ろに来ることがあるのでファイル全体を渡す (走査だけ・デコードしない)。
+    // それ以外はヘッダ先頭で足りる
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    const isJpeg = head[0] === 0xFF && head[1] === 0xD8;
+    const dims = probeImageDims(new Uint8Array(await (isJpeg ? file : file.slice(0, 65536)).arrayBuffer()));
     let opts;
     if (dims && dims.w > 0 && dims.h > 0) {
         if (dims.w * dims.h > HARD_MAX_PX) throw new Error('too_large');
         const scale = Math.min(1, MAX_W / dims.w, Math.sqrt(MAX_PX / (dims.w * dims.h)));
-        if (scale < 1) opts = { resizeWidth: Math.round(dims.w * scale), resizeHeight: Math.round(dims.h * scale), resizeQuality: 'high' };
+        if (scale < 1) {
+            const rw = Math.round(dims.w * scale), rh = Math.round(dims.h * scale);
+            if (rw < 1 || rh < 1) throw new Error('too_large');   // 極端な縦横比 (縮小で 0px になる) は読まない
+            opts = { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'high' };
+        }
+    } else if (file.size > UNKNOWN_DIMS_MAX_BYTES) {
+        // 寸法が分からない形式 (HEIC / GIF / TIFF 等) は、素のサイズでデコードする前に上限を掛けられない。
+        // 小さいファイルだけ試し、大きいものは読まない (縦長・巨大画像でタブごと落ちる経路を塞ぐ)
+        throw new Error('too_large');
     }
     const bmp = opts ? await createImageBitmap(file, opts) : await createImageBitmap(file);
     if (bmp.width * bmp.height > HARD_MAX_PX) { bmp.close?.(); throw new Error('too_large'); }   // ヘッダが読めなかった形式の保険
     const scale = Math.min(1, MAX_W / bmp.width, Math.sqrt(MAX_PX / (bmp.width * bmp.height)));
     const c = document.createElement('canvas');
-    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.width = Math.max(1, Math.round(bmp.width * scale)); c.height = Math.max(1, Math.round(bmp.height * scale));
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
     bmp.close?.();
     return c;
@@ -202,7 +223,7 @@ function preprocess(src, invert) {
         p[i] = p[i + 1] = p[i + 2] = v;
     }
     ctx.putImageData(im, 0, 0);
-    return new Promise(res => c.toBlob(res, 'image/png'));
+    return new Promise(res => c.toBlob((blob) => { c.width = c.height = 0; res(blob); }, 'image/png'));   // 用済みのバッファは即解放
 }
 
 // Level 行の左にある属性アイコンの色 (元のカラー画像で見る)

@@ -1451,9 +1451,10 @@ async function onOcrFiles(files) {
     }
     renderAttacks();
     updateSubmitState();
-    // 案内は「何が起きたか」が分かる順に: 読めず → 3凸に入り切らなかった → 一部読めず → 全部読めた
-    if (got === 0) toast(t(tooLarge ? 'ui.ocr_too_large' : 'ui.ocr_none'));
-    else if (found > got) toast(t('ui.ocr_full'));
+    // 案内は「何が起きたか」が分かる順に: 3凸に入り切らなかった → 読めず → 一部読めず → 全部読めた
+    // (3枚とも埋まっていて読めたのに入らなかった = found>0, got=0 を「読めず」と言わない — Codex指摘)
+    if (found > got) toast(t('ui.ocr_full'));
+    else if (got === 0) toast(t(tooLarge ? 'ui.ocr_too_large' : 'ui.ocr_none'));
     else if (flagged || rows > found) toast(t('ui.ocr_partial', { n: got }));
     else toast(t('ui.ocr_done', { n: got }));
     if (got > 0) $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });

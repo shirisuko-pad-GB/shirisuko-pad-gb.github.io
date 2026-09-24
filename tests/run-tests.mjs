@@ -441,6 +441,18 @@ test('probeImageDims: PNG / JPEG / WebP のヘッダから寸法を読む (未�
     const webp = new Uint8Array(40); webp.set([0x52, 0x49, 0x46, 0x46], 0); webp.set([0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58], 8); webp.set([0x9A, 0x04, 0x00], 24); webp.set([0x2A, 0x0A, 0x00], 27);
     assertEq(JSON.stringify(probeImageDims(webp)), JSON.stringify({ w: 1179, h: 2603 }));
     assertEq(probeImageDims(new Uint8Array([1, 2, 3])), null);
+    // VP8L (可逆 WebP): 署名 0x2F + 14bit 幅-1 / 14bit 高さ-1。1179x2603 → (1178) | (2602<<14)
+    const vp8l = new Uint8Array(40); vp8l.set([0x52, 0x49, 0x46, 0x46], 0); vp8l.set([0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4C], 8); vp8l[20] = 0x2F;
+    const bits = 1178 | (2602 << 14); vp8l[21] = bits & 0xFF; vp8l[22] = (bits >>> 8) & 0xFF; vp8l[23] = (bits >>> 16) & 0xFF; vp8l[24] = (bits >>> 24) & 0xFF;
+    assertEq(JSON.stringify(probeImageDims(vp8l)), JSON.stringify({ w: 1179, h: 2603 }));
+    // JPEG: SOF が 120KB のメタデータ (APP2 の ICC は 1セグメント最大 64KB なので 60KB×2) の後ろにあっても見つける
+    // — 先頭 64KB で打ち切らないこと。SOF2 (プログレッシブ) も寸法を返す
+    const seg = 60 * 1024;
+    const big = new Uint8Array(2 + (2 + 2 + seg) * 2 + 20); let o = 0;
+    big.set([0xFF, 0xD8], o); o += 2;
+    for (let k = 0; k < 2; k++) { big.set([0xFF, 0xE2, (seg + 2) >> 8, (seg + 2) & 0xFF], o); o += 4 + seg; }
+    big.set([0xFF, 0xC2, 0, 17, 8, 0x05, 0x2B, 0x04, 0x9B], o);
+    assertEq(JSON.stringify(probeImageDims(big)), JSON.stringify({ h: 1323, w: 1179 }), '64KB 超のメタデータの後ろの SOF2');
 });
 
 test('vendor/tesseract: 同梱アセットが台帳 (manifest.json) の SHA-256 と一致し、ocr.js が同じ版を指す', () => {
@@ -455,7 +467,12 @@ test('vendor/tesseract: 同梱アセットが台帳 (manifest.json) の SHA-256 
         .every(f => f in m.files), '必要な5ファイルが台帳にある');
     const ocr = readFileSync(join(ROOT, 'js', 'ocr.js'), 'utf8');
     assert(ocr.includes("const TESS_VER = '5.1.1'"), 'ocr.js の版数が台帳と同じ');
-    assert(!/cdn\.jsdelivr\.net|projectnaptha\.com/.test(ocr.replace(/\/\/.*$/gm, '')), 'ocr.js のコードは CDN を参照しない (コメント以外)');
+    // 行頭コメントとブロックコメントだけを除き、残りに URL が一切無いこと (文字列内の https:// も検出する — Codex指摘)
+    const code = ocr.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    assert(!/https?:\/\//.test(code), 'ocr.js のコードは外部URLを一切持たない (アセットは自サイト同梱)');
+    // 取得スクリプト側の期待ハッシュ (ソース管理) も台帳と一致していること
+    const vs = readFileSync(join(ROOT, 'scripts', 'vendor-tesseract.mjs'), 'utf8');
+    for (const [name, meta] of Object.entries(m.files)) assert(vs.includes(`'${name}': '${meta.sha256}'`), `vendor-tesseract.mjs の EXPECTED_SHA256 に ${name} の台帳ハッシュがある`);
 });
 
 console.log('前シーズンの人気編成 (フォールバック):');
