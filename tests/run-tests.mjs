@@ -441,6 +441,15 @@ test('probeImageDims: PNG / JPEG / WebP のヘッダから寸法を読む (未�
     const webp = new Uint8Array(40); webp.set([0x52, 0x49, 0x46, 0x46], 0); webp.set([0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58], 8); webp.set([0x9A, 0x04, 0x00], 24); webp.set([0x2A, 0x0A, 0x00], 27);
     assertEq(JSON.stringify(probeImageDims(webp)), JSON.stringify({ w: 1179, h: 2603 }));
     assertEq(probeImageDims(new Uint8Array([1, 2, 3])), null);
+    // VP8 (非可逆 WebP): 開始コード 9d 01 2a の後に LE 16bit。8192x8192 は 00 20 / 00 20 —
+    // BE で読むと 32x32 に化けて事前上限をすり抜ける (Codex指摘の再現ケース)
+    const vp8 = new Uint8Array(40); vp8.set([0x52, 0x49, 0x46, 0x46], 0); vp8.set([0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20], 8);
+    vp8.set([0x9D, 0x01, 0x2A, 0x00, 0x20, 0x00, 0x20], 23);
+    assertEq(JSON.stringify(probeImageDims(vp8)), JSON.stringify({ w: 8192, h: 8192 }), 'VP8 はリトルエンディアン');
+    const vp8b = new Uint8Array(vp8); vp8b.set([0x9B, 0x04, 0x2B, 0x05], 26);   // 1179 x 1323 (+ scale bits 0)
+    assertEq(JSON.stringify(probeImageDims(vp8b)), JSON.stringify({ w: 1179, h: 1323 }));
+    const vp8x2 = new Uint8Array(vp8); vp8x2[23] = 0x00;   // 開始コード無し = 壊れている → null (読まない)
+    assertEq(probeImageDims(vp8x2), null);
     // VP8L (可逆 WebP): 署名 0x2F + 14bit 幅-1 / 14bit 高さ-1。1179x2603 → (1178) | (2602<<14)
     const vp8l = new Uint8Array(40); vp8l.set([0x52, 0x49, 0x46, 0x46], 0); vp8l.set([0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4C], 8); vp8l[20] = 0x2F;
     const bits = 1178 | (2602 << 14); vp8l[21] = bits & 0xFF; vp8l[22] = (bits >>> 8) & 0xFF; vp8l[23] = (bits >>> 16) & 0xFF; vp8l[24] = (bits >>> 24) & 0xFF;

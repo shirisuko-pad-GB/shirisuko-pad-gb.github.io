@@ -149,6 +149,7 @@ export function probeImageDims(bytes) {
     const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
     const be32 = (i) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
     const be16 = (i) => (b[i] << 8) | b[i + 1];
+    const le16 = (i) => b[i] | (b[i + 1] << 8);
     const le24 = (i) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
     if (b.length >= 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return { w: be32(16), h: be32(20) };
     if (b.length >= 4 && b[0] === 0xFF && b[1] === 0xD8) {   // JPEG: SOFn マーカーを探す
@@ -167,7 +168,12 @@ export function probeImageDims(bytes) {
     if (b.length >= 30 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
         const tag = String.fromCharCode(b[12], b[13], b[14], b[15]);
         if (tag === 'VP8X') return { w: 1 + le24(24), h: 1 + le24(27) };
-        if (tag === 'VP8 ') return { w: be16(26) & 0x3FFF, h: be16(28) & 0x3FFF };
+        // 非可逆 (VP8): フレームタグ3B + 開始コード 9d 01 2a の後に 16bit LE の幅・高さ (下位14bit が寸法)。
+        // ⚠ リトルエンディアン。BE で読むと 8192 が 32 に化けて事前上限をすり抜ける (Codex指摘)
+        if (tag === 'VP8 ') {
+            if (!(b[23] === 0x9D && b[24] === 0x01 && b[25] === 0x2A)) return null;   // 開始コードが無ければ壊れている
+            return { w: le16(26) & 0x3FFF, h: le16(28) & 0x3FFF };
+        }
         if (tag === 'VP8L' && b[20] === 0x2F) {   // 可逆: 署名 0x2F の後に 14bit 幅-1 / 14bit 高さ-1 (LE ビット詰め)
             const bits = b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24);
             return { w: (bits & 0x3FFF) + 1, h: ((bits >>> 14) & 0x3FFF) + 1 };
