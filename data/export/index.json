@@ -1,0 +1,7 @@
+{
+  "_readme": "scripts/export-season.mjs の生成物。data/export/ にある凍結版シーズンの一覧。サイトは現行シーズンより前の最新を「前回の人気編成」に使う (js/calc.js pickPrevSeason)。手で編集しない",
+  "seasons": [
+    "2026-08",
+    "2026-09"
+  ]
+}

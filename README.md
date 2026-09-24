@@ -287,6 +287,9 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
     → 送信停止・stats は N を read-only 表示 (最終結果)
       ↓ 本家PADでふるり基準が確定 (模擬タブ登録 / 本家 attacks の実凸 (開催中に読める) / 月次JSON)
 [新シーズンN+1 開始]  ★切替オペレーション (VSCode・PC必須)★
+  (0) 前シーズンを凍結:  node scripts/export-season.mjs   ← **(a) より前・new-season より前** に
+      (base.json がまだ N のうちに実行。data/export/N.json + index.json を commit。
+       次シーズン序盤の「前回 (N) の人気編成」はこのファイルから出る — js/calc.js pickPrevSeason)
   (a) 旧データ削除:   delete from public.measurements;
   (b) node scripts/new-season.mjs        ← ボス5体・ふるり基準 (模擬優先)・roster を全自動生成
         (月次JSONがまだ無ければ --slv <ふるりの現在SLv> を付ける。

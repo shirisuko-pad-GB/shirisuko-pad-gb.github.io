@@ -115,3 +115,41 @@ export function detectTemplate(imgs, burstsOf) {
     }
     return 'free';
 }
+
+// ---------- 前シーズンの人気編成 (フォールバック) ----------
+// 今シーズンの提出が閾値未満のうちは「よく使われた編成」が出せない。その間だけ、
+// data/export/<前シーズン>.json (export-season.mjs の凍結版) の編成を出す。
+// 「前」= data/export/index.json の一覧のうち、現行シーズンより小さい最大のキー。
+// キーは YYYY-MM なので文字列比較で順序が決まる (不正な形は無視)。
+export function pickPrevSeason(seasons, current) {
+    if (!Array.isArray(seasons) || typeof current !== 'string') return null;
+    const ok = seasons.filter(s => typeof s === 'string' && /^\d{4}-\d{2}$/.test(s) && s < current);
+    return ok.length ? ok.sort().at(-1) : null;
+}
+
+// export JSON の1属性ぶんを、画面が使う insights 互換の形 ({topChars, topComps}) に変換する。
+// canon は別名ID → 代表ID の解決 (export 時点の ID が古い可能性があるため)。
+// 中央値は「その編成のふるり値中央値」で、今シーズンの RPC が返す median と同じ意味。
+export function prevCompsFromExport(exp, attribute, canon = (id) => id) {
+    const a = exp?.attributes?.[attribute];
+    const comps = Array.isArray(a?.comps) ? a.comps : [];
+    const usage = new Map();
+    const topComps = comps
+        .filter(c => Array.isArray(c.members) && c.members.length === 5 && Number.isFinite(c.n))
+        .map(c => {
+            const chars = c.members.map(m => canon(m.gbId)).filter(Boolean);
+            for (const id of chars) usage.set(id, (usage.get(id) || 0) + c.n);
+            return {
+                chars,
+                count: c.n,
+                median: Number.isFinite(c.medianFururi) ? c.medianFururi : null,
+                arr: (Array.isArray(c.arrangements) ? c.arrangements : [])
+                    .filter(x => Array.isArray(x.memberGbIdsInOrder) && x.memberGbIdsInOrder.length === 5)
+                    .map(x => ({ chars: x.memberGbIdsInOrder.map(canon), n: x.n })),
+            };
+        })
+        .filter(c => c.chars.length === 5)
+        .sort((x, y) => y.count - x.count || (y.median ?? 0) - (x.median ?? 0));
+    const topChars = [...usage].map(([img, count]) => ({ img, count })).sort((x, y) => y.count - x.count);
+    return { topChars, topComps };
+}

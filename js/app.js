@@ -1,7 +1,7 @@
 // しりすこPAD GB — ふるり値チェッカー UIロジック
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
-import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from './calc.js';
+import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from './calc.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh, isInAppBrowser, attrName } from './shared.js';
 import { buildShareCard } from './sharecard.js';
@@ -15,6 +15,7 @@ const LAST_KEY = 'spg_last_result';   // 前回の測定 (localStorage) — 再�
 const $ = (id) => document.getElementById(id);
 
 let base = null, presets = null, characters = null, raid = null, site = null, siteConf = null;
+let prevExport = null;   // 前シーズンの凍結版 (data/export/<season>.json) — 今シーズンの編成が出るまでの代役
 // 使用率・編成ランキングは **今シーズンの提出データ** (get_comp_insights) から作る。
 // 属性ごとに1回だけ取得してキャッシュ (null=未取得 / {chars,comps}=取得済み / 'none'=データ不足)
 const insightsCache = new Map();
@@ -54,6 +55,17 @@ const charKeyOf = (id) => infoOf(id)?.id ?? id;
 // 編成機能が使えるか (characters.json v2 が読めていること)
 const compReady = () => characters?._format === 2;
 
+// 前シーズンの凍結版を読む。base.json より前の最新シーズンだけが対象 (現行の export は「前回」ではない)。
+// 無い・壊れている場合は null = 従来どおり「集まったら出ます」の案内になる
+async function loadPrevExport() {
+    const b = await fetch('./data/base.json').then(x => x.json());
+    const idx = await fetch('./data/export/index.json').then(x => x.json());
+    const prev = pickPrevSeason(idx?.seasons, b?.version);
+    if (!prev) return null;
+    const exp = await fetch(`./data/export/${prev}.json`).then(x => x.json());
+    return exp?.season === prev && exp?.attributes ? exp : null;   // 中身のシーズンとファイル名が食い違えば使わない
+}
+
 // ---------- 初期化 ----------
 async function init() {
     // 表示言語をまず確定 (この後の描画は全部これを見る — 静的文言はここで差し替え済みになる)
@@ -61,15 +73,16 @@ async function init() {
     applyStaticI18n();
     mountLangToggle();
     document.title = t('ui.page_title');   // タブ・ブラウザの共有メニューも表示言語に合わせる
-    const [b, p, c, rd, st, sc] = await Promise.all([
+    const [b, p, c, rd, st, sc, pe] = await Promise.all([
         fetch('./data/base.json').then(x => x.json()),
         Promise.resolve(null),   // presets.json (過去シーズンのユニオン実績) は使わない — 今シーズンの提出データを使う
         fetch('./data/characters.json').then(x => x.json()).catch(() => null),
         fetch('./data/raid.json').then(x => x.json()).catch(() => null),
         fetchSiteState().catch(() => null),
         fetch('./data/site.json').then(x => x.json()).catch(() => null),
+        loadPrevExport().catch(() => null),
     ]);
-    base = b; presets = p; characters = c; raid = rd; site = st; siteConf = sc;
+    base = b; presets = p; characters = c; raid = rd; site = st; siteConf = sc; prevExport = pe;
     infoOf = makeCharResolver(characters);
     season = base.version;
     mode = site?.status ?? 'open';   // site_state が読めない (05未適用/未設定) 時は open 扱い
@@ -206,10 +219,17 @@ async function ensureInsights(attribute, onLoaded) {
 // 属性の insights を「presets 互換の形」に変換 (topChars/topComps) — 未取得・不足なら空
 function insightsOf(attribute) {
     const ins = insightsCache.get(attribute);
-    if (!ins || ins === 'loading' || ins === 'none') return { topChars: [], topComps: [], n: 0, loading: ins === 'loading' };
     // DB は別名IDのまま保存されていることがあるので代表IDへ正規化してから使う
     // (未知IDは解決できないのでそのまま = 「？」タイル表示になる)
     const canon = (id) => infoOf(id)?.id ?? id;
+    // 今シーズンの編成がまだ出せない (閾値未満・取得不可) 間は、前シーズンの凍結版で代役を立てる。
+    // 取得中は代役を出さない (読み込み後に入れ替わってチラつくため)
+    const fallback = () => prevExport
+        ? { ...prevCompsFromExport(prevExport, attribute, canon), n: 0, loading: false, fromPrev: prevExport.season }
+        : { topChars: [], topComps: [], n: 0, loading: false };
+    if (ins === 'loading') return { topChars: [], topComps: [], n: 0, loading: true };
+    if (!ins || ins === 'none') return fallback();
+    if (!(ins.comps || []).length) return { ...fallback(), n: ins.n ?? 0 };
     return {
         topChars: (ins.chars || []).map(c => ({ img: canon(c.img), count: c.count })),
         topComps: (ins.comps || []).map(c => ({
@@ -478,14 +498,14 @@ function compBodyHTML(a) {
         <button type="button" class="preset-row${isSel ? ' active' : ''}" data-preset="${pi}">
             <span class="preset-faces">${sortForDisplay(c.chars, infoOf).map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
-                <span class="pill">${t('ui.season_top_n', { n: pi + 1 })}</span>
+                <span class="pill">${ap.fromPrev ? t('ui.prev_top_n', { season: ap.fromPrev, n: pi + 1 }) : t('ui.season_top_n', { n: pi + 1 })}</span>
                 <span class="hint">${t('ui.used_by_n', { n: c.count })}${Number.isFinite(c.median) ? t('ui.median_inline', { v: Number(c.median).toFixed(2) }) : ''}</span>
             </span>
         </button>`;
     }).join('') + (moreCount > 0 && !a.presetMore ? `
         <button type="button" class="preset-more">${t('ui.more_presets', { last: 3 + moreCount })}</button>` : '');
     const presetHead = ap.topComps.length
-        ? `<p class="hint" style="margin-top:8px;">${t('ui.presets_hint')}</p>`
+        ? `<p class="hint" style="margin-top:8px;">${ap.fromPrev ? t('ui.prev_presets_hint', { season: ap.fromPrev }) : t('ui.presets_hint')}</p>`
         : `<p class="hint" style="margin-top:8px;">${t('ui.comp_hint')}${ap.loading ? '' : t('ui.comp_hint_more')}</p>`;
     return `
         ${presetHead}

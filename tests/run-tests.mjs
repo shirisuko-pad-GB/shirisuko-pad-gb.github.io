@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString } from '../js/calc.js';
+import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc, CHAR_ID_RE } from '../js/tiles.js';
 import { detectLang, t, _setLangForTest, LANGS, DEFAULT_LANG } from '../js/i18n.js';
@@ -355,6 +355,50 @@ test('不正な編成は null (XSSペイロード/要素数違い/型違い)', (
     assertEq(sanitizeCharacters('not-an-array'), null);
     assertEq(sanitizeCharacters(null), null);
     assertEq(sanitizeCharacters([validImg, validImg, validImg, validImg, '"><script>']), null);
+});
+
+console.log('前シーズンの人気編成 (フォールバック):');
+
+test('pickPrevSeason: 現行より前の最新を選ぶ / 不正な形と現行以降は無視 / 無ければ null', () => {
+    assertEq(pickPrevSeason(['2026-08', '2026-09'], '2026-09'), '2026-08');
+    assertEq(pickPrevSeason(['2026-08', '2026-09', '2026-10'], '2026-10'), '2026-09', '現行より前の最新');
+    assertEq(pickPrevSeason(['2026-08', '2026-09'], '2026-08'), null, '現行より前が無い');
+    assertEq(pickPrevSeason(['2026-09', 'latest', '', null, '2026-8'], '2026-10'), '2026-09', '不正な形は無視');
+    assertEq(pickPrevSeason(['2026-09', '2026-10'], '2026-09'), null, '現行と同じ・後は「前」ではない');
+    assertEq(pickPrevSeason(null, '2026-09'), null);
+    assertEq(pickPrevSeason(['2026-08'], null), null);
+});
+
+test('prevCompsFromExport: export の形を insights 互換に変換 (canon 適用・欠損は捨てる・人数順)', () => {
+    const exp = { season: '2026-08', attributes: { FIRE: { comps: [
+        { members: [{ gbId: 'a' }, { gbId: 'b' }, { gbId: 'c' }, { gbId: 'd' }, { gbId: 'e' }], n: 5, medianFururi: 1.1,
+          arrangements: [{ memberGbIdsInOrder: ['a', 'b', 'c', 'd', 'e'], n: 5 }] },
+        { members: [{ gbId: 'a' }, { gbId: 'b' }, { gbId: 'c' }, { gbId: 'd' }, { gbId: 'old-e' }], n: 9, medianFururi: 0.9 },
+        { members: [{ gbId: 'a' }, { gbId: 'b' }], n: 99 },                      // 5体未満 → 捨てる
+        { members: [{ gbId: 'a' }, { gbId: 'b' }, { gbId: 'c' }, { gbId: 'd' }, { gbId: 'e' }], n: 'x' },   // n 不正 → 捨てる
+    ] } } };
+    const canon = (id) => id === 'old-e' ? 'e' : id;
+    const r = prevCompsFromExport(exp, 'FIRE', canon);
+    assertEq(r.topComps.length, 2, '有効な編成だけ');
+    assertEq(r.topComps[0].count, 9, '人数の多い順');
+    assertEq(r.topComps[0].chars.join(','), 'a,b,c,d,e', 'canon で別名IDを代表IDへ');
+    assertEq(r.topComps[1].median, 1.1);
+    assertEq(r.topComps[1].arr[0].n, 5, '並び順の内訳も引き継ぐ');
+    assertEq(r.topChars.find(c => c.img === 'e').count, 14, 'キャラ採用数は編成の人数を合算');
+    assertEq(prevCompsFromExport(exp, 'WATER').topComps.length, 0, '無い属性は空');
+    assertEq(prevCompsFromExport(null, 'FIRE').topComps.length, 0, 'export が無くても落ちない');
+});
+
+test('data/export/index.json: 一覧がファイルと一致し、各ファイルの season がファイル名と一致', () => {
+    const dir = join(ROOT, 'data', 'export');
+    const idx = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8'));
+    const files = readdirSync(dir).filter(f => /^\d{4}-\d{2}\.json$/.test(f)).map(f => f.slice(0, 7)).sort();
+    assertEq(JSON.stringify(idx.seasons), JSON.stringify(files), 'index.json は data/export/*.json と一致 (export-season.mjs が生成)');
+    for (const s of files) {
+        const e = JSON.parse(readFileSync(join(dir, `${s}.json`), 'utf8'));
+        assertEq(e.season, s, `${s}.json の season`);
+        assert(ATTRS.every(a => Array.isArray(e.attributes?.[a]?.comps)), `${s}.json は5属性の comps を持つ`);
+    }
 });
 
 console.log('シーズン設定の整合性:');

@@ -12,7 +12,7 @@
 // 運用 (README「PAD ⇄ GB の月次連携フロー」/ Codex設計監査 2026-08-05):
 //  - シーズン終了後の凍結版として1回だけ生成して commit する (差分監視リスクを避ける)
 //  - 本家はこのファイルを自リポジトリに vendored コピーして使う (実行時fetchしない)
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -141,5 +141,14 @@ if (aliasResolved > 0) console.log(`ℹ alias 経由の解決 ${aliasResolved}�
 mkdirSync(join(ROOT, 'data', 'export'), { recursive: true });
 const file = join(ROOT, 'data', 'export', `${SEASON}.json`);
 writeFileSync(file, JSON.stringify(out, null, 2) + '\n');
+// サイトが「前シーズンの人気編成」を探すための一覧 (js/calc.js pickPrevSeason が読む)。
+// ファイル名から機械的に作るので、手で編集しない
+const seasons = readdirSync(join(ROOT, 'data', 'export'))
+    .filter(f => /^\d{4}-\d{2}\.json$/.test(f)).map(f => f.slice(0, 7)).sort();
+writeFileSync(join(ROOT, 'data', 'export', 'index.json'), JSON.stringify({
+    _readme: 'scripts/export-season.mjs の生成物。data/export/ にある凍結版シーズンの一覧。'
+        + 'サイトは現行シーズンより前の最新を「前回の人気編成」に使う (js/calc.js pickPrevSeason)。手で編集しない',
+    seasons,
+}, null, 2) + '\n');
 console.log(`\n✅ ${file} を書き出しました${warned ? ' (⚠ 警告あり — 上のログを確認)' : ''}`);
 console.log('次の手順: git add data/export → commit → push (凍結版)。本家へは vendored コピーする');
