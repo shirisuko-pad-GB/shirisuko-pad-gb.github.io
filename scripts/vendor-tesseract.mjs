@@ -14,7 +14,7 @@
 //   tesseract-core-simd-lstm.wasm.js …… WebAssembly SIMD 対応端末用 (iOS 16.4+ / Chrome 91+)
 //   tesseract-core-lstm.wasm.js …………… 非 SIMD 端末用 (iOS 15 系など)。無いと旧端末で読めない
 //   eng.traineddata.gz (4.0.0_fast) …… 英語データの軽量版 (標準版 11MB と精度が同じだった)
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,9 +72,22 @@ for (const [name, url] of Object.entries(SOURCES)) {
     }
     fetched[name] = { buf, h, url };
 }
-// 全部の照合が通ってから書く (途中で止まって古い/新しいが混ざらないように)
+// 全部の照合が通ってから、まず一時ファイルに全部書き、最後にまとめて差し替える。
+// 途中で書き込みに失敗 (ディスク満杯等) しても本番ファイルには触れていない = 古い/新しいが混ざらない
+const tmps = [];
+try {
+    for (const [name, { buf }] of Object.entries(fetched)) {
+        const tmp = join(dir, `${name}.tmp`);
+        writeFileSync(tmp, buf);
+        tmps.push([tmp, join(dir, name)]);
+    }
+} catch (e) {
+    for (const [tmp] of tmps) rmSync(tmp, { force: true });
+    console.error('✗ 一時ファイルの書き込みに失敗しました。本番ファイルは変更していません:', e?.message ?? e);
+    process.exit(1);
+}
+for (const [tmp, dest] of tmps) renameSync(tmp, dest);   // 同一ディレクトリ内の rename (ファイルごとには原子的)
 for (const [name, { buf, h, url }] of Object.entries(fetched)) {
-    writeFileSync(join(dir, name), buf);
     files[name] = { bytes: buf.length, sha256: h, source: url };
     console.log(`  ✓ ${name}  ${(buf.length / 1048576).toFixed(2)} MB  ${h.slice(0, 12)}${EXPECTED_SHA256[name] === h ? '' : '  (新しいハッシュ — EXPECTED_SHA256 を更新すること)'}`);
 }

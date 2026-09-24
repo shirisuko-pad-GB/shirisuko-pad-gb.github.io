@@ -364,8 +364,9 @@ CDN から実行時に読まない理由: CDN/パッケージ汚染時にペー�
 ライブラリが内部で取得するため SRI も効かない (Codex監査 2026-09-24)。取得と台帳は `scripts/vendor-tesseract.mjs`
 (`--check` で手元と台帳の SHA-256 を照合。`tests/run-tests.mjs` も同じ検査をする)。版を上げるときは
 スクリプトの `TESS_VERSION` と `js/ocr.js` の `TESS_VER`、`sw.js` の版数を揃えて再実行する。
-受け付ける画像は 20MB・4000万画素まで (PNG/JPEG/WebP はヘッダで寸法を先読みし、4MP 超は縮小しながらデコード。
-JPEG の SOF は EXIF/ICC の後ろでも探す。寸法が分からない形式 (HEIC 等) は 2MB まで)。
+受け付けるのは **PNG / JPEG / WebP** のみ・20MB・1600万画素まで (ヘッダで寸法を先読みし、4MP 超は縮小しながら
+デコード。JPEG の SOF は EXIF/ICC の後ろでも探す)。寸法がヘッダから読めない形式 (HEIC/GIF/TIFF 等) は
+「デコードする前に上限を掛けられない」ため大きさに関わらず読まない (スクショはこの3形式しか無い)。
 取得スクリプトは上流のハッシュを `EXPECTED_SHA256` (ソース管理) と突き合わせ、違えば書き込まない。
 ⚠ `vendor/` は **Jekyll が既定で公開対象から除外する名前**。今の Pages は `upload-pages-artifact` でツリーを
 そのまま配信するので影響しないが、Pages の設定を「ブランチから配信」に変えると Jekyll が動いて消える。

@@ -105,8 +105,10 @@ const TESS = {
 const MAX_BYTES = 20 * 1024 * 1024;
 const MAX_PX = 4e6;          // ここまで縮小してから処理する (縦長スクショ 1179x3400 でも幅は保てる。
                              //  処理中はカラー+前処理+ImageData で画素×12B ≈ 48MB — スマホでも収まる範囲)
-const HARD_MAX_PX = 40e6;    // これ以上は読まない (デコードだけで数百MB)
-const UNKNOWN_DIMS_MAX_BYTES = 2 * 1024 * 1024;   // ヘッダで寸法が分からない形式はこの大きさまで
+const HARD_MAX_PX = 16e6;    // これ以上は読まない。縮小指定でもデコーダは元寸法で展開し得る (16MP = 64MB)。
+                             //  1179px 幅なら高さ 13,500px まで = 画面十数枚分の縦長スクショでも足りる
+// 受け付ける形式は PNG / JPEG / WebP だけ (スクショはこの3つしか無い)。寸法がヘッダから読めない形式
+// (HEIC/GIF/TIFF 等) は「デコードする前に上限を掛けられない」ので、大きさに関わらず読まない
 const MAX_W = 1400;          // これ以上は縮小してから読む (端末の負荷を抑える。1179px 基準で十分読めている)
 const MIN_W = 700;           // これ未満は読めない可能性が高い (警告だけ出して試す)
 // アイコン探索窓 (Level 行の左・少し上)。1179px 幅での実測 x 12〜24% / y -75〜+15px を比率に
@@ -194,10 +196,9 @@ async function toCanvas(file) {
             if (rw < 1 || rh < 1) throw new Error('too_large');   // 極端な縦横比 (縮小で 0px になる) は読まない
             opts = { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'high' };
         }
-    } else if (file.size > UNKNOWN_DIMS_MAX_BYTES) {
-        // 寸法が分からない形式 (HEIC / GIF / TIFF 等) は、素のサイズでデコードする前に上限を掛けられない。
-        // 小さいファイルだけ試し、大きいものは読まない (縦長・巨大画像でタブごと落ちる経路を塞ぐ)
-        throw new Error('too_large');
+    } else {
+        // 寸法が分からない = 対応形式ではない。素のサイズでデコードする前に上限を掛けられないので読まない
+        throw new Error('unsupported');
     }
     const bmp = opts ? await createImageBitmap(file, opts) : await createImageBitmap(file);
     if (bmp.width * bmp.height > HARD_MAX_PX) { bmp.close?.(); throw new Error('too_large'); }   // ヘッダが読めなかった形式の保険
@@ -255,7 +256,10 @@ export async function readRaidScreenshot(file, { onProgress, langPath } = {}) { 
     try {
         let color;
         try { color = await toCanvas(file); }
-        catch (e) { return { attacks: [], warnings: [...warnings, e?.message === 'too_large' ? 'too_large' : 'error'], rows: 0 }; }
+        catch (e) {
+            const why = e?.message === 'too_large' || e?.message === 'unsupported' ? e.message : 'error';
+            return { attacks: [], warnings: [...warnings, why], rows: 0 };
+        }
         const W = color.width, H = color.height;
         if (W < MIN_W) warnings.push('small');
         const cctx = color.getContext('2d', { willReadFrequently: true });

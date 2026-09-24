@@ -469,10 +469,17 @@ test('vendor/tesseract: 同梱アセットが台帳 (manifest.json) の SHA-256 
     assert(ocr.includes("const TESS_VER = '5.1.1'"), 'ocr.js の版数が台帳と同じ');
     // 行頭コメントとブロックコメントだけを除き、残りに URL が一切無いこと (文字列内の https:// も検出する — Codex指摘)
     const code = ocr.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
-    assert(!/https?:\/\//.test(code), 'ocr.js のコードは外部URLを一切持たない (アセットは自サイト同梱)');
-    // 取得スクリプト側の期待ハッシュ (ソース管理) も台帳と一致していること
+    // 絶対URL (https://) だけでなく、プロトコル相対 (//cdn.example.com/...) も外部読み込みとして弾く
+    assert(!/(https?:)?\/\/[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(code), 'ocr.js のコードは外部URLを一切持たない (アセットは自サイト同梱)');
+    // 取得スクリプト側の期待ハッシュ (ソース管理) も台帳と一致していること — コメント行ではなく生きた行で
     const vs = readFileSync(join(ROOT, 'scripts', 'vendor-tesseract.mjs'), 'utf8');
-    for (const [name, meta] of Object.entries(m.files)) assert(vs.includes(`'${name}': '${meta.sha256}'`), `vendor-tesseract.mjs の EXPECTED_SHA256 に ${name} の台帳ハッシュがある`);
+    const expected = new Map();
+    for (const l of vs.split('\n')) {
+        const mm = l.match(/^\s*'([^']+)':\s*'([0-9a-f]{64})',?\s*(?:\/\/.*)?$/);
+        if (mm) expected.set(mm[1], mm[2]);
+    }
+    for (const [name, meta] of Object.entries(m.files)) assertEq(expected.get(name), meta.sha256, `vendor-tesseract.mjs の EXPECTED_SHA256 (生きた行) に ${name} の台帳ハッシュがある`);
+    assertEq(expected.size, Object.keys(m.files).length, 'EXPECTED_SHA256 と台帳のファイル数が一致');
 });
 
 console.log('前シーズンの人気編成 (フォールバック):');

@@ -1415,7 +1415,7 @@ async function onOcrFiles(files) {
     const label = btn.textContent;
     btn.disabled = true;
     if (!globalThis.Tesseract) toast(t('ui.ocr_first_time'));
-    let got = 0, found = 0, rows = 0, flagged = false, tooLarge = false;
+    let got = 0, found = 0, rows = 0, flagged = false, tooLarge = false, unsupported = false;
     try {
         for (const f of files) {
             if (correcting) break;   // 読み取り中に修正モードへ入ったら、以降は捨てる (混ぜない)
@@ -1426,7 +1426,9 @@ async function onOcrFiles(files) {
             rows += r.rows ?? 0;
             found += r.attacks.length;
             if (r.warnings.includes('too_large')) tooLarge = true;
-            if (r.warnings.some(w => w === 'orphan' || w === 'icon_unknown')) flagged = true;
+            if (r.warnings.includes('unsupported')) unsupported = true;
+            // 一部の画像が読めなかった/弾かれた場合も「一部読めず」として伝える (複数枚のとき黙らない)
+            if (r.warnings.some(w => w === 'orphan' || w === 'icon_unknown' || w === 'too_large' || w === 'unsupported' || w === 'no_rows' || w === 'error')) flagged = true;
             for (const atk of r.attacks) {
                 // 空の凸カード (属性もダメージも未入力) があればそこへ、無ければ追加 (最大3)
                 let a = attacks.find(x => !x.attribute && !x.damage);
@@ -1454,7 +1456,7 @@ async function onOcrFiles(files) {
     // 案内は「何が起きたか」が分かる順に: 3凸に入り切らなかった → 読めず → 一部読めず → 全部読めた
     // (3枚とも埋まっていて読めたのに入らなかった = found>0, got=0 を「読めず」と言わない — Codex指摘)
     if (found > got) toast(t('ui.ocr_full'));
-    else if (got === 0) toast(t(tooLarge ? 'ui.ocr_too_large' : 'ui.ocr_none'));
+    else if (got === 0) toast(t(unsupported ? 'ui.ocr_unsupported' : tooLarge ? 'ui.ocr_too_large' : 'ui.ocr_none'));
     else if (flagged || rows > found) toast(t('ui.ocr_partial', { n: got }));
     else toast(t('ui.ocr_done', { n: got }));
     if (got > 0) $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
