@@ -65,12 +65,15 @@ export function isLevelWord(text) {
 }
 
 // 対応づけ: 各ダメージに「直上のボス行」を割り当てる。行に色が無ければその凸は捨てる。
-// anchors: [{yc, attribute}] / damages: [{yc, damageB, conf}] → 上から順に最大 max 件
-export function pairAnchorsWithDamages(anchors, damages, max = 3) {
+// anchors: [{yc, attribute}] / damages: [{yc, damageB, conf}] → 上から順に最大 max 件。
+// maxGap: 行からダメージまでの縦距離の上限 (px)。実測 0.134W に対しブロック間隔は 0.318W なので
+// 0.24W を渡すと、Level を1つ読み落としても次ブロックのダメージが前の行に付かない (Codex指摘)
+export const PAIR_MAX_GAP_W = 0.24;
+export function pairAnchorsWithDamages(anchors, damages, max = Infinity, maxGap = Infinity) {
     const rows = anchors.filter(a => a && Number.isFinite(a.yc)).sort((a, b) => a.yc - b.yc);
     const out = [];
     for (const d of [...damages].sort((a, b) => a.yc - b.yc)) {
-        const cand = rows.filter(r => r.yc < d.yc);
+        const cand = rows.filter(r => r.yc < d.yc && d.yc - r.yc <= maxGap);
         const above = cand.length ? cand[cand.length - 1] : null;   // .at() は iOS 15.4 未満に無い
         if (!above || !above.attribute) continue;
         // 同じボス行に2つ以上ダメージが付いたら (読み違い) 最初の1つだけ採る
@@ -83,17 +86,25 @@ export function pairAnchorsWithDamages(anchors, damages, max = 3) {
 
 // ---------- 画像処理 (ブラウザ専用) ----------
 
-// Tesseract の配信元を版数ごと固定する (勝手に上がって挙動が変わらないように)。
-// 初回だけ core (約4MB) と英語データを取りに行く。以後はブラウザキャッシュ。
-// 英語データは軽量版 4.0.0_fast (約2MB)。標準版 (約11MB) と実スクショで精度が同じだったので
-// スマホの初回待ちを短くする方を取った (tests/ocr-local.mjs --lang で両方を比較できる)
+// Tesseract のアセットは自サイトに同梱したものだけを使う (vendor/tesseract-<ver>/ — scripts/vendor-tesseract.mjs)。
+// CDN から実行時に読むと、CDN/パッケージ汚染時にページ全権 (画像・入力・Supabase の公開キー経路) を
+// 渡してしまう (Codex監査・High)。worker/core/言語データはライブラリが内部で URL 取得するため
+// SRI も効かず、自サイト配信が唯一の解。版数と SHA-256 は manifest.json が台帳 (tests が突き合わせる)。
+// 初回タップ時だけ読み込む (本体 0.06MB + worker 0.12MB + core 3.8MB + 英語データ 1.9MB。sw.js が cache-first)。
+// 英語データは軽量版 4.0.0_fast (標準版 11MB と実スクショで精度が同じ — tests/ocr-local.mjs --lang で比較可)
 const TESS_VER = '5.1.1';
+const TESS_DIR = new URL(`../vendor/tesseract-${TESS_VER}/`, import.meta.url).href.replace(/\/$/, '');
 const TESS = {
-    script: `https://cdn.jsdelivr.net/npm/tesseract.js@${TESS_VER}/dist/tesseract.min.js`,
-    workerPath: `https://cdn.jsdelivr.net/npm/tesseract.js@${TESS_VER}/dist/worker.min.js`,
-    corePath: `https://cdn.jsdelivr.net/npm/tesseract.js-core@${TESS_VER}`,
-    langPath: 'https://tessdata.projectnaptha.com/4.0.0_fast',
+    script: `${TESS_DIR}/tesseract.min.js`,
+    workerPath: `${TESS_DIR}/worker.min.js`,
+    corePath: TESS_DIR,   // ライブラリが SIMD の有無で tesseract-core-simd-lstm / -lstm .wasm.js を選ぶ
+    langPath: TESS_DIR,   // eng.traineddata.gz
 };
+// 受け付ける画像の上限 (縦長・巨大画像でタブごと落ちないように — Codex指摘)。
+// スクショは 3MP 前後・数MB。ヘッダから寸法を先読みして、大きければ縮小しながらデコードする
+const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_PX = 8e6;          // ここまで縮小してから処理する
+const HARD_MAX_PX = 40e6;    // これ以上は読まない (デコードだけで数百MB)
 const MAX_W = 1400;          // これ以上は縮小してから読む (端末の負荷を抑える。1179px 基準で十分読めている)
 const MIN_W = 700;           // これ未満は読めない可能性が高い (警告だけ出して試す)
 // アイコン探索窓 (Level 行の左・少し上)。1179px 幅での実測 x 12〜24% / y -75〜+15px を比率に
@@ -120,16 +131,56 @@ async function getWorker(onProgress, langPath = TESS.langPath) {
         const T = await loadTesseract();
         return T.createWorker('eng', 1, {
             workerPath: TESS.workerPath, corePath: TESS.corePath, langPath,
+            workerBlobURL: false,   // 同一オリジンの worker.min.js をそのまま起動 (Blob 経由の間接読み込みをしない)
             logger: (m) => { if (onProgress && m?.status) onProgress(m.status, m.progress ?? null); },
         });
     })().catch(e => { workerPromise = null; throw e; });
     return workerPromise;
 }
 
-// File/Blob → 読み取り用キャンバス (幅を MAX_W 以下に揃える)
+// ヘッダから寸法だけ読む (PNG / JPEG / WebP)。分からなければ null (その場合はデコード後に判定)
+export function probeImageDims(bytes) {
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    const be32 = (i) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+    const be16 = (i) => (b[i] << 8) | b[i + 1];
+    const le24 = (i) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
+    if (b.length >= 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return { w: be32(16), h: be32(20) };
+    if (b.length >= 4 && b[0] === 0xFF && b[1] === 0xD8) {   // JPEG: SOFn マーカーを探す
+        let i = 2;
+        while (i + 9 < b.length && b[i] === 0xFF) {
+            const m = b[i + 1];
+            if (m === 0xD8 || (m >= 0xD0 && m <= 0xD7) || m === 0x01) { i += 2; continue; }
+            const len = be16(i + 2);
+            if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: be16(i + 5), w: be16(i + 7) };
+            i += 2 + len;
+        }
+        return null;
+    }
+    if (b.length >= 30 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
+        const tag = String.fromCharCode(b[12], b[13], b[14], b[15]);
+        if (tag === 'VP8X') return { w: 1 + le24(24), h: 1 + le24(27) };
+        if (tag === 'VP8 ') return { w: be16(26) & 0x3FFF, h: be16(28) & 0x3FFF };
+        return null;
+    }
+    return null;
+}
+
+// File/Blob → 読み取り用キャンバス。大きい画像は「縮小しながら」デコードして、素のサイズで
+// メモリを確保しない (幅 MAX_W・総画素 MAX_PX 以下に揃える)
 async function toCanvas(file) {
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_W / bmp.width);
+    if (file.size === 0) throw new Error('empty');
+    if (file.size > MAX_BYTES) throw new Error('too_large');
+    const head = new Uint8Array(await file.slice(0, 65536).arrayBuffer());
+    const dims = probeImageDims(head);
+    let opts;
+    if (dims && dims.w > 0 && dims.h > 0) {
+        if (dims.w * dims.h > HARD_MAX_PX) throw new Error('too_large');
+        const scale = Math.min(1, MAX_W / dims.w, Math.sqrt(MAX_PX / (dims.w * dims.h)));
+        if (scale < 1) opts = { resizeWidth: Math.round(dims.w * scale), resizeHeight: Math.round(dims.h * scale), resizeQuality: 'high' };
+    }
+    const bmp = opts ? await createImageBitmap(file, opts) : await createImageBitmap(file);
+    if (bmp.width * bmp.height > HARD_MAX_PX) { bmp.close?.(); throw new Error('too_large'); }   // ヘッダが読めなかった形式の保険
+    const scale = Math.min(1, MAX_W / bmp.width, Math.sqrt(MAX_PX / (bmp.width * bmp.height)));
     const c = document.createElement('canvas');
     c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
@@ -171,14 +222,19 @@ function iconAttrAt(colorCtx, W, H, yc) {
 
 /**
  * スクショ1枚から凸を読み取る。失敗しても例外を投げず {attacks: [], warnings} を返す。
+ * attacks は上限を掛けずに返す (何件読めたかを呼び出し側が知れるように。3凸への切り詰めは app.js)。
+ * warnings: small / inverted / no_rows / no_pairs / orphan (行に付かないダメージがあった) /
+ *           icon_unknown (色が判定できない行があった) / too_large / error
  * @param {Blob} file
- * @param {{onProgress?: (status: string, progress: number|null) => void, max?: number}} opts
- * @returns {Promise<{attacks: {attribute: string, damageB: number, conf: number|null}[], warnings: string[]}>}
+ * @param {{onProgress?: (status: string, progress: number|null) => void, langPath?: string}} opts
+ * @returns {Promise<{attacks: {attribute: string, damageB: number, conf: number|null}[], warnings: string[], rows: number}>}
  */
-export async function readRaidScreenshot(file, { onProgress, max = 3, langPath } = {}) {   // langPath は検証用 (既定は固定URL)
+export async function readRaidScreenshot(file, { onProgress, langPath } = {}) {   // langPath は検証用 (既定は同梱データ)
     const warnings = [];
     try {
-        const color = await toCanvas(file);
+        let color;
+        try { color = await toCanvas(file); }
+        catch (e) { return { attacks: [], warnings: [...warnings, e?.message === 'too_large' ? 'too_large' : 'error'], rows: 0 }; }
         const W = color.width, H = color.height;
         if (W < MIN_W) warnings.push('small');
         const cctx = color.getContext('2d', { willReadFrequently: true });
@@ -193,7 +249,7 @@ export async function readRaidScreenshot(file, { onProgress, max = 3, langPath }
             anchors = plain.data.words.filter(w => isLevelWord(w.text)).map(w => ({ yc: (w.bbox.y0 + w.bbox.y1) / 2 }));
             if (anchors.length) { if (invert) warnings.push('inverted'); break; }
         }
-        if (!anchors.length) return { attacks: [], warnings: [...warnings, 'no_rows'] };
+        if (!anchors.length) return { attacks: [], warnings: [...warnings, 'no_rows'], rows: 0 };
         for (const a of anchors) a.attribute = ptOfBossAttr(iconAttrAt(cctx, W, H, a.yc));
 
         // ② ダメージ — 数字とカンマだけ
@@ -204,13 +260,14 @@ export async function readRaidScreenshot(file, { onProgress, max = 3, langPath }
             .map(w => ({ damageB: parseDamageWord(w.text), yc: (w.bbox.y0 + w.bbox.y1) / 2, conf: Math.round(w.confidence) }))
             .filter(d => d.damageB != null);
 
-        // ③ 対応づけ
-        const attacks = pairAnchorsWithDamages(anchors, damages, max);
+        // ③ 対応づけ (縦距離の上限つき — Level の読み落としで隣のブロックに付けない)
+        const attacks = pairAnchorsWithDamages(anchors, damages, Infinity, PAIR_MAX_GAP_W * W);
         if (!attacks.length) warnings.push('no_pairs');
+        if (damages.length > attacks.length) warnings.push('orphan');
         if (anchors.some(a => !a.attribute)) warnings.push('icon_unknown');
-        return { attacks, warnings };
+        return { attacks, warnings, rows: anchors.length };
     } catch (e) {
         console.warn('OCR失敗:', e);
-        return { attacks: [], warnings: [...warnings, 'error'] };
+        return { attacks: [], warnings: [...warnings, 'error'], rows: 0 };
     }
 }

@@ -7,7 +7,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
-import { classifyHue, ptOfBossAttr, parseDamageWord, isLevelWord, pairAnchorsWithDamages } from '../js/ocr.js';
+import { classifyHue, ptOfBossAttr, parseDamageWord, isLevelWord, pairAnchorsWithDamages, PAIR_MAX_GAP_W, probeImageDims } from '../js/ocr.js';
+import { createHash } from 'node:crypto';
 import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc, CHAR_ID_RE } from '../js/tiles.js';
 import { detectLang, t, _setLangForTest, LANGS, DEFAULT_LANG } from '../js/i18n.js';
 import { MESSAGES } from '../js/messages.js';
@@ -418,6 +419,43 @@ test('pairAnchorsWithDamages: 各ダメージを直上のボス行へ / 行な�
     assertEq(capped.length, 3, '最大3');
     assertEq(pairAnchorsWithDamages([], damages).length, 0);
     assert(!('anchorY' in r[0]), '内部用の anchorY は外に出さない');
+});
+
+test('pairAnchorsWithDamages: 縦距離の上限 — Level を1つ読み落としても隣のブロックのダメージを前の行に付けない', () => {
+    // 実測 (幅1179): Level 行 224 / 599 / 974、ダメージはその 0.134W (158px) 下。ブロック間隔 0.318W
+    const W = 1179, gap = PAIR_MAX_GAP_W * W;
+    const anchors = [{ yc: 224, attribute: 'WATER' }, { yc: 974, attribute: 'ELECTRIC' }];   // 真ん中 (599) を読み落とした
+    const damages = [{ yc: 382, damageB: 35.51 }, { yc: 757, damageB: 37.41 }, { yc: 1132, damageB: 54.64 }];
+    const r = pairAnchorsWithDamages(anchors, damages, Infinity, gap);
+    assertEq(r.map(x => `${x.attribute} ${x.damageB}`).join(' / '), 'WATER 35.51 / ELECTRIC 54.64', '真ん中のダメージは捨てる (WATER に付けない)');
+    const all = pairAnchorsWithDamages([{ yc: 224, attribute: 'WATER' }, { yc: 599, attribute: 'FIRE' }, { yc: 974, attribute: 'ELECTRIC' }], damages, Infinity, gap);
+    assertEq(all.length, 3, '正常時は3件とも上限内 (0.134W < 0.24W)');
+});
+
+test('probeImageDims: PNG / JPEG / WebP のヘッダから寸法を読む (未知形式は null)', () => {
+    const png = new Uint8Array(32); png.set([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]); png.set([0, 0, 0x04, 0x9B], 16); png.set([0, 0, 0x0A, 0x2A], 20);
+    assertEq(JSON.stringify(probeImageDims(png)), JSON.stringify({ w: 1179, h: 2602 }));
+    // JPEG: SOI + APP0(長さ16) + SOF0 (長さ17, 高さ 0x052B=1323, 幅 0x049B=1179)
+    const jpg = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0, 16, ...new Array(14).fill(0), 0xFF, 0xC0, 0, 17, 8, 0x05, 0x2B, 0x04, 0x9B, ...new Array(10).fill(0)]);
+    assertEq(JSON.stringify(probeImageDims(jpg)), JSON.stringify({ h: 1323, w: 1179 }));
+    const webp = new Uint8Array(40); webp.set([0x52, 0x49, 0x46, 0x46], 0); webp.set([0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58], 8); webp.set([0x9A, 0x04, 0x00], 24); webp.set([0x2A, 0x0A, 0x00], 27);
+    assertEq(JSON.stringify(probeImageDims(webp)), JSON.stringify({ w: 1179, h: 2603 }));
+    assertEq(probeImageDims(new Uint8Array([1, 2, 3])), null);
+});
+
+test('vendor/tesseract: 同梱アセットが台帳 (manifest.json) の SHA-256 と一致し、ocr.js が同じ版を指す', () => {
+    const vdir = join(ROOT, 'vendor', 'tesseract-5.1.1');
+    const m = JSON.parse(readFileSync(join(vdir, 'manifest.json'), 'utf8'));
+    assertEq(m.version, '5.1.1');
+    for (const [name, meta] of Object.entries(m.files)) {
+        const h = createHash('sha256').update(readFileSync(join(vdir, name))).digest('hex');
+        assertEq(h, meta.sha256, `${name} のハッシュ (差し替えられていない)`);
+    }
+    assert(['tesseract.min.js', 'worker.min.js', 'tesseract-core-simd-lstm.wasm.js', 'tesseract-core-lstm.wasm.js', 'eng.traineddata.gz']
+        .every(f => f in m.files), '必要な5ファイルが台帳にある');
+    const ocr = readFileSync(join(ROOT, 'js', 'ocr.js'), 'utf8');
+    assert(ocr.includes("const TESS_VER = '5.1.1'"), 'ocr.js の版数が台帳と同じ');
+    assert(!/cdn\.jsdelivr\.net|projectnaptha\.com/.test(ocr.replace(/\/\/.*$/gm, '')), 'ocr.js のコードは CDN を参照しない (コメント以外)');
 });
 
 console.log('前シーズンの人気編成 (フォールバック):');

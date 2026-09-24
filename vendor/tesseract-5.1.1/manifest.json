@@ -1,0 +1,32 @@
+{
+  "_readme": "scripts/vendor-tesseract.mjs の生成物。取得元・版数・SHA-256 の台帳。tests/run-tests.mjs が手元のファイルと突き合わせる (差し替え検知)。手で編集しない",
+  "version": "5.1.1",
+  "fetchedAt": "2026-09-24",
+  "files": {
+    "tesseract.min.js": {
+      "bytes": 66695,
+      "sha256": "a8e29918d098b2b06e1012bdaeffb4aec0445c5d5654709023e0bd1f442a80e8",
+      "source": "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"
+    },
+    "worker.min.js": {
+      "bytes": 123724,
+      "sha256": "aca1229639fc9907d86f96e825955a2b7c5716d17f3bc3acd71f9c7ab66181fc",
+      "source": "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js"
+    },
+    "tesseract-core-simd-lstm.wasm.js": {
+      "bytes": 3938657,
+      "sha256": "ce20eda9533cbed1e6c2b4276fbae1e0adc61b6754b5513084be601787b457cf",
+      "source": "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core-simd-lstm.wasm.js"
+    },
+    "tesseract-core-lstm.wasm.js": {
+      "bytes": 3938277,
+      "sha256": "8f04aa0cc81e7bde33f80e92fa01a7a665f0b4884d098acf5de9c7104a11dfaa",
+      "source": "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core-lstm.wasm.js"
+    },
+    "eng.traineddata.gz": {
+      "bytes": 1984273,
+      "sha256": "18c1ac52b75e35d44735fb6c2a60acfaf23033524653200738e98f0243edb75b",
+      "source": "https://tessdata.projectnaptha.com/4.0.0_fast/eng.traineddata.gz"
+    }
+  }
+}

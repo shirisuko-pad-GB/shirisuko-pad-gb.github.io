@@ -1062,6 +1062,7 @@ async function onToggleFinish(i) {
 function startCorrection(i) {
     const r = results?.[i];
     if (!r || editBusy || submitting) return;
+    if (ocrBusy) { toast(t('ui.ocr_wait')); return; }   // 読み取り中に修正モードへ入ると状態が混ざる (Codex指摘)
     correcting = { attribute: r.attribute };
     const a = newAttack();
     a.attribute = r.attribute;
@@ -1414,21 +1415,23 @@ async function onOcrFiles(files) {
     const label = btn.textContent;
     btn.disabled = true;
     if (!globalThis.Tesseract) toast(t('ui.ocr_first_time'));
-    let got = 0, full = false, readable = false;
+    let got = 0, found = 0, rows = 0, flagged = false, tooLarge = false;
     try {
         for (const f of files) {
-            const free = () => MAX_ATTACKS - attacks.filter(a => a.attribute || a.damage).length;
-            if (free() <= 0) { full = true; break; }
+            if (correcting) break;   // 読み取り中に修正モードへ入ったら、以降は捨てる (混ぜない)
             const r = await readRaidScreenshot(f, {
-                max: free(),
                 onProgress: (status, p) => { btn.textContent = t('ui.ocr_busy', { status: p != null ? `${Math.round(p * 100)}%` : status }); },
             });
-            if (!r.warnings.includes('no_rows') && !r.warnings.includes('error')) readable = true;
+            if (correcting) break;
+            rows += r.rows ?? 0;
+            found += r.attacks.length;
+            if (r.warnings.includes('too_large')) tooLarge = true;
+            if (r.warnings.some(w => w === 'orphan' || w === 'icon_unknown')) flagged = true;
             for (const atk of r.attacks) {
-                // 空の凸カード (属性もダメージも未入力) があればそこへ、無ければ追加
+                // 空の凸カード (属性もダメージも未入力) があればそこへ、無ければ追加 (最大3)
                 let a = attacks.find(x => !x.attribute && !x.damage);
                 if (!a) {
-                    if (attacks.length >= MAX_ATTACKS) { full = true; break; }
+                    if (attacks.length >= MAX_ATTACKS) break;
                     a = newAttack(); attacks.push(a);
                 }
                 a.attribute = atk.attribute;
@@ -1448,9 +1451,10 @@ async function onOcrFiles(files) {
     }
     renderAttacks();
     updateSubmitState();
-    if (got === 0) toast(t('ui.ocr_none'));
-    else if (full) toast(t('ui.ocr_full'));
-    else if (!readable) toast(t('ui.ocr_partial', { n: got }));
+    // 案内は「何が起きたか」が分かる順に: 読めず → 3凸に入り切らなかった → 一部読めず → 全部読めた
+    if (got === 0) toast(t(tooLarge ? 'ui.ocr_too_large' : 'ui.ocr_none'));
+    else if (found > got) toast(t('ui.ocr_full'));
+    else if (flagged || rows > found) toast(t('ui.ocr_partial', { n: got }));
     else toast(t('ui.ocr_done', { n: got }));
     if (got > 0) $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }

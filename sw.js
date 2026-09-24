@@ -11,8 +11,11 @@
 // 【2026-08-31】キャラ画像を takedown 方式で再掲載 (README「権利方針」) — character-images を
 // キャッシュ対象に戻し、版数を v3 に上げた。撤去時は CACHEABLE から外して版数を上げること
 // (版数を上げると activate 時に旧キャッシュごと削除されるので、**既に画像を持っている端末からも消える**)
-const CACHE = 'spg-assets-v3';
-const CACHEABLE = /\/(assets|character-images)\/[^/]+\.(png|webp|gif|jpg)$/;
+// 【2026-09-24】スクショ読み取り (js/ocr.js) の Tesseract アセット (vendor/tesseract-<ver>/ 約9.6MB) を
+// cache-first に追加し、版数を v4 に上げた。パスに版数が入るので差し替え時はパスが変わる = 据え置きで安全。
+// GitHub Pages の max-age は10分なので、これが無いと再訪のたびに数MBを取り直す
+const CACHE = 'spg-assets-v4';
+const CACHEABLE = /\/(assets|character-images)\/[^/]+\.(png|webp|gif|jpg)$|\/vendor\/tesseract-[\d.]+\/[^/]+\.(js|gz)$/;
 
 self.addEventListener('install', (e) => {
     self.skipWaiting();
