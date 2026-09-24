@@ -124,7 +124,8 @@ export function detectTemplate(imgs, burstsOf) {
 export function pickPrevSeason(seasons, current) {
     if (!Array.isArray(seasons) || typeof current !== 'string') return null;
     const ok = seasons.filter(s => typeof s === 'string' && /^\d{4}-\d{2}$/.test(s) && s < current);
-    return ok.length ? ok.sort().at(-1) : null;
+    const sorted = ok.sort();
+    return sorted.length ? sorted[sorted.length - 1] : null;   // .at() は iOS 15.4 未満に無い (Codex指摘)
 }
 
 // export JSON の1属性ぶんを、画面が使う insights 互換の形 ({topChars, topComps}) に変換する。

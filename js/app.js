@@ -1066,6 +1066,12 @@ function startCorrection(i) {
     if (Number.isFinite(r.slv)) { $('slv').value = r.slv; onSlvChanged(); }
     renderAttacks();
     updateSubmitState();
+    // 修正モードは属性ボタンが押せない = 通常経路の insights 取得が走らない。ここで取りに行かないと
+    // 今シーズンの編成があっても「前回の人気編成」が出続ける (Codex指摘)。届いたらその凸の編成欄だけ描き直す
+    ensureInsights(a.attribute, () => {
+        const card = $('attacksArea').querySelector('.atk-card');
+        if (card && attacks[0] === a) renderCompBody(card, a);
+    });
     $('submitBtn').textContent = t('ui.resubmit');
     toast(t('ui.correct_toast', { team: t('ui.team_of', { code: attrName(r.attribute) }) }));
     $('attacksArea').scrollIntoView({ behavior: 'smooth', block: 'start' });

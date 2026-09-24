@@ -392,13 +392,13 @@ test('prevCompsFromExport: export の形を insights 互換に変換 (canon 適�
 test('data/export/index.json: 一覧がファイルと一致し、各ファイルの season がファイル名と一致', () => {
     const dir = join(ROOT, 'data', 'export');
     const idx = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8'));
-    const files = readdirSync(dir).filter(f => /^\d{4}-\d{2}\.json$/.test(f)).map(f => f.slice(0, 7)).sort();
-    assertEq(JSON.stringify(idx.seasons), JSON.stringify(files), 'index.json は data/export/*.json と一致 (export-season.mjs が生成)');
-    for (const s of files) {
-        const e = JSON.parse(readFileSync(join(dir, `${s}.json`), 'utf8'));
-        assertEq(e.season, s, `${s}.json の season`);
-        assert(ATTRS.every(a => Array.isArray(e.attributes?.[a]?.comps)), `${s}.json は5属性の comps を持つ`);
-    }
+    // export-season.mjs と同じ規則: 名前だけでなく中身 (season 一致・schemaVersion・5属性の comps) で判定
+    const valid = readdirSync(dir).filter(f => /^\d{4}-\d{2}\.json$/.test(f)).filter(f => {
+        const e = JSON.parse(readFileSync(join(dir, f), 'utf8'));
+        return e.season === f.slice(0, 7) && Number.isInteger(e.schemaVersion) && ATTRS.every(a => Array.isArray(e.attributes?.[a]?.comps));
+    }).map(f => f.slice(0, 7)).sort();
+    assertEq(JSON.stringify(idx.seasons), JSON.stringify(valid), 'index.json は「凍結版として妥当な」data/export/*.json と一致 (export-season.mjs が生成)');
+    assert(valid.length > 0, '凍結版が1つも無い (export-season.mjs を実行していない)');
 });
 
 console.log('シーズン設定の整合性:');

@@ -143,8 +143,18 @@ const file = join(ROOT, 'data', 'export', `${SEASON}.json`);
 writeFileSync(file, JSON.stringify(out, null, 2) + '\n');
 // サイトが「前シーズンの人気編成」を探すための一覧 (js/calc.js pickPrevSeason が読む)。
 // ファイル名から機械的に作るので、手で編集しない
+// 名前が季節っぽいだけのファイル (テスト用の再出力など) を拾わないよう、中身も確認する:
+// season がファイル名と一致し、schemaVersion と5属性の comps を持つものだけ (Codex指摘)
 const seasons = readdirSync(join(ROOT, 'data', 'export'))
-    .filter(f => /^\d{4}-\d{2}\.json$/.test(f)).map(f => f.slice(0, 7)).sort();
+    .filter(f => /^\d{4}-\d{2}\.json$/.test(f))
+    .filter(f => {
+        try {
+            const j = JSON.parse(readFileSync(join(ROOT, 'data', 'export', f), 'utf8'));
+            return j.season === f.slice(0, 7) && Number.isInteger(j.schemaVersion)
+                && ATTRS.every(a => Array.isArray(j.attributes?.[a]?.comps));
+        } catch { return false; }
+    })
+    .map(f => f.slice(0, 7)).sort();
 writeFileSync(join(ROOT, 'data', 'export', 'index.json'), JSON.stringify({
     _readme: 'scripts/export-season.mjs の生成物。data/export/ にある凍結版シーズンの一覧。'
         + 'サイトは現行シーズンより前の最新を「前回の人気編成」に使う (js/calc.js pickPrevSeason)。手で編集しない',
