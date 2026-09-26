@@ -505,6 +505,7 @@ test('ocrTipsSvg: 3ブロックを描き、①②③の読み取り箇所を示�
     assert(svg.includes('&lt;img'), 'エスケープ後の文字列で残る');
     assert(svg.includes('var(--card)') && svg.includes('var(--accent)') && svg.includes('var(--ink)'), '色はトークン経由 (ダーク追随)');
     assertEq(ocrTipsSvg({ blocks: [] }).includes('<g>'), false, '0件でも落ちない');
+    assert(ocrTipsSvg({ blocks: [], label: 'Raid <log>' }).includes('aria-label="Raid &lt;log&gt;"'), '読み上げ用ラベルは差し替え可 & エスケープ');
 });
 
 console.log('前シーズンの人気編成 (フォールバック):');

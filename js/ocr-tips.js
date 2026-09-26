@@ -15,11 +15,12 @@ const W = 360;
 const BLOCK_H = 96, BLOCK_GAP = 8, TOP = 34;
 
 /**
- * @param {{ blocks: {numeral: string, color: string, boss: string, code: string, level: number, damage: string}[] }} p
- *   blocks は 3件 (凸1〜3)。color は属性アイコンの色 (ATTR_INFO[bossAttr].color)、code は「H.S.T.A.」形式
+ * @param {{ blocks: {numeral: string, color: string, boss: string, code: string, level: number, damage: string}[], label?: string }} p
+ *   blocks は 3件 (凸1〜3)。color は属性アイコンの色 (ATTR_INFO[bossAttr].color)、code は「H.S.T.A.」形式。
+ *   label は読み上げ用の説明 (表示言語に合わせて呼び出し側が渡す — Codex指摘)
  * @returns {string} インライン SVG
  */
-export function ocrTipsSvg({ blocks }) {
+export function ocrTipsSvg({ blocks, label = 'BlaBlaLINK 凸一覧のイメージ図' }) {
     const bs = (Array.isArray(blocks) ? blocks : []).slice(0, 3);
     const H = TOP + bs.length * (BLOCK_H + BLOCK_GAP) + 6;
     const tile = (x, y) => `<rect x="${x}" y="${y}" width="30" height="30" rx="5" fill="var(--bg)" stroke="var(--line)"/>` +
@@ -56,7 +57,7 @@ export function ocrTipsSvg({ blocks }) {
       <text x="${W - 162}" y="${dmgY + 6}" font-size="9" font-weight="900" fill="var(--ink)">③</text>
     </g>`;
     };
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="BlaBlaLINK 凸一覧のイメージ図" font-family="'Poppins','Noto Sans JP',sans-serif">
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(label)}" font-family="'Poppins','Noto Sans JP',sans-serif">
   <rect x="0" y="0" width="${W}" height="${H}" rx="14" fill="var(--card)"/>
   <text x="16" y="22" font-size="13" font-weight="900" fill="var(--ink)">PLAYER</text>
   <text x="${W - 16}" y="22" font-size="9" text-anchor="end" fill="var(--faint)">BlaBlaLINK › ユニオンレイド › 凸一覧</text>

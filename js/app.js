@@ -1421,7 +1421,7 @@ function renderOcrTips() {
         level: 3,
         damage: samples[i],
     }));
-    host.innerHTML = ocrTipsSvg({ blocks });   // ボス名は ocrTipsSvg 内で escapeHtml 済み
+    host.innerHTML = ocrTipsSvg({ blocks, label: t('ui.ocr_tips_alt') });   // ボス名・ラベルは ocrTipsSvg 内で escapeHtml 済み
 }
 
 // 読み取り結果は凸カードに「入れるだけ」。送信は本人が確認してから (自動送信しない)。
