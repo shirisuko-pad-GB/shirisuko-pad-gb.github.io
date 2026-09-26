@@ -438,7 +438,7 @@
         .tips-body { margin-top: 10px; }
         /* スクショ読み取りの Tips (略図は幅いっぱい・角丸はカードと同じ) */
         /* スクショから自動入力 (1枚のカード: 見出し → 説明 → 主ボタン → 使い方の開閉 → 注記) */
-        .ocr-box .hint { margin-bottom: 10px; }
+        .ocr-box > .hint { margin-bottom: 10px; }   /* 見出し直下の説明だけ (Tips 本文の p には効かせない) */
         .ocr-main-btn {
             width: 100%; padding: 13px; border-radius: 999px; border: none;
             background: var(--ink); color: var(--onink);
@@ -460,8 +460,8 @@
         .ocr-tips[open] > summary .chev { transform: rotate(180deg); color: var(--cream-ink); }
         .ocr-tips-body { margin-top: 10px; }
         #ocrTipsFig svg { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); }
-        .tips-body p { font-size: 12px; color: var(--sub); line-height: 1.7; margin-top: 8px; }
-        .tips-body p strong { color: var(--ink); }
+        .tips-body p, .ocr-tips-body p { font-size: 12px; color: var(--sub); line-height: 1.7; margin-top: 8px; }
+        .tips-body p strong, .ocr-tips-body p strong { color: var(--ink); }
 
         /* ===== 運用モード告知 (between/maintenance) ===== */
         .notice {
