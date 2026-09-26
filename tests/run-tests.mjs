@@ -492,7 +492,7 @@ test('vendor/tesseract: 同梱アセットが台帳 (manifest.json) の SHA-256 
     assertEq(expected.size, Object.keys(m.files).length, 'EXPECTED_SHA256 と台帳のファイル数が一致');
 });
 
-test('ocrTipsSvg: 3ブロックを描き、①②③の読み取り箇所を示し、ボス名はエスケープ、色はトークン経由', () => {
+test('ocrTipsSvg: 3ブロックを描き、①②③の読み取り箇所を示し、ボス名はエスケープ、色は固定パレット (白・オレンジ・属性色)', () => {
     const svg = ocrTipsSvg({ blocks: [
         { numeral: 'I', color: '#FF3D44', boss: 'トゥーム<img src=x onerror=alert(1)>', code: 'H.S.T.A.', level: 3, damage: '35,512,860,640' },
         { numeral: 'II', color: '#18C26B', boss: 'モダニア', code: 'A.N.M.I.', level: 3, damage: '37,408,632,259' },

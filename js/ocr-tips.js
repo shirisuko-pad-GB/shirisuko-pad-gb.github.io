@@ -34,7 +34,7 @@ export function ocrTipsSvg({ blocks, label = 'BlaBlaLINK 凸一覧のイメー�
     const H = TOP + bs.length * (BLOCK_H + BLOCK_GAP) + 6;
     // キャラタイル: 薄灰の角丸 + 金の星 + 下端の淡い黄色帯 (実画面の LV 表示の雰囲気)
     const tile = (x, y) => `<rect x="${x}" y="${y}" width="30" height="30" rx="5" fill="${PAL.tile}" stroke="${PAL.line}"/>` +
-        `<text x="${x + 15}" y="${y + 11}" font-size="7" text-anchor="middle" fill="${PAL.gold}">★★★</text>` +
+        `<text x="${x + 15}" y="${y + 11}" font-size="7.5" text-anchor="middle" fill="#D99A00">★★★</text>` +
         `<rect x="${x + 1}" y="${y + 21}" width="28" height="8" rx="3" fill="${PAL.tileLv}"/>`;
     const mark = (x, y, n) => `<circle cx="${x}" cy="${y}" r="7" fill="${PAL.orange}"/>` +
         `<text x="${x}" y="${y + 3.2}" font-size="8.5" font-weight="900" text-anchor="middle" fill="#FFFFFF">${n}</text>`;
@@ -64,7 +64,7 @@ export function ocrTipsSvg({ blocks, label = 'BlaBlaLINK 凸一覧のイメー�
       <!-- キャラタイル 5枚 -->
       ${[0, 1, 2, 3, 4].map(k => tile(20 + k * 34, y + 44)).join('')}
       <!-- ③ ダメージ -->
-      <text x="${W - 30}" y="${dmgY - 12}" font-size="8" text-anchor="end" fill="${PAL.sub}">ダメージ</text>
+      <text x="${W - 30}" y="${dmgY - 12}" font-size="8.5" text-anchor="end" fill="${PAL.sub}">ダメージ</text>
       <text x="${W - 30}" y="${dmgY + 6}" font-size="14" font-weight="900" text-anchor="end" fill="${PAL.ink}" style="font-variant-numeric:tabular-nums">${escapeHtml(b.damage)}</text>
       <rect x="${W - 150}" y="${dmgY - 8}" width="124" height="20" rx="5" fill="none" stroke="${PAL.orange}" stroke-width="2" stroke-dasharray="4 3"/>
       ${mark(W - 158, dmgY + 2, '3')}
@@ -73,7 +73,7 @@ export function ocrTipsSvg({ blocks, label = 'BlaBlaLINK 凸一覧のイメー�
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(label)}" font-family="'Poppins','Noto Sans JP',sans-serif">
   <rect x="0" y="0" width="${W}" height="${H}" rx="14" fill="${PAL.bg}"/>
   <text x="16" y="22" font-size="13" font-weight="900" fill="${PAL.ink}">PLAYER</text>
-  <text x="${W - 16}" y="22" font-size="9" text-anchor="end" fill="${PAL.faint}">BlaBlaLINK › ユニオンレイド › 凸一覧</text>
+  <text x="${W - 16}" y="22" font-size="9.5" text-anchor="end" fill="${PAL.sub}">BlaBlaLINK › ユニオンレイド › 凸一覧</text>
   ${bs.map(block).join('')}
 </svg>`;
 }
