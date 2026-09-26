@@ -3,6 +3,7 @@
 // ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
 import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from './calc.js';
 import { readRaidScreenshot } from './ocr.js';
+import { ocrTipsSvg } from './ocr-tips.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
 import { escapeHtml, THRESHOLDS, ATTR_INFO, SITE_URL, enablePullToRefresh, isInAppBrowser, attrName } from './shared.js';
 import { buildShareCard } from './sharecard.js';
@@ -84,6 +85,7 @@ async function init() {
         loadPrevExport().catch(() => null),
     ]);
     base = b; presets = p; characters = c; raid = rd; site = st; siteConf = sc; prevExport = pe;
+    renderOcrTips();   // スクショ読み取りの略図 (今シーズンのボス名・属性色で描く)
     infoOf = makeCharResolver(characters);
     season = base.version;
     mode = site?.status ?? 'open';   // site_state が読めない (05未適用/未設定) 時は open 扱い
@@ -1405,6 +1407,23 @@ function previewCard() {
 }
 
 // ---------- スクショ読み取り (補助・端末内・AI不使用) ----------
+// Tips の略図: 今シーズンの上位3属性のボスで「凸一覧」の形を示す。アイコンの色はボス自身の属性
+// (= ATTR_INFO[pt].enemy の色) — 実際の画面と同じ対応にしておかないと図が嘘になる
+function renderOcrTips() {
+    const host = $('ocrTipsFig');
+    if (!host) return;
+    const samples = ['35,512,860,640', '37,408,632,259', '54,641,800,284'];
+    const blocks = orderedAttrs().slice(0, 3).map((pt, i) => ({
+        numeral: ['I', 'II', 'III'][i],
+        color: ATTR_INFO[ATTR_INFO[pt].enemy].color,
+        boss: raid?.bosses?.[pt] || t('ui.ocr_tips_boss'),
+        code: base?.bases?.[pt]?.bossCode || 'X.X.X.X.',
+        level: 3,
+        damage: samples[i],
+    }));
+    host.innerHTML = ocrTipsSvg({ blocks });   // ボス名は ocrTipsSvg 内で escapeHtml 済み
+}
+
 // 読み取り結果は凸カードに「入れるだけ」。送信は本人が確認してから (自動送信しない)。
 // 空いている凸カードから順に埋め、足りなければ追加 (最大3)。読めなければ手入力に戻るだけ
 let ocrBusy = false;

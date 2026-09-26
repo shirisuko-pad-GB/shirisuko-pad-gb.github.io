@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 import { classifyHue, ptOfBossAttr, parseDamageWord, isLevelWord, pairAnchorsWithDamages, PAIR_MAX_GAP_W, probeImageDims } from '../js/ocr.js';
+import { ocrTipsSvg } from '../js/ocr-tips.js';
 import { createHash } from 'node:crypto';
 import { makeCharResolver, burstsOf, tileHTML, splitName, USE_CHAR_IMAGES, charImgSrc, CHAR_ID_RE } from '../js/tiles.js';
 import { detectLang, t, _setLangForTest, LANGS, DEFAULT_LANG } from '../js/i18n.js';
@@ -489,6 +490,21 @@ test('vendor/tesseract: 同梱アセットが台帳 (manifest.json) の SHA-256 
     }
     for (const [name, meta] of Object.entries(m.files)) assertEq(expected.get(name), meta.sha256, `vendor-tesseract.mjs の EXPECTED_SHA256 (生きた行) に ${name} の台帳ハッシュがある`);
     assertEq(expected.size, Object.keys(m.files).length, 'EXPECTED_SHA256 と台帳のファイル数が一致');
+});
+
+test('ocrTipsSvg: 3ブロックを描き、①②③の読み取り箇所を示し、ボス名はエスケープ、色はトークン経由', () => {
+    const svg = ocrTipsSvg({ blocks: [
+        { numeral: 'I', color: '#FF3D44', boss: 'トゥーム<img src=x onerror=alert(1)>', code: 'H.S.T.A.', level: 3, damage: '35,512,860,640' },
+        { numeral: 'II', color: '#18C26B', boss: 'モダニア', code: 'A.N.M.I.', level: 3, damage: '37,408,632,259' },
+        { numeral: 'III', color: '#2E8BFF', boss: 'リビルド', code: 'P.S.I.D.', level: 3, damage: '54,641,800,284' },
+    ] });
+    assert(svg.startsWith('<svg'), 'SVG を返す');
+    assertEq((svg.match(/<g>/g) || []).length, 3, 'ブロック3つ');
+    for (const k of ['①', '②', '③']) assert(svg.includes(`>${k}</text>`), `読み取り箇所の番号 ${k}`);
+    assert(!svg.includes('<img'), 'ボス名の HTML はエスケープされる');
+    assert(svg.includes('&lt;img'), 'エスケープ後の文字列で残る');
+    assert(svg.includes('var(--card)') && svg.includes('var(--accent)') && svg.includes('var(--ink)'), '色はトークン経由 (ダーク追随)');
+    assertEq(ocrTipsSvg({ blocks: [] }).includes('<g>'), false, '0件でも落ちない');
 });
 
 console.log('前シーズンの人気編成 (フォールバック):');

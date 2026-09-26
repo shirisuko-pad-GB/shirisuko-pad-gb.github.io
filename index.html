@@ -436,6 +436,9 @@
         details.tips > summary .chev { margin-left: auto; color: var(--faint); font-size: 11px; transition: transform 0.2s; }
         details.tips[open] > summary .chev { transform: rotate(180deg); }
         .tips-body { margin-top: 10px; }
+        /* スクショ読み取りの Tips (略図は幅いっぱい・角丸はカードと同じ) */
+        .ocr-tips { margin-top: 10px; padding: 0 2px; }
+        #ocrTipsFig svg { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); }
         .tips-body p { font-size: 12px; color: var(--sub); line-height: 1.7; margin-top: 8px; }
         .tips-body p strong { color: var(--ink); }
 
@@ -606,6 +609,14 @@
         <button type="button" class="add-atk-btn" id="ocrBtn" data-i18n="ui.ocr_btn">📷 凸一覧のスクショから読み取る (β)</button>
         <input type="file" id="ocrFile" accept="image/*" multiple hidden>
         <p class="hint" style="text-align:center;margin-top:4px;" data-i18n="ui.ocr_privacy">BlaBlaLINK の「凸一覧」画面のスクショから、属性とダメージを入力欄に入れます。画像は端末内で処理され、送信されません</p>
+        <!-- どの画面を撮ればよいかの略図 (js/ocr-tips.js が描く自作SVG。実スクショ・ゲーム画像は使わない) -->
+        <details class="tips ocr-tips" id="ocrTips">
+            <summary><span data-i18n="ui.ocr_tips_title">💡 どの画面を撮る？ (3凸ぶんのイメージ図)</span><span class="chev">▼</span></summary>
+            <div class="tips-body">
+                <div id="ocrTipsFig"></div>
+                <p class="hint" style="margin-top:8px;" data-i18n-html="ui.ocr_tips_body"></p>
+            </div>
+        </details>
     </div>
 
     <!-- STEP 2: 凸の入力 (1〜3件, app.js が生成) -->
