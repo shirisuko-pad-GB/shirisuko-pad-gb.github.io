@@ -500,10 +500,14 @@ test('ocrTipsSvg: 3ブロックを描き、①②③の読み取り箇所を示�
     ] });
     assert(svg.startsWith('<svg'), 'SVG を返す');
     assertEq((svg.match(/<g>/g) || []).length, 3, 'ブロック3つ');
-    for (const k of ['①', '②', '③']) assert(svg.includes(`>${k}</text>`), `読み取り箇所の番号 ${k}`);
+    for (const k of ['1', '2', '3']) assert(svg.includes(`>${k}</text>`), `読み取り箇所の番号 ${k} (オレンジの丸に白数字)`);
+    assertEq((svg.match(/<circle[^>]*fill="#F26B2B"/g) || []).length, 9, '番号の丸 ①②③ × 3ブロック');
     assert(!svg.includes('<img'), 'ボス名の HTML はエスケープされる');
     assert(svg.includes('&lt;img'), 'エスケープ後の文字列で残る');
-    assert(svg.includes('var(--card)') && svg.includes('var(--accent)') && svg.includes('var(--ink)'), '色はトークン経由 (ダーク追随)');
+    // 色は実画面に寄せた固定パレット (白地・オレンジ・属性色)。サイトのトークンには追随させない (他アプリ画面の再現のため)
+    assert(svg.includes('#FFFFFF') && svg.includes('#F26B2B'), '白地とオレンジ');
+    assert(svg.includes('#FF3D44') && svg.includes('#18C26B') && svg.includes('#2E8BFF'), '渡した属性色がそのまま使われる');
+    assert(!svg.includes('var(--'), 'テーマトークンに依存しない (ダークでも白いカードのまま)');
     assertEq(ocrTipsSvg({ blocks: [] }).includes('<g>'), false, '0件でも落ちない');
     assert(ocrTipsSvg({ blocks: [], label: 'Raid <log>' }).includes('aria-label="Raid &lt;log&gt;"'), '読み上げ用ラベルは差し替え可 & エスケープ');
 });

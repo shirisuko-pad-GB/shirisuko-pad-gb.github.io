@@ -55,7 +55,7 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
     check('横オーバーフローなし (375px)', fd.documentElement.scrollWidth <= 375);
     // スクショ読み取りの Tips: 略図 (自作SVG) が描かれ、開いても横にはみ出さない
     const tips = fd.getElementById('ocrTips');
-    check('スクショTipsの略図が描画される', !!fd.querySelector('#ocrTipsFig svg') && /①.*②.*③/s.test(fd.getElementById('ocrTipsFig').innerHTML));
+    check('スクショTipsの略図が描画される', !!fd.querySelector('#ocrTipsFig svg') && fd.querySelectorAll('#ocrTipsFig svg g').length === 3);
     if (tips) { tips.open = true; await wait(200); check('Tipsを開いても横オーバーフローなし', fd.documentElement.scrollWidth <= 375); tips.open = false; }
 
     // 運用モードを検出 (site_state=open 以外は測定UIが隠れて告知が出る)
