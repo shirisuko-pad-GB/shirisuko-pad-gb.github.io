@@ -437,7 +437,28 @@
         details.tips[open] > summary .chev { transform: rotate(180deg); }
         .tips-body { margin-top: 10px; }
         /* スクショ読み取りの Tips (略図は幅いっぱい・角丸はカードと同じ) */
-        .ocr-tips { margin-top: 10px; padding: 0 2px; }
+        /* スクショから自動入力 (1枚のカード: 見出し → 説明 → 主ボタン → 使い方の開閉 → 注記) */
+        .ocr-box .hint { margin-bottom: 10px; }
+        .ocr-main-btn {
+            width: 100%; padding: 13px; border-radius: 999px; border: none;
+            background: var(--ink); color: var(--onink);
+            font-size: 13.5px; font-weight: 800; font-family: inherit; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ocr-main-btn:disabled { opacity: 0.45; cursor: default; }
+        /* 開閉は「押せる枠」に見せる (薄い summary 1行では気づかれなかった — 実機FB 2026-09-26) */
+        .ocr-tips { margin-top: 10px; }
+        .ocr-tips > summary {
+            list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg);
+            font-size: 12.5px; font-weight: 800; color: var(--ink);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ocr-tips > summary::-webkit-details-marker { display: none; }
+        .ocr-tips > summary .chev { margin-left: auto; color: var(--faint); font-size: 11px; transition: transform 0.2s; }
+        .ocr-tips[open] > summary { background: var(--cream); color: var(--cream-ink); border-color: transparent; }
+        .ocr-tips[open] > summary .chev { transform: rotate(180deg); color: var(--cream-ink); }
+        .ocr-tips-body { margin-top: 10px; }
         #ocrTipsFig svg { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); }
         .tips-body p { font-size: 12px; color: var(--sub); line-height: 1.7; margin-top: 8px; }
         .tips-body p strong { color: var(--ink); }
@@ -605,19 +626,22 @@
     </section>
 
     <!-- スクショ読み取り (補助・端末内処理・AI不使用 — js/ocr.js)。読めなくても手入力に戻れる -->
-    <div class="ocr-row">
-        <button type="button" class="add-atk-btn" id="ocrBtn" data-i18n="ui.ocr_btn">📷 凸一覧のスクショから読み取る (β)</button>
+    <!-- スクショから自動入力 (任意・補助・端末内OCR — js/ocr.js)。ボタン・使い方・注記を1枚のカードにまとめる -->
+    <section class="card ocr-box" id="ocrBox">
+        <h2><span data-i18n="ui.ocr_head">📷 スクショから自動入力</span><span class="pill" data-i18n="ui.optional">任意</span></h2>
+        <p class="hint" data-i18n="ui.ocr_lead">BlaBlaLINK の「凸一覧」のスクショを選ぶと、属性とダメージが下の凸カードに入ります。内容を確認してから送信してください</p>
+        <button type="button" class="ocr-main-btn" id="ocrBtn" data-i18n="ui.ocr_btn">📷 スクショを選ぶ</button>
         <input type="file" id="ocrFile" accept="image/*" multiple hidden>
-        <p class="hint" style="text-align:center;margin-top:4px;" data-i18n="ui.ocr_privacy">BlaBlaLINK の「凸一覧」画面のスクショから、属性とダメージを入力欄に入れます。画像は端末内で処理され、送信されません</p>
-        <!-- どの画面を撮ればよいかの略図 (js/ocr-tips.js が描く自作SVG。実スクショ・ゲーム画像は使わない) -->
-        <details class="tips ocr-tips" id="ocrTips">
-            <summary><span data-i18n="ui.ocr_tips_title">💡 どの画面を撮る？ (3凸ぶんのイメージ図)</span><span class="chev">▼</span></summary>
-            <div class="tips-body">
+        <!-- どの画面を撮ればよいかの略図 (js/ocr-tips.js が描く自作SVG)。開閉はボタン風にして「開ける」と分かるように -->
+        <details class="ocr-tips" id="ocrTips">
+            <summary><span data-i18n="ui.ocr_tips_title">💡 どの画面を撮る？ (3凸のイメージ図を見る)</span><span class="chev">▼</span></summary>
+            <div class="ocr-tips-body">
                 <div id="ocrTipsFig"></div>
                 <p class="hint" style="margin-top:8px;" data-i18n-html="ui.ocr_tips_body"></p>
             </div>
         </details>
-    </div>
+        <p class="privacy" style="margin-top:8px;" data-i18n="ui.ocr_privacy">画像は端末内で処理され、どこにも送信されません</p>
+    </section>
 
     <!-- STEP 2: 凸の入力 (1〜3件, app.js が生成) -->
     <div id="attacksArea"></div>
