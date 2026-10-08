@@ -6,7 +6,7 @@ site_state はまだ **open / active_season=2026-09** (第44回が開いたま�
 
 - 済 (2026-10-08): 本家に新キャラ 2 体 (ギルティ：マイティバニー / シン：スウィフトバニー・B3・水冷) を要確認で登録 →
   GB `update-roster.mjs ../shirisu-pad` で characters.json / presets.json を更新、`element-map.json` に水冷として追記。
-  2026-09 の凍結エクスポート (本家 data/gb-export/2026-09.json と同じもの) を data/export/ に置いた
+  2026-09 の凍結エクスポートは c7d81b2 (別PC) で vendored 済み (本家 data/gb-export/2026-09.json と同一)
 - **やること (ふるり・SQL Editor)** ① 第44回を閉じる (between):
   `update public.site_state set status='between', active_season=null, display_season='2026-09', message='次シーズン準備中です', updated_at=now();`
   (site_state は anon が select しかできないので、PC からは実行できない)
