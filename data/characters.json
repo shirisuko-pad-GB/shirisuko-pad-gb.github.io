@@ -336,6 +336,12 @@
    "en": "Guilty",
    "hasImg": true
   },
+  "0922354dc0525758fd3f465baf2c1e4f.webp": {
+   "name": "ギルティ：マイティバニー",
+   "burst": "B3",
+   "burstAlt": null,
+   "element": "WATER"
+  },
   "30329f02a14ebb70e4c47171d9fc7b49.webp": {
    "name": "キロ",
    "burst": "B3",
@@ -537,6 +543,12 @@
    "element": "ELECTRIC",
    "en": "Sin",
    "hasImg": true
+  },
+  "bf03aa1c3644d1724cf635fcb885d173.webp": {
+   "name": "シン：スウィフトバニー",
+   "burst": "B3",
+   "burstAlt": null,
+   "element": "WATER"
   },
   "59035ecc65d2e661f612d9eea23dbe07.webp": {
    "name": "シンデレラ",
