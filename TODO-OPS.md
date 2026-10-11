@@ -15,9 +15,9 @@ site_state は **between / display_season=2026-09** (2026-10-08 にふるりが�
   WATER 18.59 / IRON 27.09 / ELECTRIC 22.14 / FIRE 17.26 / WIND 19.02 (すべて模擬)。tests 66 / E2E 8 OK → push 済み。
   基準編成は 4/5 (灼熱PTの模擬は本家の模擬タブに未提出なので編成が無い)
 - **次にやること (ふるり・SQL Editor)** — PC からは書けない:
-  1. `supabase/seed.local.sql` の中身を実行 (2026-10 の基準投入。ファイルは gitignore なので、このPCで生成したものを使う)
-  2. `insert into public.score_bounds (season, min_score, max_score) values ('2026-10', 0.1, 2.5) on conflict do nothing;`
-  3. `delete from public.measurements;` (between のいまのうちに)
+  1. `delete from public.measurements;` (between のいまのうちに・第44回の提出を消す)
+  2. `supabase/seed.local.sql` の中身を実行 (2026-10 の基準投入。ファイルは gitignore なので、このPCで生成したものを使う)
+  3. `insert into public.score_bounds (season, min_score, max_score) values ('2026-10', 0.1, 2.5) on conflict do nothing;`
   4. `update public.site_state set status='open', active_season='2026-10', display_season=null, updated_at=now();`
 - ⚠ **①〜④ の順を守る。`delete from public.measurements;` は between にしてから**
 
