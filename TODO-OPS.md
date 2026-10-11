@@ -1,6 +1,8 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
-## ⏳ 第45回 (2026-10・ハード日 10/10) への切替 — 2026-10-12 時点 (Mac・Claude)
+## ✅ 第45回 (2026-10) への切替 — **2026-10-12 公開済み** (site_state open / active_season 2026-10・measurements 0 件・公開サイトで ドリアン 表示を確認)
+
+**切替の SQL (delete → seed → score_bounds → open) は実行済み。もう回さないこと** — 特に `delete from public.measurements;` は今実行すると第45回の提出が消える。
 
 site_state は **between / display_season=2026-09** (2026-10-08 にふるりが閉じた・REST で確認)。手順は README「シーズン切替の運用ランブック」。
 
@@ -14,7 +16,7 @@ site_state は **between / display_season=2026-09** (2026-10-08 にふるりが�
   灼熱 17.258B はスクショの値)。③ `node scripts/new-season.mjs ../しりすこPAD --season-id 36` → base.json SLv 604 /
   WATER 18.59 / IRON 27.09 / ELECTRIC 22.14 / FIRE 17.26 / WIND 19.02 (すべて模擬)。tests 66 / E2E 8 OK → push 済み。
   基準編成は 4/5 (灼熱PTの模擬は本家の模擬タブに未提出なので編成が無い)
-- **次にやること (ふるり・SQL Editor)** — PC からは書けない:
+- 済 (2026-10-12・ふるり・SQL Editor):
   1. `delete from public.measurements;` (between のいまのうちに・第44回の提出を消す)
   2. `supabase/seed.local.sql` の中身を実行 (2026-10 の基準投入。ファイルは gitignore なので、このPCで生成したものを使う)
   3. `insert into public.score_bounds (season, min_score, max_score) values ('2026-10', 0.1, 2.5) on conflict do nothing;`
