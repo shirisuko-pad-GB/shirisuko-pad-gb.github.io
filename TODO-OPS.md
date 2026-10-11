@@ -1,6 +1,6 @@
 # 運用TODO (完了したら該当行を消す / 全部済んだらこのファイルごと削除)
 
-## ⏳ 第45回 (2026-10・ハード日 10/10) への切替 — 2026-10-08 時点 (職場PC・Claude)
+## ⏳ 第45回 (2026-10・ハード日 10/10) への切替 — 2026-10-12 時点 (Mac・Claude)
 
 site_state は **between / display_season=2026-09** (2026-10-08 にふるりが閉じた・REST で確認)。手順は README「シーズン切替の運用ランブック」。
 
@@ -10,10 +10,15 @@ site_state は **between / display_season=2026-09** (2026-10-08 にふるりが�
 - ~~① 第44回を閉じる (between)~~ → **2026-10-08 済み**:
   `update public.site_state set status='between', active_season=null, display_season='2026-09', message='次シーズン準備中です', updated_at=now();`
   (site_state は anon が select しかできないので、PC からは実行できない)
-- **次にやること (ふるり・本家)** ② 第45回の模擬 5 属性を本家の模擬タブで提出 → 本家で `node scripts/sync-fururi-sim.mjs --apply`。
-  `new-season.mjs` は 2026-10-08 に試したが「ふるり基準が揃っていません (5 属性とも)」で止まった (本家 season 36 の fururi_simulation_scores が空)
-- ③ 基準が揃ったら: `node scripts/new-season.mjs ../shirisu-pad --slv <現在のSLv>` (本家のパスは `../shirisu-pad`。585 は第44回の値) →
-  `node tests/run-tests.mjs` → commit & push → SQL Editor で `supabase/seed.local.sql` → `score_bounds` (0.1〜2.5) → `status='open', active_season='2026-10'`
+- 済 (2026-10-12・Mac・Claude): ② 本家 season 36 の `fururi_simulation_scores` に 5 属性を登録 (ふるりが灼熱PTで締め凸したため、第45回は**5 属性とも模擬**が基準。
+  灼熱 17.258B はスクショの値)。③ `node scripts/new-season.mjs ../しりすこPAD --season-id 36` → base.json SLv 604 /
+  WATER 18.59 / IRON 27.09 / ELECTRIC 22.14 / FIRE 17.26 / WIND 19.02 (すべて模擬)。tests 66 / E2E 8 OK → push 済み。
+  基準編成は 4/5 (灼熱PTの模擬は本家の模擬タブに未提出なので編成が無い)
+- **次にやること (ふるり・SQL Editor)** — PC からは書けない:
+  1. `supabase/seed.local.sql` の中身を実行 (2026-10 の基準投入。ファイルは gitignore なので、このPCで生成したものを使う)
+  2. `insert into public.score_bounds (season, min_score, max_score) values ('2026-10', 0.1, 2.5) on conflict do nothing;`
+  3. `delete from public.measurements;` (between のいまのうちに)
+  4. `update public.site_state set status='open', active_season='2026-10', display_season=null, updated_at=now();`
 - ⚠ **①〜④ の順を守る。`delete from public.measurements;` は between にしてから**
 
 
