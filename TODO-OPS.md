@@ -2,6 +2,10 @@
 
 ## ✅ 第45回 (2026-10) への切替 — **2026-10-12 公開済み** (site_state open / active_season 2026-10・measurements 0 件・公開サイトで ドリアン 表示を確認)
 
+⚠ 2026-10-12 の切替では **seed (fururi_bases) が抜けたまま open** になり、「みんなのデータ」が `unknown season/attribute: 2026-10 / WATER` で全滅していた
+(Claude が渡した SQL ブロックで seed を「ファイルを貼る」というコメントにしていたため)。同日 fururi_bases を投入して解消 (5 属性とも表示 OK)。
+**次回の教訓**: SQL は貼ればそのまま全部走る形で渡す。公開後の確認は入力画面だけでなく **stats.html の 5 属性** まで見る。
+
 **切替の SQL (delete → seed → score_bounds → open) は実行済み。もう回さないこと** — 特に `delete from public.measurements;` は今実行すると第45回の提出が消える。
 
 site_state は **between / display_season=2026-09** (2026-10-08 にふるりが閉じた・REST で確認)。手順は README「シーズン切替の運用ランブック」。
