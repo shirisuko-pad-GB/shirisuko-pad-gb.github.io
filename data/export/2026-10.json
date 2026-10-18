@@ -1,0 +1,1281 @@
+{
+  "schemaVersion": 1,
+  "season": "2026-10",
+  "generatedAt": "2026-10-18T01:09:59.134Z",
+  "methodology": {
+    "unit": "fururi",
+    "attackBenchmark": "per-client best per attribute (シーズン内・1端末1票)",
+    "compBenchmark": "編成つき提出のみの per-client best",
+    "excluded": [
+      "finish (締め凸)",
+      "shadow-range (score_bounds 外)"
+    ],
+    "attributeMedianFloor": 50,
+    "compCohortFloor": 10,
+    "compMedianFloor": 5
+  },
+  "base": {
+    "version": "2026-10",
+    "basePlayer": "ふるり",
+    "baseSlv": 604,
+    "attributes": {
+      "FIRE": {
+        "bossCode": "A.N.M.I.",
+        "bossName": "リビルドバルカンR",
+        "baseDamage": 17257899125,
+        "source": "simulation"
+      },
+      "WATER": {
+        "bossCode": "H.S.T.A.",
+        "bossName": "ドリアン",
+        "baseDamage": 18588000000,
+        "source": "simulation"
+      },
+      "ELECTRIC": {
+        "bossCode": "P.S.I.D.",
+        "bossName": "クリスタルチャンバー",
+        "baseDamage": 22139000000,
+        "source": "simulation"
+      },
+      "IRON": {
+        "bossCode": "Z.E.U.S.",
+        "bossName": "フィンガーズ",
+        "baseDamage": 27092000000,
+        "source": "simulation"
+      },
+      "WIND": {
+        "bossCode": "D.M.T.R.",
+        "bossName": "クラーケン",
+        "baseDamage": 19023000000,
+        "source": "simulation"
+      }
+    }
+  },
+  "attributes": {
+    "FIRE": {
+      "attackBenchmark": {
+        "n": 255,
+        "medianFururi": 1.1501,
+        "loFururi": 0.5687,
+        "hiFururi": 1.8311
+      },
+      "compCohortN": 96,
+      "comps": [
+        {
+          "compKey": "627884de8e4628efd7dbcb7a9e4ecf53.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|6bf2f9261d5b41c4659692a6eb78527a.webp|830d9d8541fce0c485950e38050b1c6d.webp|ec51dcc7846a88299df91a31ac5c41c2.webp",
+          "members": [
+            {
+              "gbId": "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+              "name": "スノーホワイト：ヘビーアームズ"
+            },
+            {
+              "gbId": "6bf2f9261d5b41c4659692a6eb78527a.webp",
+              "name": "ディーゼル：ウィンタースイーツ"
+            },
+            {
+              "gbId": "830d9d8541fce0c485950e38050b1c6d.webp",
+              "name": "ブリッド：サイレントトラック"
+            },
+            {
+              "gbId": "ec51dcc7846a88299df91a31ac5c41c2.webp",
+              "name": "ミハラ：ボンディングチェーン"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 31,
+          "medianFururi": 1.1454,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "6bf2f9261d5b41c4659692a6eb78527a.webp",
+                "830d9d8541fce0c485950e38050b1c6d.webp",
+                "ec51dcc7846a88299df91a31ac5c41c2.webp"
+              ],
+              "n": 31
+            }
+          ]
+        },
+        {
+          "compKey": "2020306990ac4f6696c4674b536dca49.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|6bf2f9261d5b41c4659692a6eb78527a.webp|830d9d8541fce0c485950e38050b1c6d.webp|ec51dcc7846a88299df91a31ac5c41c2.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "6bf2f9261d5b41c4659692a6eb78527a.webp",
+              "name": "ディーゼル：ウィンタースイーツ"
+            },
+            {
+              "gbId": "830d9d8541fce0c485950e38050b1c6d.webp",
+              "name": "ブリッド：サイレントトラック"
+            },
+            {
+              "gbId": "ec51dcc7846a88299df91a31ac5c41c2.webp",
+              "name": "ミハラ：ボンディングチェーン"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 14,
+          "medianFururi": 1.4106,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "6bf2f9261d5b41c4659692a6eb78527a.webp",
+                "830d9d8541fce0c485950e38050b1c6d.webp",
+                "ec51dcc7846a88299df91a31ac5c41c2.webp"
+              ],
+              "n": 14
+            }
+          ]
+        },
+        {
+          "compKey": "171c4160829049f2604cde5036b79801.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|6bf2f9261d5b41c4659692a6eb78527a.webp|830d9d8541fce0c485950e38050b1c6d.webp|ec51dcc7846a88299df91a31ac5c41c2.webp",
+          "members": [
+            {
+              "gbId": "6bf2f9261d5b41c4659692a6eb78527a.webp",
+              "name": "ディーゼル：ウィンタースイーツ"
+            },
+            {
+              "gbId": "830d9d8541fce0c485950e38050b1c6d.webp",
+              "name": "ブリッド：サイレントトラック"
+            },
+            {
+              "gbId": "ec51dcc7846a88299df91a31ac5c41c2.webp",
+              "name": "ミハラ：ボンディングチェーン"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            },
+            {
+              "gbId": "171c4160829049f2604cde5036b79801.webp",
+              "name": "リトルマーメイド"
+            }
+          ],
+          "n": 10,
+          "medianFururi": 1.0644,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "171c4160829049f2604cde5036b79801.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "6bf2f9261d5b41c4659692a6eb78527a.webp",
+                "830d9d8541fce0c485950e38050b1c6d.webp",
+                "ec51dcc7846a88299df91a31ac5c41c2.webp"
+              ],
+              "n": 10
+            }
+          ]
+        },
+        {
+          "compKey": "2020306990ac4f6696c4674b536dca49.webp|6bf2f9261d5b41c4659692a6eb78527a.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp|830d9d8541fce0c485950e38050b1c6d.webp|ec51dcc7846a88299df91a31ac5c41c2.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "6bf2f9261d5b41c4659692a6eb78527a.webp",
+              "name": "ディーゼル：ウィンタースイーツ"
+            },
+            {
+              "gbId": "830d9d8541fce0c485950e38050b1c6d.webp",
+              "name": "ブリッド：サイレントトラック"
+            },
+            {
+              "gbId": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+              "name": "マスト：ロマンチックメイド"
+            },
+            {
+              "gbId": "ec51dcc7846a88299df91a31ac5c41c2.webp",
+              "name": "ミハラ：ボンディングチェーン"
+            }
+          ],
+          "n": 5,
+          "medianFururi": 1.257,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "6bf2f9261d5b41c4659692a6eb78527a.webp",
+                "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+                "830d9d8541fce0c485950e38050b1c6d.webp",
+                "ec51dcc7846a88299df91a31ac5c41c2.webp"
+              ],
+              "n": 5
+            }
+          ]
+        },
+        {
+          "compKey": "68aa881ffdc137d2a50da839eaa1adb6.webp|6bf2f9261d5b41c4659692a6eb78527a.webp|830d9d8541fce0c485950e38050b1c6d.webp|8719439cdfadcf8b5748fcfc6079a00c.webp|ec51dcc7846a88299df91a31ac5c41c2.webp",
+          "members": [
+            {
+              "gbId": "6bf2f9261d5b41c4659692a6eb78527a.webp",
+              "name": "ディーゼル：ウィンタースイーツ"
+            },
+            {
+              "gbId": "830d9d8541fce0c485950e38050b1c6d.webp",
+              "name": "ブリッド：サイレントトラック"
+            },
+            {
+              "gbId": "8719439cdfadcf8b5748fcfc6079a00c.webp",
+              "name": "ヘルム"
+            },
+            {
+              "gbId": "ec51dcc7846a88299df91a31ac5c41c2.webp",
+              "name": "ミハラ：ボンディングチェーン"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 5,
+          "medianFururi": 1.0876,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "6bf2f9261d5b41c4659692a6eb78527a.webp",
+                "830d9d8541fce0c485950e38050b1c6d.webp",
+                "8719439cdfadcf8b5748fcfc6079a00c.webp",
+                "ec51dcc7846a88299df91a31ac5c41c2.webp"
+              ],
+              "n": 5
+            }
+          ]
+        }
+      ]
+    },
+    "WATER": {
+      "attackBenchmark": {
+        "n": 292,
+        "medianFururi": 1.0681,
+        "loFururi": 0.5648,
+        "hiFururi": 1.7133
+      },
+      "compCohortN": 108,
+      "comps": [
+        {
+          "compKey": "1383a61330140e2106f22a4806208a70.webp|257fd197318879dd936590a0d391cd36.webp|673abb0e091779e2c129716c54575563.webp|8b439391ad93e8bd3ae2a1f73fcd6c49.webp|8eb1e9dd804ca8ac6788859d45a21432.webp",
+          "members": [
+            {
+              "gbId": "673abb0e091779e2c129716c54575563.webp",
+              "name": "アルカナ：フォーチュンメイト"
+            },
+            {
+              "gbId": "257fd197318879dd936590a0d391cd36.webp",
+              "name": "シュガー"
+            },
+            {
+              "gbId": "8b439391ad93e8bd3ae2a1f73fcd6c49.webp",
+              "name": "ソリン：フロストチケット"
+            },
+            {
+              "gbId": "1383a61330140e2106f22a4806208a70.webp",
+              "name": "トーブ"
+            },
+            {
+              "gbId": "8eb1e9dd804ca8ac6788859d45a21432.webp",
+              "name": "ドロシー：セレンディピティ"
+            }
+          ],
+          "n": 16,
+          "medianFururi": 1.0044,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "1383a61330140e2106f22a4806208a70.webp",
+                "257fd197318879dd936590a0d391cd36.webp",
+                "673abb0e091779e2c129716c54575563.webp",
+                "8b439391ad93e8bd3ae2a1f73fcd6c49.webp",
+                "8eb1e9dd804ca8ac6788859d45a21432.webp"
+              ],
+              "n": 16
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|1be4ad890858ba5bb544affbf6a51dfc.webp|627884de8e4628efd7dbcb7a9e4ecf53.webp|7834f83cc5e968ef22c7d96d3ff9e5a7.webp|8af2ca57a2237ea175a791338607c215.webp",
+          "members": [
+            {
+              "gbId": "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+              "name": "エレグ：ブーム・アンド・ショック"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+              "name": "スノーホワイト：ヘビーアームズ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "1be4ad890858ba5bb544affbf6a51dfc.webp",
+              "name": "モラン"
+            }
+          ],
+          "n": 13,
+          "medianFururi": 1.2377,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "1be4ad890858ba5bb544affbf6a51dfc.webp",
+                "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+                "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+                "8af2ca57a2237ea175a791338607c215.webp"
+              ],
+              "n": 13
+            }
+          ]
+        },
+        {
+          "compKey": "1be4ad890858ba5bb544affbf6a51dfc.webp|627884de8e4628efd7dbcb7a9e4ecf53.webp|7834f83cc5e968ef22c7d96d3ff9e5a7.webp|8af2ca57a2237ea175a791338607c215.webp|e3532447b3ca028770c2a5ee149e746e.webp",
+          "members": [
+            {
+              "gbId": "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+              "name": "エレグ：ブーム・アンド・ショック"
+            },
+            {
+              "gbId": "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+              "name": "スノーホワイト：ヘビーアームズ"
+            },
+            {
+              "gbId": "e3532447b3ca028770c2a5ee149e746e.webp",
+              "name": "ナユタ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "1be4ad890858ba5bb544affbf6a51dfc.webp",
+              "name": "モラン"
+            }
+          ],
+          "n": 8,
+          "medianFururi": 1.1539,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "1be4ad890858ba5bb544affbf6a51dfc.webp",
+                "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+                "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+                "8af2ca57a2237ea175a791338607c215.webp",
+                "e3532447b3ca028770c2a5ee149e746e.webp"
+              ],
+              "n": 8
+            }
+          ]
+        },
+        {
+          "compKey": "1be4ad890858ba5bb544affbf6a51dfc.webp|627884de8e4628efd7dbcb7a9e4ecf53.webp|8af2ca57a2237ea175a791338607c215.webp|8eb1e9dd804ca8ac6788859d45a21432.webp|e3532447b3ca028770c2a5ee149e746e.webp",
+          "members": [
+            {
+              "gbId": "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+              "name": "スノーホワイト：ヘビーアームズ"
+            },
+            {
+              "gbId": "8eb1e9dd804ca8ac6788859d45a21432.webp",
+              "name": "ドロシー：セレンディピティ"
+            },
+            {
+              "gbId": "e3532447b3ca028770c2a5ee149e746e.webp",
+              "name": "ナユタ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "1be4ad890858ba5bb544affbf6a51dfc.webp",
+              "name": "モラン"
+            }
+          ],
+          "n": 6,
+          "medianFururi": 1.0543,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "1be4ad890858ba5bb544affbf6a51dfc.webp",
+                "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+                "8af2ca57a2237ea175a791338607c215.webp",
+                "8eb1e9dd804ca8ac6788859d45a21432.webp",
+                "e3532447b3ca028770c2a5ee149e746e.webp"
+              ],
+              "n": 6
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|627884de8e4628efd7dbcb7a9e4ecf53.webp|7834f83cc5e968ef22c7d96d3ff9e5a7.webp|8af2ca57a2237ea175a791338607c215.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+              "name": "エレグ：ブーム・アンド・ショック"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+              "name": "スノーホワイト：ヘビーアームズ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            }
+          ],
+          "n": 5,
+          "medianFururi": 1.5933,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+                "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+                "8af2ca57a2237ea175a791338607c215.webp"
+              ],
+              "n": 5
+            }
+          ]
+        },
+        {
+          "compKey": "171c4160829049f2604cde5036b79801.webp|627884de8e4628efd7dbcb7a9e4ecf53.webp|7834f83cc5e968ef22c7d96d3ff9e5a7.webp|8af2ca57a2237ea175a791338607c215.webp|e3532447b3ca028770c2a5ee149e746e.webp",
+          "members": [
+            {
+              "gbId": "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+              "name": "エレグ：ブーム・アンド・ショック"
+            },
+            {
+              "gbId": "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+              "name": "スノーホワイト：ヘビーアームズ"
+            },
+            {
+              "gbId": "e3532447b3ca028770c2a5ee149e746e.webp",
+              "name": "ナユタ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "171c4160829049f2604cde5036b79801.webp",
+              "name": "リトルマーメイド"
+            }
+          ],
+          "n": 5,
+          "medianFururi": 1.1367,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "171c4160829049f2604cde5036b79801.webp",
+                "627884de8e4628efd7dbcb7a9e4ecf53.webp",
+                "7834f83cc5e968ef22c7d96d3ff9e5a7.webp",
+                "8af2ca57a2237ea175a791338607c215.webp",
+                "e3532447b3ca028770c2a5ee149e746e.webp"
+              ],
+              "n": 5
+            }
+          ]
+        }
+      ]
+    },
+    "ELECTRIC": {
+      "attackBenchmark": {
+        "n": 389,
+        "medianFururi": 1.0789,
+        "loFururi": 0.3487,
+        "hiFururi": 1.6931
+      },
+      "compCohortN": 146,
+      "comps": [
+        {
+          "compKey": "2020306990ac4f6696c4674b536dca49.webp|31caa32129469999a8c011eba7fc1bac.webp|59035ecc65d2e661f612d9eea23dbe07.webp|70fb299487aa9bb61a844a4b68e96d89.webp|c4ba87906faff8cfc78af5ba6429e5be.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "59035ecc65d2e661f612d9eea23dbe07.webp",
+              "name": "シンデレラ"
+            },
+            {
+              "gbId": "70fb299487aa9bb61a844a4b68e96d89.webp",
+              "name": "ネオン：ビジョン・アイ"
+            },
+            {
+              "gbId": "c4ba87906faff8cfc78af5ba6429e5be.webp",
+              "name": "プリカ"
+            },
+            {
+              "gbId": "31caa32129469999a8c011eba7fc1bac.webp",
+              "name": "ミント"
+            }
+          ],
+          "n": 37,
+          "medianFururi": 1.0632,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "31caa32129469999a8c011eba7fc1bac.webp",
+                "59035ecc65d2e661f612d9eea23dbe07.webp",
+                "70fb299487aa9bb61a844a4b68e96d89.webp",
+                "c4ba87906faff8cfc78af5ba6429e5be.webp"
+              ],
+              "n": 37
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|59035ecc65d2e661f612d9eea23dbe07.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp|70fb299487aa9bb61a844a4b68e96d89.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "59035ecc65d2e661f612d9eea23dbe07.webp",
+              "name": "シンデレラ"
+            },
+            {
+              "gbId": "70fb299487aa9bb61a844a4b68e96d89.webp",
+              "name": "ネオン：ビジョン・アイ"
+            },
+            {
+              "gbId": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+              "name": "マスト：ロマンチックメイド"
+            }
+          ],
+          "n": 29,
+          "medianFururi": 1.1532,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "59035ecc65d2e661f612d9eea23dbe07.webp",
+                "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+                "70fb299487aa9bb61a844a4b68e96d89.webp"
+              ],
+              "n": 29
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|3870984ac10047733bc6b57502f3378c.webp|70fb299487aa9bb61a844a4b68e96d89.webp|9163759961bd6052bca348f719138ebe.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "3870984ac10047733bc6b57502f3378c.webp",
+              "name": "アニス：スパークリングサマー"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "70fb299487aa9bb61a844a4b68e96d89.webp",
+              "name": "ネオン：ビジョン・アイ"
+            },
+            {
+              "gbId": "9163759961bd6052bca348f719138ebe.webp",
+              "name": "メイデン：アイスローズ"
+            }
+          ],
+          "n": 19,
+          "medianFururi": 1.1071,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "3870984ac10047733bc6b57502f3378c.webp",
+                "70fb299487aa9bb61a844a4b68e96d89.webp",
+                "9163759961bd6052bca348f719138ebe.webp"
+              ],
+              "n": 19
+            }
+          ]
+        },
+        {
+          "compKey": "1624c5cb118cd1803d12e0e895529979.webp|2020306990ac4f6696c4674b536dca49.webp|59035ecc65d2e661f612d9eea23dbe07.webp|8dcab028be60eb64d7ba0e31496f4671.webp|adb08d7d27e7c4172aced372fe742772.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "8dcab028be60eb64d7ba0e31496f4671.webp",
+              "name": "アルカナ"
+            },
+            {
+              "gbId": "adb08d7d27e7c4172aced372fe742772.webp",
+              "name": "イサベル"
+            },
+            {
+              "gbId": "59035ecc65d2e661f612d9eea23dbe07.webp",
+              "name": "シンデレラ"
+            },
+            {
+              "gbId": "1624c5cb118cd1803d12e0e895529979.webp",
+              "name": "フローラ"
+            }
+          ],
+          "n": 14,
+          "medianFururi": 1.1127,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "1624c5cb118cd1803d12e0e895529979.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "59035ecc65d2e661f612d9eea23dbe07.webp",
+                "8dcab028be60eb64d7ba0e31496f4671.webp",
+                "adb08d7d27e7c4172aced372fe742772.webp"
+              ],
+              "n": 14
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|59035ecc65d2e661f612d9eea23dbe07.webp|8dcab028be60eb64d7ba0e31496f4671.webp|adb08d7d27e7c4172aced372fe742772.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "8dcab028be60eb64d7ba0e31496f4671.webp",
+              "name": "アルカナ"
+            },
+            {
+              "gbId": "adb08d7d27e7c4172aced372fe742772.webp",
+              "name": "イサベル"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "59035ecc65d2e661f612d9eea23dbe07.webp",
+              "name": "シンデレラ"
+            }
+          ],
+          "n": 8,
+          "medianFururi": 1.2349,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "59035ecc65d2e661f612d9eea23dbe07.webp",
+                "8dcab028be60eb64d7ba0e31496f4671.webp",
+                "adb08d7d27e7c4172aced372fe742772.webp"
+              ],
+              "n": 8
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|3870984ac10047733bc6b57502f3378c.webp|59035ecc65d2e661f612d9eea23dbe07.webp|70fb299487aa9bb61a844a4b68e96d89.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "3870984ac10047733bc6b57502f3378c.webp",
+              "name": "アニス：スパークリングサマー"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "59035ecc65d2e661f612d9eea23dbe07.webp",
+              "name": "シンデレラ"
+            },
+            {
+              "gbId": "70fb299487aa9bb61a844a4b68e96d89.webp",
+              "name": "ネオン：ビジョン・アイ"
+            }
+          ],
+          "n": 6,
+          "medianFururi": 1.1255,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "3870984ac10047733bc6b57502f3378c.webp",
+                "59035ecc65d2e661f612d9eea23dbe07.webp",
+                "70fb299487aa9bb61a844a4b68e96d89.webp"
+              ],
+              "n": 6
+            }
+          ]
+        },
+        {
+          "compKey": "1be4ad890858ba5bb544affbf6a51dfc.webp|31caa32129469999a8c011eba7fc1bac.webp|59035ecc65d2e661f612d9eea23dbe07.webp|70fb299487aa9bb61a844a4b68e96d89.webp|c4ba87906faff8cfc78af5ba6429e5be.webp",
+          "members": [
+            {
+              "gbId": "59035ecc65d2e661f612d9eea23dbe07.webp",
+              "name": "シンデレラ"
+            },
+            {
+              "gbId": "70fb299487aa9bb61a844a4b68e96d89.webp",
+              "name": "ネオン：ビジョン・アイ"
+            },
+            {
+              "gbId": "c4ba87906faff8cfc78af5ba6429e5be.webp",
+              "name": "プリカ"
+            },
+            {
+              "gbId": "31caa32129469999a8c011eba7fc1bac.webp",
+              "name": "ミント"
+            },
+            {
+              "gbId": "1be4ad890858ba5bb544affbf6a51dfc.webp",
+              "name": "モラン"
+            }
+          ],
+          "n": 6,
+          "medianFururi": 0.8544,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "1be4ad890858ba5bb544affbf6a51dfc.webp",
+                "31caa32129469999a8c011eba7fc1bac.webp",
+                "59035ecc65d2e661f612d9eea23dbe07.webp",
+                "70fb299487aa9bb61a844a4b68e96d89.webp",
+                "c4ba87906faff8cfc78af5ba6429e5be.webp"
+              ],
+              "n": 6
+            }
+          ]
+        }
+      ]
+    },
+    "IRON": {
+      "attackBenchmark": {
+        "n": 330,
+        "medianFururi": 0.9183,
+        "loFururi": 0.4715,
+        "hiFururi": 1.3673
+      },
+      "compCohortN": 118,
+      "comps": [
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|755dcf2aea00e99952a84bc6b9771f8a.webp|8af2ca57a2237ea175a791338607c215.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "755dcf2aea00e99952a84bc6b9771f8a.webp",
+              "name": "ナガ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 19,
+          "medianFururi": 0.9149,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "755dcf2aea00e99952a84bc6b9771f8a.webp",
+                "8af2ca57a2237ea175a791338607c215.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 19
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+              "name": "マスト：ロマンチックメイド"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 8,
+          "medianFururi": 1.1634,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 8
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|8af2ca57a2237ea175a791338607c215.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 8,
+          "medianFururi": 1.0925,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "8af2ca57a2237ea175a791338607c215.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 8
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|171c4160829049f2604cde5036b79801.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|755dcf2aea00e99952a84bc6b9771f8a.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "755dcf2aea00e99952a84bc6b9771f8a.webp",
+              "name": "ナガ"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            },
+            {
+              "gbId": "171c4160829049f2604cde5036b79801.webp",
+              "name": "リトルマーメイド"
+            }
+          ],
+          "n": 8,
+          "medianFururi": 1.0155,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "171c4160829049f2604cde5036b79801.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "755dcf2aea00e99952a84bc6b9771f8a.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 8
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|1be4ad890858ba5bb544affbf6a51dfc.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|8af2ca57a2237ea175a791338607c215.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "8af2ca57a2237ea175a791338607c215.webp",
+              "name": "プリバティ"
+            },
+            {
+              "gbId": "1be4ad890858ba5bb544affbf6a51dfc.webp",
+              "name": "モラン"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 7,
+          "medianFururi": 0.8719,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "1be4ad890858ba5bb544affbf6a51dfc.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "8af2ca57a2237ea175a791338607c215.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 7
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|755dcf2aea00e99952a84bc6b9771f8a.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "755dcf2aea00e99952a84bc6b9771f8a.webp",
+              "name": "ナガ"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            }
+          ],
+          "n": 6,
+          "medianFururi": 1.2924,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "755dcf2aea00e99952a84bc6b9771f8a.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 6
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|1535016705a53ae769ac8b37c6b2dd51.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|755dcf2aea00e99952a84bc6b9771f8a.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "755dcf2aea00e99952a84bc6b9771f8a.webp",
+              "name": "ナガ"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            },
+            {
+              "gbId": "1535016705a53ae769ac8b37c6b2dd51.webp",
+              "name": "リター"
+            }
+          ],
+          "n": 6,
+          "medianFururi": 0.9754,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "1535016705a53ae769ac8b37c6b2dd51.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "755dcf2aea00e99952a84bc6b9771f8a.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 6
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|171c4160829049f2604cde5036b79801.webp|68aa881ffdc137d2a50da839eaa1adb6.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp|9a54283cdd0c15a9b554810488563775.webp",
+          "members": [
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "9a54283cdd0c15a9b554810488563775.webp",
+              "name": "シンデレラ:クリスタルウェーブ"
+            },
+            {
+              "gbId": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+              "name": "マスト：ロマンチックメイド"
+            },
+            {
+              "gbId": "68aa881ffdc137d2a50da839eaa1adb6.webp",
+              "name": "ラピ:レッドフード"
+            },
+            {
+              "gbId": "171c4160829049f2604cde5036b79801.webp",
+              "name": "リトルマーメイド"
+            }
+          ],
+          "n": 5,
+          "medianFururi": 0.9948,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "171c4160829049f2604cde5036b79801.webp",
+                "68aa881ffdc137d2a50da839eaa1adb6.webp",
+                "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+                "9a54283cdd0c15a9b554810488563775.webp"
+              ],
+              "n": 5
+            }
+          ]
+        }
+      ]
+    },
+    "WIND": {
+      "attackBenchmark": {
+        "n": 571,
+        "medianFururi": 1.3171,
+        "loFururi": 0.728,
+        "hiFururi": 1.8538
+      },
+      "compCohortN": 207,
+      "comps": [
+        {
+          "compKey": "03d1fd97b534b7adbcc378694be6e25e.webp|171c4160829049f2604cde5036b79801.webp|6045c557bca29bcd35a65c8c99745ff0.webp|6e3b8dbfd367f6b1c0977866c27cd40b.webp|e3532447b3ca028770c2a5ee149e746e.webp",
+          "members": [
+            {
+              "gbId": "e3532447b3ca028770c2a5ee149e746e.webp",
+              "name": "ナユタ"
+            },
+            {
+              "gbId": "03d1fd97b534b7adbcc378694be6e25e.webp",
+              "name": "ベルベット"
+            },
+            {
+              "gbId": "171c4160829049f2604cde5036b79801.webp",
+              "name": "リトルマーメイド"
+            },
+            {
+              "gbId": "6045c557bca29bcd35a65c8c99745ff0.webp",
+              "name": "リバーレリオ"
+            },
+            {
+              "gbId": "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+              "name": "紅蓮：ブラックシャドウ"
+            }
+          ],
+          "n": 131,
+          "medianFururi": 1.2718,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "03d1fd97b534b7adbcc378694be6e25e.webp",
+                "171c4160829049f2604cde5036b79801.webp",
+                "6045c557bca29bcd35a65c8c99745ff0.webp",
+                "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+                "e3532447b3ca028770c2a5ee149e746e.webp"
+              ],
+              "n": 131
+            }
+          ]
+        },
+        {
+          "compKey": "2020306990ac4f6696c4674b536dca49.webp|6045c557bca29bcd35a65c8c99745ff0.webp|6e3b8dbfd367f6b1c0977866c27cd40b.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp|d79376caa8148ed88ae6daea0c3c8146.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "d79376caa8148ed88ae6daea0c3c8146.webp",
+              "name": "アンカー：イノセントメイド"
+            },
+            {
+              "gbId": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+              "name": "マスト：ロマンチックメイド"
+            },
+            {
+              "gbId": "6045c557bca29bcd35a65c8c99745ff0.webp",
+              "name": "リバーレリオ"
+            },
+            {
+              "gbId": "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+              "name": "紅蓮：ブラックシャドウ"
+            }
+          ],
+          "n": 31,
+          "medianFururi": 1.5373,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "6045c557bca29bcd35a65c8c99745ff0.webp",
+                "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+                "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+                "d79376caa8148ed88ae6daea0c3c8146.webp"
+              ],
+              "n": 31
+            }
+          ]
+        },
+        {
+          "compKey": "03d1fd97b534b7adbcc378694be6e25e.webp|2020306990ac4f6696c4674b536dca49.webp|6045c557bca29bcd35a65c8c99745ff0.webp|6e3b8dbfd367f6b1c0977866c27cd40b.webp|e3532447b3ca028770c2a5ee149e746e.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "e3532447b3ca028770c2a5ee149e746e.webp",
+              "name": "ナユタ"
+            },
+            {
+              "gbId": "03d1fd97b534b7adbcc378694be6e25e.webp",
+              "name": "ベルベット"
+            },
+            {
+              "gbId": "6045c557bca29bcd35a65c8c99745ff0.webp",
+              "name": "リバーレリオ"
+            },
+            {
+              "gbId": "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+              "name": "紅蓮：ブラックシャドウ"
+            }
+          ],
+          "n": 19,
+          "medianFururi": 1.6463,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "03d1fd97b534b7adbcc378694be6e25e.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "6045c557bca29bcd35a65c8c99745ff0.webp",
+                "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+                "e3532447b3ca028770c2a5ee149e746e.webp"
+              ],
+              "n": 19
+            }
+          ]
+        },
+        {
+          "compKey": "04a73cd1bfa43f3a1078564107ad8336.webp|2020306990ac4f6696c4674b536dca49.webp|6045c557bca29bcd35a65c8c99745ff0.webp|6e3b8dbfd367f6b1c0977866c27cd40b.webp|6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+          "members": [
+            {
+              "gbId": "2020306990ac4f6696c4674b536dca49.webp",
+              "name": "アニス:スター"
+            },
+            {
+              "gbId": "04a73cd1bfa43f3a1078564107ad8336.webp",
+              "name": "クラウン"
+            },
+            {
+              "gbId": "6fe1b0c6425c0bae6413c1e15718b1ba.webp",
+              "name": "マスト：ロマンチックメイド"
+            },
+            {
+              "gbId": "6045c557bca29bcd35a65c8c99745ff0.webp",
+              "name": "リバーレリオ"
+            },
+            {
+              "gbId": "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+              "name": "紅蓮：ブラックシャドウ"
+            }
+          ],
+          "n": 6,
+          "medianFururi": 1.5873,
+          "arrangements": [
+            {
+              "memberGbIdsInOrder": [
+                "04a73cd1bfa43f3a1078564107ad8336.webp",
+                "2020306990ac4f6696c4674b536dca49.webp",
+                "6045c557bca29bcd35a65c8c99745ff0.webp",
+                "6e3b8dbfd367f6b1c0977866c27cd40b.webp",
+                "6fe1b0c6425c0bae6413c1e15718b1ba.webp"
+              ],
+              "n": 6
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
