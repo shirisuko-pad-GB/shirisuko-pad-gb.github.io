@@ -22,7 +22,8 @@ alter table public.measurements
     add column if not exists input_source text not null default 'manual';
 
 do $$ begin
-    if not exists (select 1 from pg_constraint where conname = 'measurements_input_source_check') then
+    if not exists (select 1 from pg_constraint where conname = 'measurements_input_source_check'
+                   and conrelid = 'public.measurements'::regclass) then
         alter table public.measurements
             add constraint measurements_input_source_check check (input_source in ('manual', 'ocr'));
     end if;

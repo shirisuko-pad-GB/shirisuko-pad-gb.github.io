@@ -106,10 +106,14 @@ SELECT * FROM (
 
     UNION ALL SELECT '13_input_source',
         (EXISTS (SELECT 1 FROM information_schema.columns
-                 WHERE table_schema = 'public' AND table_name = 'measurements' AND column_name = 'input_source')
+                 WHERE table_schema = 'public' AND table_name = 'measurements' AND column_name = 'input_source'
+                   AND is_nullable = 'NO' AND column_default LIKE '%manual%')
+         AND EXISTS (SELECT 1 FROM pg_constraint
+                     WHERE conname = 'measurements_input_source_check'
+                       AND conrelid = 'public.measurements'::regclass)
          AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                      WHERE n.nspname = 'public' AND p.proname = 'submit_measurements'
-                       AND pg_get_functiondef(p.oid) LIKE '%input_source%')),
+                       AND pg_get_functiondef(p.oid) LIKE '%then ''ocr'' else ''manual''%')),
         '提出経路の記録 (スクショ読み取り / 手入力) — 編成つき提出率の切り分け用'
 ) t
 ORDER BY migration;
