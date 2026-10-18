@@ -44,6 +44,7 @@ function newAttack() {
         template: 'standard', activeSlot: 0,
         compOpen: false,
         isFinish: false,   // 締め凸 (ボス撃破で戦闘が途中終了) — 分布・編成集計に入れない
+        viaOcr: false,     // スクショ読み取りで埋めた凸 (提出経路の記録用 — 集計には使わない)
     };
 }
 
@@ -518,10 +519,15 @@ function compBodyHTML(a) {
         </button>`;
     }).join('') + (moreCount > 0 && !a.presetMore ? `
         <button type="button" class="preset-more">${t('ui.more_presets', { last: 3 + moreCount })}</button>` : '');
+    // スクショで埋めた凸は編成が空のまま送られがち (第45回で編成つき提出が 53%→37% に下がった一因の候補)。
+    // 押し付けず「入れると何が見られるか」だけ伝える
+    const ocrNudge = (a.viaOcr && selChars(a).length < 5)
+        ? `<p class="hint ocr-comp-nudge">${escapeHtml(t('ui.ocr_comp_nudge'))}</p>` : '';
     const presetHead = ap.topComps.length
         ? `<p class="hint" style="margin-top:8px;">${ap.fromPrev ? t('ui.prev_presets_hint', { season: ap.fromPrev }) : t('ui.presets_hint')}</p>`
         : `<p class="hint" style="margin-top:8px;">${t('ui.comp_hint')}${ap.loading ? '' : t('ui.comp_hint_more')}</p>`;
     return `
+        ${ocrNudge}
         ${presetHead}
         ${presetRows}
         <div class="tmpl-chips">${BURST_TEMPLATES.map(tp =>
@@ -852,6 +858,7 @@ async function onSubmit() {
         damage: parseDamageInput(a.damage),
         characters: selChars(a).length === 5 ? selChars(a).sort() : null,
         isFinish: a.isFinish === true,
+        viaOcr: a.viaOcr === true,
     }));
     if (items.some(it => !ATTRS.includes(it.attribute) || !(it.damage > 0)) || !Number.isInteger(slv) || slv < 1 || slv > SLV_MAX) {
         toast(t('ui.check_input'));
@@ -1457,6 +1464,8 @@ async function onOcrFiles(files) {
                 }
                 a.attribute = atk.attribute;
                 a.damage = atk.damageB.toFixed(2);   // 入力欄は B 単位 (例: 35.51)
+                a.viaOcr = true;
+                a.compOpen = true;   // 編成はスクショから読めない → 編成欄を開いて人気編成から選べることを見せる
                 got++;
                 ensureInsights(a.attribute, () => {   // 属性ボタンを押していないので、ここで今シーズンの編成を取りに行く
                     const idx = attacks.indexOf(a);

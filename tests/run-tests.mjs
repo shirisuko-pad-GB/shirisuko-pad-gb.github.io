@@ -766,6 +766,22 @@ test('10_own_edits: 自分の行しか触れない (client_idスコープ) + 原
         'correct の「既存行のみ」ガードが無い');
 });
 
+test('13: submit の最終定義が 09 のガードを全部引き継ぎ、input_source は manual/ocr に寄せる', () => {
+    const sql = readFileSync(join(ROOT, 'supabase', '13_input_source.sql'), 'utf8');
+    assert(/insert into public\.measurements[\s\S]*?exception when others then[\s\S]*?raise exception '%', sqlerrm using errcode = sqlstate/.test(sql),
+        '13 に INSERT の例外ハンドラ (DETAIL 除去) がありません — 無いと slv_ratio が漏れる');
+    for (const guard of ['submissions are closed', 'invalid batch size', 'client_id required', 'season not open', 'is_finish']) {
+        assert(sql.includes(guard), `13 に 09 由来の「${guard}」がありません`);
+    }
+    assert(/case when \(v_row ->> 'input_source'\) = 'ocr' then 'ocr' else 'manual' end/.test(sql), '不正値で送信を止めず manual に寄せる');
+    assert(/check \(input_source in \('manual', 'ocr'\)\)/.test(sql), '値の CHECK');
+    assert(/grant execute on function public\.submit_measurements\(jsonb\) to anon/.test(sql), 'anon に実行権限');
+    const check = readFileSync(join(ROOT, 'supabase', '99_check_applied.sql'), 'utf8');
+    assert(check.includes("'13_input_source'"), '99チェッカーに 13 の判定行');
+    const be = readFileSync(join(ROOT, 'js', 'backend.js'), 'utf8');
+    assert(/input_source: a\.viaOcr === true \? 'ocr' : 'manual'/.test(be), 'クライアントが経路を送る');
+});
+
 test('07: submit の INSERT が例外ハンドラで包まれている (エラーDETAILの行内容漏洩ガード)', () => {
     const sql = readFileSync(join(ROOT, 'supabase', '07_sanitize_errors.sql'), 'utf8');
     // INSERT → exception ハンドラ → sqlerrm 再送出 (DETAIL を落とす) の並びがあること

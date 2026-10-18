@@ -385,6 +385,21 @@ SLv (`LV.827`) は誤読が多く採用していない。
 隣のブロックのダメージを前の行に付けない。読めなかった凸は「一部読めませんでした」と案内して手入力に委ねる。
 横方向にトリミングしたスクショは W が小さくなり、この上限で正しい凸を捨てることがある (安全側の失敗 — 手入力に戻るだけ)。
 
+## 編成つき提出率の追跡 (2026-10-18〜)
+
+編成つき提出の割合が 第43回 50% → 第44回 53% → **第45回 37%** と急落した (5属性とも一様)。候補は
+(a) 結果発表で「強かった編成」を公開したこと、(b) スクショ読み取り (9/24〜) は属性・ダメージしか入れず、
+そのまま送ると「編成なし」になること。どちらが効いているかを切り分けるため:
+
+- `supabase/13_input_source.sql`: `measurements.input_source` (`manual` / `ocr`) を記録。集計には使わない。
+  submit_measurements の最終定義はこのファイル (本文は 09 + input_source)。後編集 (10) は削除→再挿入なので
+  修正した行は `manual` に戻る (少数なので許容)
+- スクショで埋めた凸は編成欄を開き、「編成を入れると同じ5人の中での位置が見られる・集計にしか使わない」と一言添える
+- シーズン終わりに SQL Editor で経路別の編成つき率を見る (13 の末尾にクエリ):
+  `ocr` の率が低く `manual` が従来並みなら (b)、両方とも下がっていれば (a) の可能性が高い
+
+**判断はまだ**: 「強かった編成」カード (③④) の扱いは、上の結果が出てから決める (運営判断)。
+
 ## 工事中モード (随時)
 
 サイトを止めたいとき (実際の改修中など) は SQL Editor で:
@@ -458,7 +473,7 @@ base.json の基準ダメージの出所 (new-season.mjs が自動で解決す�
    `supabase/seed.local.sql` を SQL Editor で実行 (slv_ratio + fururi_bases のデータ)
 4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` → `06_input_bounds.sql` →
    `07_sanitize_errors.sql` → `08_shadow_stats.sql` → `09_finish_flag.sql` →
-   `10_own_edits.sql` → `11_total_distribution.sql` → `12_slv_1183.sql` の**番号順に全部**実行
+   `10_own_edits.sql` → `11_total_distribution.sql` → `12_slv_1183.sql` → `13_input_source.sql` の**番号順に全部**実行
    (04で characters CHECK・submit RPC一本化、05で season化・site_state、06で damage上限、
    07でエラーDETAIL漏洩対策 — 07を飛ばすと slv_ratio が逆算可能なままになる。
    12はSLv上限1183 — **既存環境に後から適用する場合は 12 → seed の順**。

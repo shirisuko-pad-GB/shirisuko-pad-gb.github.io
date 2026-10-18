@@ -68,6 +68,7 @@ export async function submitSet(attacks, season) {
         set_id: setId,
         set_slot: setId ? i + 1 : null,
         is_finish: a.isFinish === true,   // 締め凸 (09未適用の旧サーバーは黙って無視する)
+        input_source: a.viaOcr === true ? 'ocr' : 'manual',   // スクショ読み取り経由か (13 — 未適用なら黙って無視される)
         // score / norm_damage / comp_key はサーバー側で計算・付与する
     }));
     const returned = await callRpc('submit_measurements', { p_rows: rows });  // [{score, comp_key}]

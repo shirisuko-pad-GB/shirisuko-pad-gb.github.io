@@ -27,7 +27,7 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
    `mark_own_finish` / `correct_own_measurement` (10)」のみ**。後編集は必ず
    client_id + season + attribute の3条件スコープ (他人の行に触れない)。
    テーブルへの匿名直接 INSERT/SELECT を許すポリシーを追加しない。
-   最終定義: submit/集計RPC = `09_finish_flag.sql`、後編集 = `10_own_edits.sql`
+   最終定義: submit = `13_input_source.sql`、集計RPC = `09_finish_flag.sql`、後編集 = `10_own_edits.sql`
    (05/07/08 は歴史。関数を seed で上書きしない)。
    **エラーで行内容を返さない**: INSERT は例外ハンドラで包む (DETAIL に norm_damage が入り slv_ratio が漏れる)
 4. **DB由来・ユーザー入力由来の文字列は必ず `escapeHtml` を通して DOM へ**。キャラ名も本家DB由来

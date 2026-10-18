@@ -103,5 +103,13 @@ SELECT * FROM (
                    AND conrelid = 'public.slv_ratio'::regclass
                    AND pg_get_constraintdef(oid) LIKE '%1183%')),
         'SLv上限 1183 (両テーブルのCHECK — 片方でも旧上限だと SLv1001+ の seed/測定が失敗する)'
+
+    UNION ALL SELECT '13_input_source',
+        (EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = 'public' AND table_name = 'measurements' AND column_name = 'input_source')
+         AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                     WHERE n.nspname = 'public' AND p.proname = 'submit_measurements'
+                       AND pg_get_functiondef(p.oid) LIKE '%input_source%')),
+        '提出経路の記録 (スクショ読み取り / 手入力) — 編成つき提出率の切り分け用'
 ) t
 ORDER BY migration;
