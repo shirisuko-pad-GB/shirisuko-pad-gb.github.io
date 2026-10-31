@@ -120,7 +120,9 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
           ? (ssExpected ? pillTxt.includes('ふるり値 ' + ssExpected) : !pillTxt)
           : (!pillTxt && bigTxt === (ssExpected ?? (E2E_DMG_B.toFixed(2) + ' B')));
         check('主従の整合 (解禁=%主役+ふるり値サブ / 未解禁=ふるり値 or 実ダメージが主役)', mainOk);
-        check('画面に「ふるり値」が出ない', !(fd.querySelector('.result-card')?.textContent || '').includes('ふるり値'));
+        // 11/1 に半日だけ使った名前 (しりすこ値・すこれ値) が出ない (名前はふるり値に戻した)
+        const resTxt = fd.querySelector('.result-card')?.textContent || '';
+        check('画面に旧名 (しりすこ値・すこれ値) が出ない', !resTxt.includes('しりすこ値') && !resTxt.includes('すこれ値'));
         // 分布セクション: 未解禁なら「◯人で解禁」ゲート、解禁済みなら中央値の分布が出る (どちらかで合格)
         check('分布セクション表示 (ゲート or 解禁後の中央値)', /で解禁|中央値/.test(fd.querySelector('.result-card')?.textContent || ''));
         check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));
