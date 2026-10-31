@@ -13,7 +13,7 @@
 // ⚠ これを実行しても DB はまだ変わらない。残りの手順 (実行後に表示):
 //   1) supabase/seed.local.sql を SQL Editor で実行  2) commit & push  3) site_state を open
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -105,9 +105,12 @@ const bossCatalog = {
     bosses: Object.fromEntries(Object.keys(catalog).sort().map(n => [n, [...catalog[n]].sort()])),
 };
 
-// ---- 5) 書き出し + 後続スクリプト (途中失敗時は書いた3ファイルを元に戻す) ----
+// ---- 5) 書き出し + 後続スクリプト (途中失敗時は書いたファイルを元に戻す) ----
+// 後続 (gen-seed / update-roster) が書く seed.local.sql・characters.json・presets.json も戻す対象に入れる
+// (base だけ旧シーズンに戻って、次シーズン用の seed が残ると、誤って流したときに食い違う — Codex指摘)
 const outFiles = ['raid.json', 'base.json', 'boss-catalog.json'].map(f => join(ROOT, 'data', f));
-const backups = outFiles.map(p => existsSync(p) ? readFileSync(p) : null);
+const sideFiles = [join(ROOT, 'supabase', 'seed.local.sql'), join(ROOT, 'data', 'characters.json'), join(ROOT, 'data', 'presets.json')];
+const backups = [...outFiles, ...sideFiles].map(p => existsSync(p) ? readFileSync(p) : null);
 try {
     writeFileSync(outFiles[0], JSON.stringify(raid, null, 2) + '\n', 'utf8');
     writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
@@ -121,9 +124,12 @@ try {
     console.log('--- update-roster (キャラ・使用率の更新) ---');
     execFileSync(process.execPath, [join(ROOT, 'scripts', 'update-roster.mjs'), padDir], { stdio: 'inherit' });
 } catch (e) {
-    outFiles.forEach((p, i) => { if (backups[i] !== null) writeFileSync(p, backups[i]); });
-    console.error('❌ 後続処理が失敗したため raid.json / base.json / boss-catalog.json を元に戻しました。');
-    console.error('   (characters.json / presets.json は update-roster を再実行すれば再生成されます)');
+    [...outFiles, ...sideFiles].forEach((p, i) => {
+        if (backups[i] !== null) writeFileSync(p, backups[i]);
+        else if (existsSync(p)) rmSync(p);   // 実行前に無かったファイル (初回の seed.local.sql) は消す
+    });
+    console.error('❌ 後続処理が失敗したため raid.json / base.json / boss-catalog.json / seed.local.sql /');
+    console.error('   characters.json / presets.json を元に戻しました。character-images/ は git restore character-images で戻せます');
     throw e;
 }
 

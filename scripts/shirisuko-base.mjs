@@ -59,20 +59,46 @@ const median = (xs) => {
     return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
 };
 
+// 月次JSONは公開する基準の元なので、形のおかしい行が1つでもあれば何も書かずに止める
+// (黙って飛ばすと、壊れた行が中央値に混ざったり人数の下限を満たしたりする — Codex指摘)
+const MAX_DAMAGE = 1e12;   // DB の damage 上限 (06_input_bounds: 1000B 未満) と同じ
+const problems = [];
+const seenPlayers = new Set();
+for (const [i, p] of players.entries()) {
+    const who = typeof p?.player === 'string' ? p.player.trim() : '';
+    if (!who) { problems.push(`players[${i}]: 名前がない`); continue; }
+    if (seenPlayers.has(who)) problems.push(`${who}: 同じ名前が2回ある`);
+    seenPlayers.add(who);
+    if (p.syncLevel != null && !Number.isInteger(p.syncLevel)) problems.push(`${who}: syncLevel が整数でない (${p.syncLevel})`);
+    if (p.attacks != null && !Array.isArray(p.attacks)) { problems.push(`${who}: attacks が配列でない`); continue; }
+    for (const [j, a] of (p.attacks ?? []).entries()) {
+        const at = `${who} attacks[${j}]`;
+        if (typeof a?.bossCode !== 'string' || !/^[A-Z][A-Z.]{1,15}$/.test(a.bossCode)) problems.push(`${at}: bossCode が不正 (${a?.bossCode})`);
+        if (typeof a?.damage !== 'number' || !Number.isFinite(a.damage) || a.damage < 0 || a.damage >= MAX_DAMAGE) problems.push(`${at}: damage が不正 (${a?.damage})`);
+        if (a?.isKill != null && typeof a.isKill !== 'boolean') problems.push(`${at}: isKill が true/false でない`);
+        if (a?.difficulty != null && typeof a.difficulty !== 'string') problems.push(`${at}: difficulty が文字列でない`);
+    }
+}
+if (problems.length) {
+    console.error(`❌ 月次JSONに形のおかしい行があります (何も書いていません):\n  ${problems.slice(0, 20).join('\n  ')}` +
+        (problems.length > 20 ? `\n  …ほか ${problems.length - 20} 件` : ''));
+    process.exit(1);
+}
+
 // ボスコード → (メンバー名 → SLv補正後のベスト)
 const bestByBoss = new Map();
 const noSlv = [];
 for (const p of players) {
-    const r = ratioOf(Number(p.syncLevel));
-    if (!r) { noSlv.push(String(p.player)); continue; }
-    for (const a of Array.isArray(p.attacks) ? p.attacks : []) {
-        const d = Number(a.damage);
-        if (!a.bossCode || !(d > 0)) continue;
+    const who = p.player.trim();
+    const r = ratioOf(p.syncLevel);
+    if (!r) { noSlv.push(who); continue; }
+    for (const a of p.attacks ?? []) {
+        if (!(a.damage > 0)) continue;                            // 0 = 記録だけ (ダメージ未入力) の凸
         if (a.isKill) continue;                                   // 締め凸 = ボスを倒した凸は削りの値なので除く
         if (a.difficulty && a.difficulty !== 'HARD') continue;    // ハード以外は混ぜない
-        const norm = d / r;
+        const norm = a.damage / r;
         const m = bestByBoss.get(a.bossCode) ?? new Map();
-        m.set(p.player, Math.max(m.get(p.player) ?? 0, norm));
+        m.set(who, Math.max(m.get(who) ?? 0, norm));
         bestByBoss.set(a.bossCode, m);
     }
 }

@@ -1217,7 +1217,8 @@ function distSectionHTML(r, info) {
             html += `<div class="comp-pct gated">${t('ui.in_comp_locked', { need: cd.need ?? THRESHOLDS.comp, n: cd.n })}</div>`;
         }
     }
-    const distReady = !d.gated && Array.isArray(d.bins);
+    // median が 0/欠損の異常応答は解禁扱いにしない (目盛りの NaN%・Infinity% を出さない — Codex指摘)
+    const distReady = !d.gated && Array.isArray(d.bins) && Number.isFinite(d.median) && d.median > 0;
     if (!distReady) {
         // 解禁前: 進捗を見せて送信を促す (必要人数はサーバーの need を優先)
         const need = d.need ?? THRESHOLDS.dist;

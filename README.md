@@ -37,7 +37,8 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、みんなの中で
 - **シーズン = 1つの regime (同じボス集合・キャラ顔ぶれ)**。regime が変わると母集団が変わるため、
   分布・採用率・編成ランキングは **season で区切る** (RPC が `season = p_season` で絞る)。
 - **順位づけは norm_damage (= damage ÷ slvRatio[slv])**。score は表示用の換算値 (単位はシーズンの base.json)。
-- 集計はサーバー側 RPC (`get_distribution` / `get_comp_insights`、**最終定義は 08_shadow_stats.sql**):
+- 集計はサーバー側 RPC (`get_distribution` / `get_total_distribution` の**最終定義は 14_lower_thresholds.sql**・
+  `get_comp_insights` は **09_finish_flag.sql** — 08 は歴史):
   シーズン絞り・1端末(client_id)につき属性ごとベスト1件・ヒストグラムは p1〜p99 域にクリップ。
   返り値は score の単位 (2026-11〜 SLv 600 換算 B / 〜2026-10 ふるり値)。画面は中央値比かしりすこ値に直して見せる。**時間窓は撤去** (シーズンで区切るため)。
 - **シャドウ集計 (08)**: 荒らしの極端値は送信を拒否せず受理する (突っぱねるとエスカレートするため)。
@@ -64,7 +65,7 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、みんなの中で
   `score`/`norm_damage`/`comp_key` はサーバーが計算・付与 (クライアント申告は不採用)
 - **描画は全てエスケープ** (`js/shared.js` の `escapeHtml`)。DB由来の画像名は `CHAR_IMG_RE` で
   再検証してから src に入れる (CHECK との二重防御)。テストに XSS ペイロードの回帰あり
-- **分布ゲートはサーバー側で強制**。しきい値 (分布=50 / 同一編成=15 / 編成データ=10) は
+- **分布ゲートはサーバー側で強制**。しきい値 (分布=20 / 同一編成=10 / 3凸総合=20 / 編成データ=10 — 2026-11〜) は
   RPC 内定数で、未満なら `{n, gated, need}` だけ返し分布本体を出さない。
 - **閉じた/準備中シーズンへの送信をサーバーが拒否** (`submit_measurements` が `site_state` を見て
   `status='open' かつ season=active_season` 以外を弾く)。運用モードは UI だけでなく DB が強制。
@@ -488,7 +489,8 @@ node scripts/update-roster.mjs        # ../しりすこPAD を読む (パス指�
    `supabase/seed.local.sql` を SQL Editor で実行 (slv_ratio + fururi_bases のデータ)
 4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` → `06_input_bounds.sql` →
    `07_sanitize_errors.sql` → `08_shadow_stats.sql` → `09_finish_flag.sql` →
-   `10_own_edits.sql` → `11_total_distribution.sql` → `12_slv_1183.sql` → `13_input_source.sql` の**番号順に全部**実行
+   `10_own_edits.sql` → `11_total_distribution.sql` → `12_slv_1183.sql` → `13_input_source.sql` →
+   `14_lower_thresholds.sql` の**番号順に全部**実行
    (04で characters CHECK・submit RPC一本化、05で season化・site_state、06で damage上限、
    07でエラーDETAIL漏洩対策 — 07を飛ばすと slv_ratio が逆算可能なままになる。
    12はSLv上限1183 — **既存環境に後から適用する場合は 12 → seed の順**。

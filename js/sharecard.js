@@ -19,7 +19,7 @@ const INK = '#14161A';
 const CREAM = '#F6F1CD';
 
 // 分布が解禁済みか (bins と median が揃っているか — 欠損応答での例外を防ぐ)
-const distReady = (d) => d && !d.gated && Array.isArray(d.bins) && Number.isFinite(d.median);
+const distReady = (d) => d && !d.gated && Array.isArray(d.bins) && Number.isFinite(d.median) && d.median > 0;
 
 // ユニオンロゴ (推しりをすこれ部 — メンバー作の背景透過版)。読めなければ静かに省く
 let logoImg = null, logoTried = false;

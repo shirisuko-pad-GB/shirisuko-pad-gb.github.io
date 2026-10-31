@@ -79,7 +79,7 @@ export async function submitSet(attacks, season) {
 }
 
 // 分布を取得 (サーバー側で シーズン絞り・1端末1票ベスト・p1〜p99トリム)。
-// score = 送信の返事で得た自分のふるり値。返り値もすべてふるり値単位:
+// score = 送信の返事で得た自分のスコア。返り値もすべて同じ単位 (base.json の unit — 画面は中央値比/しりすこ値に直す):
 //   閾値以上: {n, above, median, lo, hi, bins[], my_bin}
 //   閾値未満: {n, gated:true, need} (分布本体なし) / データ0件: {n: 0}
 // 自分の (属性, シーズン) の行の締め凸フラグを後から更新する (行の追加・削除なし)。

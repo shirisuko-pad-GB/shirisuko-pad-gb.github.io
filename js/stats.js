@@ -168,7 +168,7 @@ function gateHTML(rawN, rawMin, what) {
 
 function renderDist(d, attr) {
     // 分布本体はサーバーが閾値以上のときだけ返す (gated / bins欠如なら未解禁)
-    if (!d || d.gated || !Array.isArray(d.bins)) {
+    if (!d || d.gated || !Array.isArray(d.bins) || !(Number.isFinite(d.median) && d.median > 0)) {
         $('distArea').innerHTML = gateHTML(d?.n ?? 0, d?.need ?? THRESHOLDS.dist,
             t('stats.what_dist', { team: t('ui.team_of', { code: attrName(attr) }) }));
         return;

@@ -2,8 +2,10 @@
 // 月次の baseline 投入用に「データのみ」の SQL を生成する: supabase/seed.local.sql
 //   - slv_ratio (秘匿の検証データ) の upsert
 //   - fururi_bases (このシーズンの基準) の upsert  ← season キー
-// ※ 関数 (トリガ/RPC) は一切含めない。集計RPCの正は 05_seasons.sql、submit_measurements の
-//    正は 07_sanitize_errors.sql。これにより「月次 seed を流すと 04/05/07 の強化が上書きされる」バグを回避する。
+// ※ 関数 (トリガ/RPC) は一切含めない。最終定義は submit = 13_input_source.sql、集計RPC = 14_lower_thresholds.sql
+//    (get_distribution / get_total_distribution) / 09_finish_flag.sql (get_comp_insights)、トリガ = 05_seasons.sql。
+//    これにより「月次 seed を流すと RPC の強化が上書きされる」バグを回避する。
+// 2026-11〜 fururi_bases は基準者の値ではなくスコアの単位 (1B @ SLv 600 — base.json の unit: slv-b)。
 //
 // ⚠ slv-ratio は未公開の検証データ。生成物 seed.local.sql は gitignore 済み・コミット禁止。
 //
@@ -32,7 +34,7 @@ const baseSeed = Object.entries(base.bases)
     .join(',\n');
 
 const sql = `-- ⚠ 生成物 (シード入り・データのみ)。コミット禁止 — SQL Editor で実行したら不要。
--- 関数定義は含まない (05_seasons.sql が唯一の正)。テーブルは 01/05 で作成済みの前提。
+-- 関数定義は含まない (最終定義は 05/09/13/14 の各ファイル)。テーブルは 01/05 で作成済みの前提。
 -- season = ${season}
 
 insert into public.slv_ratio (slv, ratio) values
