@@ -1,10 +1,10 @@
 // シェアカードの Canvas 描画 (自己完結・状態を持たない純処理)。
 // v6 (2026-07-31): v5 + 各列に「使った編成 (5人タイル)」と「編成内% (同一編成の中央値比)」。
-//   - 主役 = 中央値比% / サブ = ふるり値
+//   - 主役 = 中央値比% / サブ = しりすこ値 (2026-11〜。基準が無い・未解禁のうちは しりすこ値 → 実ダメージが主役)
 //   - 凸した数だけ属性列が並び、複数凸なら「総合」列 (各凸の中央値比の平均) を最後に足す
 //   - 各列にミニ分布 + 「あなた」マーカー ("だいたいこの辺" が分かる)
 //   - 編成内%は同一編成の提出がしきい値未満なら解禁待ちの案内に劣化
-//   - ふるり値の属性またぎ合算はしない (運営判断)
+//   - スコアの属性またぎ合算はしない (運営判断)
 //   - 属性は色+漢字 (絵文字なし)。カードは常に暗色 (テーマ非依存)
 // SNS に流れる画像なのでゲームアセットは使わず、権利表記を必ず焼き込む。
 // v7 (2026-09-08): 表示言語に追従 (英語圏からの要望)。カードは幅 1200px 固定で
@@ -68,7 +68,7 @@ function drawMini(ctx, { x, y, w, h, bins, myBin, color }) {
 }
 
 // 大きい数字 (単位は小さく添える)。桁が多いときは列幅に収まるまで縮小 (荒らし自認スコア対策)。
-// unit を渡すと「123 %」のように単位付き、null なら数字だけ (ふるり値の主役表示)
+// unit を渡すと「123 %」のように単位付き、null なら数字だけ (しりすこ値の主役表示)
 function drawBigNum(ctx, x, y, text, size, color, maxW, unit = '%') {
     const t = String(text);
     let px = size;
@@ -142,6 +142,9 @@ function drawFinishMark(ctx, { fx, fy, fw, fh }) {
 export async function buildShareCard(results, canvas, opts = {}) {
     if (!Array.isArray(results) || results.length === 0) return null;
     const infoOf = typeof opts.infoOf === 'function' ? opts.infoOf : null;
+    // しりすこ値 (ユニオン集計後の基準があるときだけ数字・無ければ null)
+    const ssOf = typeof opts.ssOf === 'function' ? opts.ssOf : () => null;
+    const dmgB = (r) => Number.isFinite(r.damage) ? (r.damage / 1e9).toFixed(2) : null;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const multi = results.length > 1;
@@ -220,7 +223,7 @@ export async function buildShareCard(results, canvas, opts = {}) {
         ctx.stroke();
     }
 
-    // % がSNSでの主役。行 (ふるり値・実ダメージ・編成タイル) を詰めた分だけ数字を大きく取る
+    // % がSNSでの主役。行 (しりすこ値・実ダメージ・編成タイル) を詰めた分だけ数字を大きく取る
     const bigSize = multi ? (cols.length >= 4 ? 84 : 96) : 128;
     cols.forEach((c, i) => {
         const x0 = left + i * cw + (i > 0 ? pad : 0);
@@ -231,18 +234,23 @@ export async function buildShareCard(results, canvas, opts = {}) {
             ctx.fillStyle = CREAM;
             ctx.font = `800 26px ${F}`;
             ctx.fillText(t('card.overall'), x0, 252);
-            // 未解禁 (分布50人未満) の間は % が出せないので、平均ふるり値を主役にする
+            // 未解禁 (分布が しきい値未満) の間は % が出せないので、平均しりすこ値を主役にする
             // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)。
-            // 全凸締め凸のときも平均ふるり値だが「参考」を明示 (Codex指摘 — 総合を装わない)
+            // しりすこ値も無い (ユニオン集計前) なら実ダメージの合計。
+            // 全凸締め凸のときも平均だが「参考」を明示 (Codex指摘 — 総合を装わない)
             const allFinish = scored.length === 0;
             const avgBase = allFinish ? results : scored;
-            const avgScore = avgBase.reduce((s2, r2) => s2 + r2.score, 0) / avgBase.length;
+            const ssList = avgBase.map(ssOf);
+            const avgSs = ssList.every(v => v != null) ? ssList.reduce((s2, v) => s2 + v, 0) / ssList.length : null;
+            const sumDmg = results.every(r2 => dmgB(r2) != null)
+                ? (results.reduce((s2, r2) => s2 + r2.damage, 0) / 1e9).toFixed(2) : null;
             if (totalPct != null) drawBigNum(ctx, x0, 252 + bigSize + 4, totalPct, bigSize, CREAM, iw);
-            else drawBigNum(ctx, x0, 252 + bigSize + 4, avgScore.toFixed(2), bigSize, CREAM, iw, null);
+            else if (avgSs != null) drawBigNum(ctx, x0, 252 + bigSize + 4, avgSs.toFixed(2), bigSize, CREAM, iw, null);
+            else drawBigNum(ctx, x0, 252 + bigSize + 4, sumDmg ?? '—', bigSize, CREAM, iw, sumDmg ? 'B' : null);
             ctx.fillStyle = '#8A9097';
             const subNote = totalPct != null ? t('card.overall_note')
-                : allFinish ? t('card.avg_fururi_all_finish')
-                            : t('card.avg_fururi_n', { n: avgBase.length });
+                : avgSs != null ? (allFinish ? t('card.avg_ss_all_finish') : t('card.avg_ss_n', { n: avgBase.length }))
+                : t('card.sum_dmg_n', { n: results.length });
             fitText(ctx, subNote, x0, 252 + bigSize + 36, iw, 18);
             ctx.fillStyle = '#A4AAB0';
             const sumLabel = allFinish ? t('card.sub_all_finish', { n: results.length, slv: results[0].slv })
@@ -282,25 +290,29 @@ export async function buildShareCard(results, canvas, opts = {}) {
             x0, multi ? 252 : 270, iw, multi ? 26 : 30, 800);
         const bigY = (multi ? 252 : 270) + bigSize + 4;
         // damage/slv は localStorage 復元の古い保存に無いことがある → 欠けは静かに省く (NaN対策)
-        const dmgB = Number.isFinite(r.damage) ? `${(r.damage / 1e9).toFixed(2)} B` : null;
-        // 解禁前は % が無いのでふるり値を主役に (結果カードと同じ主従)
+        const ss = ssOf(r);
+        const dmgText = dmgB(r) != null ? `${dmgB(r)} B` : null;
+        // 解禁前は % が無いので しりすこ値 → 実ダメージを主役に (結果カードと同じ主従)
+        const bigIsDmg = mp == null && ss == null && dmgText != null;
         if (mp != null) drawBigNum(ctx, x0, bigY, mp, bigSize, info.color, iw);
-        else drawBigNum(ctx, x0, bigY, r.score.toFixed(2), bigSize, info.color, iw, null);
+        else if (ss != null) drawBigNum(ctx, x0, bigY, ss.toFixed(2), bigSize, info.color, iw, null);
+        else drawBigNum(ctx, x0, bigY, dmgB(r) ?? '—', bigSize, info.color, iw, bigIsDmg ? 'B' : null);
+        // 主役の下の小さい行: %が主役なら しりすこ値、しりすこ値が主役ならその名前、実ダメージが主役なら「%は集計中」
+        const head = mp != null ? (ss != null ? t('card.ss_val', { v: ss.toFixed(2) }) : null)
+            : ss != null ? t('card.ss') : t('card.pct_pending');
         ctx.fillStyle = '#8A9097';
         ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
         if (multi) {
-            // 2行だったふるり値・実ダメージを1行に (空いた分を % の拡大に回す)。
+            // しりすこ値・実ダメージを1行に (空いた分を % の拡大に回す)。
             // 列幅 iw を超えると隣列に食い込むので、縮小 → それでも無理なら実ダメージを落とす
-            const head = mp != null ? t('card.fururi_val', { v: r.score.toFixed(2) }) : t('card.fururi');
-            const full = [head, dmgB].filter(Boolean).join(' · ');
-            // 収まらなければ実ダメージを省いて、ふるり値だけにする
+            const full = [head, bigIsDmg ? null : dmgText].filter(Boolean).join(' · ');
             ctx.font = `700 13px ${F}`;
             const fits = ctx.measureText(full).width <= iw;
-            fitText(ctx, fits ? full : head, x0, bigY + 34, iw, 19, 700, 13);
+            const line = fits ? full : (head ?? full);
+            if (line) fitText(ctx, line, x0, bigY + 34, iw, 19, 700, 13);
         } else {
             // 単発は列幅が広いので1行にまとめる (SLv は総合列が無いのでここに出す)
-            const parts = [mp != null ? t('card.fururi_val', { v: r.score.toFixed(2) }) : t('card.fururi'),
-                Number.isFinite(r.slv) ? `SLv ${r.slv}` : null, dmgB].filter(Boolean);
+            const parts = [head, Number.isFinite(r.slv) ? `SLv ${r.slv}` : null, bigIsDmg ? null : dmgText].filter(Boolean);
             fitText(ctx, parts.join(' · '), x0, bigY + 44, iw, 24);
         }
         // 使った編成 (順不同で保存 — 表示はバースト順に揃える) + 編成内% (同一編成の中央値比)
@@ -329,12 +341,14 @@ export async function buildShareCard(results, canvas, opts = {}) {
                 bins: r.dist.bins, myBin: r.dist.my_bin, color: info.color,
             });
             ctx.fillStyle = '#8A9097';
-            fitText(ctx, t('card.median_n', { v: r.dist.median.toFixed(2), n: r.dist.n }),
+            // 中央値の しりすこ値 (基準があるとき) — 無ければ人数だけ
+            const medSs = ssOf({ ...r, score: r.dist.median });
+            fitText(ctx, medSs != null ? t('card.median_n_ss', { v: medSs.toFixed(2), n: r.dist.n }) : t('card.median_n', { n: r.dist.n }),
                 x0, histY + histH + 30, iw, 17);
         } else {
             // 未解禁: 分布の領域が空くと間延びするので、解禁までの進捗を描く
             // (「あと◯人」が見えると拡散の動機にもなる)
-            // need は 0 や欠損でも 0除算にならないよう下限1 (実運用はサーバー既定の50)
+            // need は 0 や欠損でも 0除算にならないよう下限1 (実運用はサーバー既定の20)
             const need = Math.max(1, Number.isFinite(r.dist?.need) ? r.dist.need : THRESHOLDS.dist);
             const now = Math.max(0, Math.min(need, Number.isFinite(r.dist?.n) ? r.dist.n : 0));
             const barH = 14, barY = histY + histH - barH - 4;

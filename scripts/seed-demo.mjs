@@ -109,7 +109,9 @@ function buildSet(u) {
     return attrs.map((attr, i) => {
         const score = clamp(skill * BOSS_EASE[attr] * Math.exp(normal(r) * 0.08), 0.15, 2.6);
         const b = base.bases[attr];
-        const damage = Math.round(score * b.damage * (RATIO[String(slv)] / RATIO[String(base.baseSlv)]));
+        // score は「ふつうの人 ≒ 1」の相対値。単位が slv-b (2026-11〜 = SLv baseSlv 換算の B) なら 20B を 1 とみなす
+        const scale = base.unit === 'slv-b' ? 20 : 1;
+        const damage = Math.round(score * scale * b.damage * (RATIO[String(slv)] / RATIO[String(base.baseSlv)]));
         return {
             attribute: attr, slv, damage, season: base.version,
             characters: pickComp(r, attr),

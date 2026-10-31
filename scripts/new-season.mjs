@@ -1,18 +1,14 @@
 #!/usr/bin/env node
-// シーズン切替の1コマンド化: 本家PADから「今回のボス5体」と「ふるり基準 (実凸/模擬)」を
-// 自動取得して raid.json / base.json / boss-catalog.json を生成し、
-// gen-seed → update-roster まで連続実行する。
+// シーズン切替の1コマンド化: 本家PADから「今回のボス5体」を自動取得して
+// raid.json / base.json / boss-catalog.json を生成し、gen-seed → update-roster まで連続実行する。
 //
-// 使い方:  node scripts/new-season.mjs [shirisu-padのパス] [--slv 544] [--season-id 26]
-//   (省略時 ../しりすこPAD。--slv は月次JSONが無いときの基準SLv上書き。
-//    --season-id は本家シーズンIDの明示指定 — 現行シーズンの再生成や検証に使う)
+// 使い方:  node scripts/new-season.mjs [shirisu-padのパス] [--season-id 26]
+//   (省略時 ../しりすこPAD。--season-id は本家シーズンIDの明示指定 — 現行シーズンの再生成や検証に使う)
 //
-// データの出所 (README「シーズン切替の運用ランブック」の手転記2箇所を自動化):
+// データの出所:
 //   - ボス5体: 本家 Supabase bosses (アクティブな実シーズン)
-//   - 基準ダメージ: 本家 fururi_simulation_scores (模擬・優先) → ふるりの実凸
-//       (実凸は本家 attacks テーブル (開催中でも読める) と月次JSON の両方から拾う。
-//        模擬の値が実凸と同額なら「実凸を模擬タブに転記しただけ」なので source は actual)
-//   - 基準SLv: 月次JSON の syncLevel (無ければ --slv 指定が必須)
+//   - スコアの単位: 固定 (SLv 600 換算の B)。2026-11 から基準者ふるりの値は使わない (下の 3) 参照)。
+//     しりすこ値の基準はレイド後に scripts/shirisuko-base.mjs で足す
 //
 // ⚠ これを実行しても DB はまだ変わらない。残りの手順 (実行後に表示):
 //   1) supabase/seed.local.sql を SQL Editor で実行  2) commit & push  3) site_state を open
@@ -25,9 +21,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // 逐次パーサー: フラグは値のインデックスごと消費する (値と同名の位置引数を巻き込まない)
 const args = process.argv.slice(2);
-let padDirArg = null, slvOverride = null, seasonIdOverride = null;
+let padDirArg = null, seasonIdOverride = null;
 for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--slv') slvOverride = parseInt(args[++i]);
+    if (args[i] === '--slv') { console.error('--slv は不要になりました (2026-11 から基準者の SLv は使いません)'); process.exit(1); }
     else if (args[i] === '--season-id') seasonIdOverride = parseInt(args[++i]);
     else if (args[i].startsWith('--')) { console.error(`不明なオプション: ${args[i]}`); process.exit(1); }
     else if (padDirArg === null) padDirArg = args[i];
@@ -42,9 +38,6 @@ const clientSrc = readFileSync(join(padDir, 'js', 'supabase-client.js'), 'utf8')
 const url = clientSrc.match(/https:\/\/[a-z]+\.supabase\.co/)?.[0];
 const key = clientSrc.match(/sb_publishable_[A-Za-z0-9_-]+/)?.[0];
 if (!url || !key) { console.error('本家の接続情報を読み取れませんでした'); process.exit(1); }
-
-// キャラ名の表記ゆれ吸収 (build-characters.mjs の norm と同じ規則)
-const normName = (v) => String(v).replace(/：/g, ':').replace(/\s+/g, '').trim();
 
 async function padGet(path) {
     const res = await fetch(`${url}/rest/v1/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
@@ -80,103 +73,23 @@ const raid = {
     bosses: Object.fromEntries(bosses.map(b => [String(b.weakness).toUpperCase(), b.name])),
 };
 
-// ---- 3) ふるり基準: 模擬 (優先) → 実凸 (本家 attacks テーブル / 月次JSON) ----
-const sims = await padGet(`fururi_simulation_scores?select=boss_code,damage_raw&season_id=eq.${target.id}`);
-const simByCode = new Map(sims.map(s => [s.boss_code, Number(s.damage_raw)]));
-
-const monthPath = join(padDir, 'data', `${seasonKey}.json`);
-let actualByCode = new Map(), monthSlv = null;
-// 本家の手入力 (attacks / 模擬タブ) は 0.001B 刻み、月次JSON は拡張機能の精密値。
-// 「同じ凸か」は 0.001B に丸めて比べる (18.291B の手入力 と 18,291,4xx,xxx は同じ凸)
-const UNIT = 1e6;
-const sameAttack = (a, b) => a != null && b != null && Math.round(a / UNIT) === Math.round(b / UNIT);
-// attacks 由来の実凸そのもの (bossCode → {damage, team})。月次JSONとマージした actualByCode とは別に持ち、
-// 編成は「その凸のダメージが最終的な基準ダメージと一致するとき」だけ採用する (別の凸の編成を貼らないため)
-const attackByCode = new Map();
-// 開催中は月次JSONがまだ無いので、本家 attacks テーブルからふるりの実凸を直接読む。
-//  - 本家の盤面と同じく attack_date = ハード日 の凸だけ (日付違いの行を拾わない)
-//  - ふるりが締め凸担当 (finish_claims) のボスは除外 (削りの値を基準にしない → 模擬登録が必要になる)
-//  - 同一ボスに複数凸があれば大きい方。同額なら最新の報告 (order で先頭に来るものを採用)
-//  - 本家に届かなくても模擬だけで続行できるよう、失敗は警告止まり
-let fururiPlayerId = null;
-try {
-    fururiPlayerId = (await padGet(`players?select=id&name=eq.${encodeURIComponent('ふるり')}`))[0]?.id ?? null;
-    if (fururiPlayerId != null) {
-        const hard = String(target.hard_date).slice(0, 10);
-        const claims = await padGet(`finish_claims?select=boss_number&season_id=eq.${target.id}&claimed_by=eq.${fururiPlayerId}&date=eq.${hard}`);
-        const finishBoss = new Set(claims.map(c => Number(c.boss_number)));
-        const atks = await padGet(`attacks?select=boss_code,boss_number,damage_raw,characters,reported_at` +
-            `&season_id=eq.${target.id}&player_id=eq.${fururiPlayerId}&attack_date=eq.${hard}&order=damage_raw.desc,reported_at.desc`);
-        const skipped = [];
-        for (const a of atks) {
-            const d = Number(a.damage_raw);
-            if (!a.boss_code || !(d > 0)) continue;
-            if (finishBoss.has(Number(a.boss_number))) { skipped.push(`${a.boss_code}=${(d / 1e9).toFixed(2)}B`); continue; }
-            if (actualByCode.has(a.boss_code)) continue;   // order 済みなので先頭 = 最大 (同額なら最新報告)
-            actualByCode.set(a.boss_code, d);
-            attackByCode.set(a.boss_code, { damage: d, team: Array.isArray(a.characters) ? a.characters : null });
-        }
-        if (actualByCode.size) console.log(`実凸 (本家 attacks ${hard}): ${[...actualByCode].map(([c, d]) => `${c}=${(d / 1e9).toFixed(2)}B`).join(' ')}`);
-        if (skipped.length) console.log(`  締め凸担当のため除外: ${skipped.join(' ')}`);
-    }
-} catch (e) {
-    console.warn('⚠ 本家 attacks の取得に失敗 — 実凸なし (模擬/月次JSONのみ) で続行:', e?.message ?? e);
-}
-if (existsSync(monthPath)) {
-    const month = JSON.parse(readFileSync(monthPath, 'utf8'));
-    const fururi = (month.players || []).find(p => p.player === 'ふるり');
-    if (fururi) {
-        monthSlv = fururi.syncLevel ?? null;
-        for (const a of fururi.attacks || []) {
-            const d = Number(a.damage);
-            if (a.bossCode && d > 0) {
-                // ⚠ 月次JSONも編成を持つが、本家の画像パス由来IDでGBの代表IDとほぼ一致しないため使わない。
-                // 同じ凸 (0.001B 単位で一致) なら、手入力の丸め値より月次JSONの精密値を採る。
-                // そうでなければ大きい方 (締め凸の削りを基準にしない)
-                const cur = actualByCode.get(a.bossCode);
-                if (cur == null || sameAttack(cur, d) || cur < d) actualByCode.set(a.bossCode, d);
-            }
-        }
-    }
-} else {
-    console.log(actualByCode.size
-        ? `(月次JSON ${seasonKey}.json はまだ無い — 実凸は本家 attacks から取得。SLv は --slv 指定)`
-        : `(月次JSON ${seasonKey}.json はまだ無い — 模擬スコアだけで基準を組みます)`);
-}
-const baseSlv = slvOverride ?? monthSlv;
-if (!(baseSlv >= 1)) {
-    console.error('基準SLv が分かりません。--slv <ふるりの現在SLv> を指定してください');
-    process.exit(1);
-}
-
-const bases = {};
-const missing = [];
-for (const b of bosses) {
-    const attr = String(b.weakness).toUpperCase();
-    const sim = simByCode.get(b.boss_code);
-    const act = actualByCode.get(b.boss_code);
-    const damage = sim ?? act;   // 模擬優先 (本家 buildFururiBaseMap と同じ運用ルール)
-    if (!(damage > 0)) { missing.push(`${attr} (${b.boss_code} / ${b.name})`); continue; }
-    // 模擬が実凸と同じ凸 = ふるりが実凸の結果を模擬タブへ転記しただけ → 実凸として開示する
-    // (月次JSON が入ると act が精密値になるので、0.001B 単位で比較しないと「模擬」に戻ってしまう)
-    const source = (sim == null || sameAttack(sim, act)) ? 'actual' : 'simulation';
-    bases[attr] = { bossCode: b.boss_code, damage, source };
-}
-// 模擬登録が無く実凸だけで決まった属性は、締め凸の削りだった可能性を運営が確認できるよう明示する
-const actualOnly = Object.entries(bases).filter(([, v]) => v.source === 'actual' && !simByCode.has(v.bossCode)).map(([a]) => a);
-if (actualOnly.length) console.warn(`⚠ 模擬登録なし・実凸のみで基準化: ${actualOnly.join(', ')} — 締め凸 (削り) だった場合は本家の模擬タブに登録して再実行`);
-if (missing.length > 0) {
-    console.error(`❌ ふるり基準が揃っていません: ${missing.join(', ')}`);
-    console.error('   本家の模擬タブで登録するか、実凸後の月次JSONを待ってから再実行してください。');
-    console.error('   (基準が揃うまで site_state は between/maintenance のまま open にしないこと)');
-    process.exit(1);
-}
+// ---- 3) スコアの単位 → base.json ----
+// 2026-11 (第46回) から基準者ふるりの値 (模擬/実凸) は使わない — 常連が増えて分布がすぐ埋まるため、
+// 画面は「中央値比 %」と、ユニオン集計後の「しりすこ値」(scripts/shirisuko-base.mjs) だけで見せる。
+// サーバーのスコアは「SLv 600 換算のダメージ (B)」という中立の単位にする
+// (fururi_bases に 1B @ SLv REF_SLV を入れる。トリガ・集計RPCは今までどおり base で割るだけ)。
+// 単位はシーズン中に変えない — 端末に残った score と RPC の中央値の比 (= 中央値比) がずれないように。
+const REF_SLV = 600;
+const UNIT_DAMAGE = 1e9;
+const bases = Object.fromEntries(bosses.map(b => [String(b.weakness).toUpperCase(), { bossCode: b.boss_code, damage: UNIT_DAMAGE }]));
 const base = {
     version: seasonKey,
-    description: 'ふるり値の基準データ (scripts/new-season.mjs の生成物)。基準者(ふるり)の属性別ダメージ @ 基準SLv。模擬登録がある属性は模擬値を採用 (source: actual=実凸 / simulation=模擬)',
-    basePlayer: 'ふるり',
-    baseSlv,
+    description: `スコアの単位 (scripts/new-season.mjs の生成物)。score = SLv ${REF_SLV} 換算のダメージ (B)。基準者は置かない。` +
+        'shirisuko = しりすこ基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/shirisuko-base.mjs が書く。無いうちは null',
+    unit: 'slv-b',
+    baseSlv: REF_SLV,
     bases,
+    shirisuko: null,
 };
 
 // ---- 4) ボスカタログ (全実シーズンの登場履歴 — raid.json の typo 検証・参考用) ----
@@ -200,72 +113,13 @@ try {
     writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
     writeFileSync(outFiles[2], JSON.stringify(bossCatalog, null, 1) + '\n', 'utf8');
     console.log(`raid.json:  ${order.map(a => `${a}→${raid.bosses[a]}`).join(' / ')}`);
-    console.log(`base.json:  SLv ${baseSlv} / ` +
-        Object.entries(bases).map(([a, v]) => `${a}=${(v.damage / 1e9).toFixed(2)}B(${v.source === 'simulation' ? '模擬' : '実凸'})`).join(' '));
+    console.log(`base.json:  単位 = SLv ${REF_SLV} 換算 B (基準者なし・しりすこ基準はレイド後に shirisuko-base.mjs)`);
     console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
 
     console.log('--- gen-seed (seed.local.sql 生成) ---');
     execFileSync(process.execPath, [join(ROOT, 'scripts', 'gen-seed.mjs'), join(padDir, 'data', 'slv-ratio.json')], { stdio: 'inherit' });   // 本家パスを引き継ぐ (フォルダ名が既定と違う環境対応)
     console.log('--- update-roster (キャラ・使用率の更新) ---');
     execFileSync(process.execPath, [join(ROOT, 'scripts', 'update-roster.mjs'), padDir], { stdio: 'inherit' });
-
-    // --- 基準編成 (ふるりの模擬編成) を base.json に追記 ---
-    // 「どの編成で出した基準値か」をサイトで開示するため。update-roster の後に実行するのは
-    // 最新の characters.json (新キャラ込み) で名前→代表ID を解決するため (順序依存の回避)。
-    // player_damages はシーズン列を持たない「現在の模擬」テーブルなので、
-    // ⚠ 採用は damage_b が今回の基準ダメージと一致する属性だけ (古い模擬の混入を構造的に排除)
-    try {
-        const fururiId = fururiPlayerId;
-        const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 'utf8'));
-        const idByName = new Map();
-        if (charData._format === 2) for (const [cid, c] of Object.entries(charData.chars)) idByName.set(normName(c.name), cid);
-        // 名前配列 → 代表ID5件 (解決できなければ null と未解決名)
-        const resolveTeam = (chars) => {
-            const names = (chars || []).map(n => String(n).split('/').pop());
-            const ids = names.map(n => idByName.get(normName(n))).filter(Boolean);
-            return ids.length === 5 ? { ids: ids.sort() } : { ids: null, unresolved: names.filter(n => !idByName.has(normName(n))) };
-        };
-        let attached = 0;
-        // (a) 実凸として採用した属性は、その凸の編成 (attacks.characters) をそのまま使う。
-        // ただし「その attacks 行のダメージが基準ダメージと同じ凸」のときだけ —
-        // 月次JSONで別の (より大きい) 凸に入れ替わっていたら、その凸の編成は本家に無いので (b) に委ねる
-        for (const [attr, b] of Object.entries(bases)) {
-            if (b.source !== 'actual') continue;
-            const atk = attackByCode.get(b.bossCode);
-            if (!atk || !sameAttack(atk.damage, b.damage)) continue;
-            // ⚠ 残る曖昧さ: 0.001B 以内に別の凸があると値で見分けられない (月次JSONは編成を持たないので
-            //   他に手がかりが無い)。基準ダメージが attacks の値と完全一致しない場合は運営が確認できるよう出す
-            if (atk.damage !== b.damage) console.warn(`⚠ ${attr}: 基準 ${(b.damage / 1e9).toFixed(3)}B に対し実凸記録は ${(atk.damage / 1e9).toFixed(3)}B — 同じ凸とみなして編成を採用`);
-            const chars = atk.team;
-            if (!chars) continue;
-            const r = resolveTeam(chars);
-            if (!r.ids) { console.warn(`⚠ ${attr}: 実凸編成の名前解決に失敗 (${r.unresolved.join(', ') || '5体未満'}) — 模擬編成で再試行`); continue; }
-            b.team = r.ids;
-            attached++;
-        }
-        // (b) 残りは模擬 (player_damages slot1) の編成。値が基準と一致する属性だけ採用
-        const dmgs = fururiId != null ? await padGet(`player_damages?select=attribute,slot,damage_b,characters&player_id=eq.${fururiId}`) : [];
-        for (const d of dmgs) {
-            if ((d.slot ?? 1) !== 1) continue;                    // 基準は slot1 (主編成)
-            const attr = String(d.attribute).toUpperCase();
-            const b = bases[attr];
-            if (!b || b.team) continue;
-            if (Math.round(Number(d.damage_b) * 1e9) !== Math.round(b.damage)) {
-                console.warn(`⚠ ${attr}: 模擬の値 (${d.damage_b}B) が基準 (${(b.damage / 1e9).toFixed(3)}B) と一致しないため編成を採用しません`);
-                continue;
-            }
-            const r = resolveTeam(d.characters);
-            if (!r.ids) { console.warn(`⚠ ${attr}: 編成の名前解決に失敗 (${r.unresolved.join(', ') || '5体未満'})`); continue; }
-            b.team = r.ids;
-            attached++;
-        }
-        if (attached > 0) {
-            writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
-            console.log(`base.json: 基準編成 ${attached}/5属性 を追記`);
-        }
-    } catch (e) {
-        console.warn('(基準編成の取得に失敗 — 編成表示なしで続行)', e?.message ?? e);
-    }
 } catch (e) {
     outFiles.forEach((p, i) => { if (backups[i] !== null) writeFileSync(p, backups[i]); });
     console.error('❌ 後続処理が失敗したため raid.json / base.json / boss-catalog.json を元に戻しました。');
@@ -280,9 +134,9 @@ console.log(`
           display_season='<前シーズン>', updated_at=now();
       delete from public.measurements;
  2. SQL Editor で supabase/seed.local.sql を実行 (${seasonKey} の基準投入)
-    あわせてシャドウ集計の妥当範囲行を追加 (無ければ既定 [0.01, 5.0] で動作):
+    あわせてシャドウ集計の妥当範囲行を追加 (無ければ既定 [0.01, 5.0] = 0.01B〜5B で、ほぼ全員が外れる):
       insert into public.score_bounds (season, min_score, max_score)
-      values ('${seasonKey}', 0.1, 2.5) on conflict do nothing;   -- 運用値 (実測レンジを見て調整)
+      values ('${seasonKey}', 1.0, 80.0) on conflict do nothing;   -- 単位は SLv ${REF_SLV} 換算 B (過去3シーズンの p1〜p99 = 6〜38B)
  3. node tests/run-tests.mjs で整合を確認 → commit & push
  4. SQL Editor で open:
       update public.site_state set status='open', active_season='${seasonKey}',

@@ -1,6 +1,7 @@
 # しりすこPAD GB プロジェクトガイド
 
-NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公開サイト**。
+NIKKE ユニオンレイドの実力を「中央値比 %」と「しりすこ値」で測る**公開サイト**
+(2026-10 までは基準者ふるりとの比「ふるり値」。2026-11 に廃止 — README 冒頭)。
 [shirisu-pad](https://github.com/Furu1018/shirisu-pad) (内輪運用の本家PAD) の姉妹プロジェクトで、
 **本家のリポジトリ・DBには一切書き込まない** (ビルド時に読むだけ)。
 詳細仕様・運用ランブックは **README.md が正** — このファイルは作業ルールの要点だけ。
@@ -27,7 +28,8 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
    `mark_own_finish` / `correct_own_measurement` (10)」のみ**。後編集は必ず
    client_id + season + attribute の3条件スコープ (他人の行に触れない)。
    テーブルへの匿名直接 INSERT/SELECT を許すポリシーを追加しない。
-   最終定義: submit = `13_input_source.sql`、集計RPC = `09_finish_flag.sql`、後編集 = `10_own_edits.sql`
+   最終定義: submit = `13_input_source.sql`、集計RPC = `14_lower_thresholds.sql` (get_distribution・
+   get_total_distribution) / `09_finish_flag.sql` (get_comp_insights)、後編集 = `10_own_edits.sql`
    (05/07/08 は歴史。関数を seed で上書きしない)。
    **エラーで行内容を返さない**: INSERT は例外ハンドラで包む (DETAIL に norm_damage が入り slv_ratio が漏れる)
 4. **DB由来・ユーザー入力由来の文字列は必ず `escapeHtml` を通して DOM へ**。キャラ名も本家DB由来
@@ -45,16 +47,18 @@ NIKKE ユニオンレイドの実力指標「ふるり値」を測定する**公
   md5 を継承 or `md5(名前)` の合成ID)。値 = {name, burst, burstAlt, element, aliases}
 - `data/element-map.json` — キャラ名→属性 (手動メンテ)。未登録はグレー「属性?」表示に劣化
 - `data/site.json` — 運用設定 (ユニオン募集・Xアカウント)。`tools/ops.html` で編集支援
-- `data/raid.json` + `data/base.json` — シーズンごとの基準。`scripts/new-season.mjs` が自動生成
+- `data/raid.json` + `data/base.json` — シーズンのボスとスコアの単位 (SLv 600 換算 B)。`scripts/new-season.mjs` が自動生成。
+  `base.json` の `shirisuko` (しりすこ基準) はレイド後に `scripts/shirisuko-base.mjs` が書く
 
 ## シーズン切替 (毎レイド・PC必須)
 
 ```sh
-node scripts/new-season.mjs        # 本家からボス5体+ふるり基準(実凸/模擬)を取得して
+node scripts/new-season.mjs        # 本家からボス5体を取得して
                                    # raid.json / base.json / roster を更新し seed を生成
 # → 表示された残り手順: SQL Editor で seed 実行 → commit&push → site_state を open
 ```
-順序厳守 (基準投入前に open しない)。詳細ランブック: README「シーズン切替の運用ランブック」
+順序厳守 (seed 投入前に open しない)。レイド後に `node scripts/shirisuko-base.mjs --apply` → push で
+しりすこ値が出る。詳細ランブック: README「シーズン切替の運用ランブック」
 
 ## テスト・検証
 

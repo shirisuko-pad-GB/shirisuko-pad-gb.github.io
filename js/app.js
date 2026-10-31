@@ -1,7 +1,7 @@
-// しりすこPAD GB — ふるり値チェッカー UIロジック
+// しりすこPAD GB — しりすこ値チェッカー UIロジック
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
-// ふるり値の計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
-import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from './calc.js';
+// スコアの計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
+import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport, shirisukoRef, shirisukoValue } from './calc.js';
 import { readRaidScreenshot } from './ocr.js';
 import { ocrTipsSvg } from './ocr-tips.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
@@ -95,15 +95,17 @@ async function init() {
     // 先に次シーズンへ差し替わる (シーズン切替ランブックの順序: seed → push → open) ので、
     // 分布は前シーズンなのに基準だけ次シーズン、というチグハグを出さない。
     const baseMatchesView = base.version === viewSeason;
+    const ssReady = baseMatchesView && ATTRS.some(a => shirisukoRef(base, viewSeason, a) != null);
     $('baseVersionLabel').textContent = baseMatchesView
-        ? t('ui.base_version', { v: base.version, player: base.basePlayer, slv: base.baseSlv })
+        ? (ssReady ? t('ui.base_version_ss', { v: base.version, date: base.shirisuko?.builtAt ?? '' })
+                   : t('ui.base_version_wait', { v: base.version }))
         : (viewSeason ? t('ui.season_prep_view', { season: viewSeason }) : t('ui.season_prep'));
     const fold = $('baseFold');
     if (fold) {
         fold.open = false;
         fold.style.display = baseMatchesView ? '' : 'none';
     }
-    if (baseMatchesView) renderBaseTeams();
+    if (baseMatchesView) renderShirisukoBase();
     $('thresholdAllLabel').textContent = THRESHOLDS.dist;
     $('thresholdCompLabel').textContent = THRESHOLDS.comp;
     $('slvMinus').addEventListener('click', () => stepSlv(-1));
@@ -260,26 +262,25 @@ function insightsOf(attribute) {
     };
 }
 
-// 基準記録の開示: 属性ごとに「基準ダメージ + 基準編成 (5体タイル)」を小さく出す。
-// 「何を基準に測られているか」を隠さないための説明パネル (data/base.json の bases[].team)
-function renderBaseTeams() {
+// しりすこ基準の開示: 属性ごとに「ユニオンの真ん中のダメージ (SLv 換算) + 数えた人数」。
+// 「何を 1.00 にしているか」を隠さないための説明パネル (data/base.json の shirisuko — レイド後に追加)
+function renderShirisukoBase() {
     const host = $('baseTeams');
     if (!host || !base?.bases) return;
-    host.innerHTML = orderedAttrs().map(attr => {
-        const b = base.bases[attr];
-        if (!b) return '';
+    const rows = orderedAttrs().map(attr => {
+        const ref = shirisukoRef(base, viewSeason, attr);
+        if (ref == null) return '';
         const info = ATTR_INFO[attr];
         const boss = raid?.bosses?.[attr];
-        const team = (compReady() && Array.isArray(b.team) && b.team.length === 5)
-            ? `<span class="base-team">${sortForDisplay(b.team, infoOf).map(id => tileHTML(infoOf(id))).join('')}</span>` : '';
+        const n = Number(base.shirisuko?.attrs?.[attr]?.n);
         return `
         <div class="base-row" style="--ac:${info.color};">
             <span class="base-attr">${t('ui.team_of', { code: attrName(attr) })}</span>
-            <span class="base-dmg">${(b.damage / 1e9).toFixed(2)} B</span>
-            <span class="hint">${b.source === 'actual' ? t('ui.src_actual') : t('ui.src_mock')}${boss ? ` · vs ${escapeHtml(boss)}` : ''}</span>
-            ${team}
+            <span class="base-dmg">${t('ui.ss_base_dmg', { v: ref.toFixed(2), slv: base.baseSlv })}</span>
+            <span class="hint">${Number.isFinite(n) ? t('ui.ss_base_n', { n }) : ''}${boss ? ` · vs ${escapeHtml(boss)}` : ''}</span>
         </div>`;
     }).join('');
+    host.innerHTML = rows || `<p class="hint">${t('ui.ss_base_wait')}</p>`;
 }
 
 // 運用モードで測定UIを出し分け (between/maintenance は送信不可)
@@ -334,7 +335,7 @@ function renderRecallBanner() {
     if (!host) return;
     const last = loadLastResult();
     if (!last || !backendConfigured()) { host.style.display = 'none'; return; }
-    const label = last.items.map(it => `${attrName(it.attribute)} ${Number(it.score).toFixed(2)}`).join(' / ');
+    const label = last.items.map(it => `${attrName(it.attribute)} ${(Number(it.damage) / 1e9).toFixed(2)}B`).join(' / ');
     host.innerHTML = `
         <div class="recall">
             <div class="recall-txt">${escapeHtml(t('ui.recall_label'))}<strong>${escapeHtml(label)}</strong></div>
@@ -496,6 +497,13 @@ function attackCardHTML(a, i) {
     </section>`;
 }
 
+// 候補編成の中央値 (しりすこ値)。基準が無い・前シーズンの凍結版 (単位が違う) なら出さない
+function medianInline(c, ap, attribute) {
+    if (ap.fromPrev) return '';
+    const v = shirisukoValue(Number(c.median), shirisukoRef(base, viewSeason ?? season, attribute));
+    return v != null ? t('ui.median_inline', { v: v.toFixed(2) }) : '';
+}
+
 function compBodyHTML(a) {
     if (!a.attribute) return `<p class="hint" style="margin-top:8px;">${t('ui.comp_need_attr')}</p>`;
     if (!compReady()) return `<p class="hint" style="margin-top:8px;">${t('ui.comp_no_data')}</p>`;
@@ -514,7 +522,7 @@ function compBodyHTML(a) {
             <span class="preset-faces">${sortForDisplay(c.chars, infoOf).map(img => tileHTML(infoOf(img), { xs: true })).join('')}</span>
             <span class="preset-meta">
                 <span class="pill">${ap.fromPrev ? t('ui.prev_top_n', { season: ap.fromPrev, n: pi + 1 }) : t('ui.season_top_n', { n: pi + 1 })}</span>
-                <span class="hint">${t('ui.used_by_n', { n: c.count })}${Number.isFinite(c.median) ? t('ui.median_inline', { v: Number(c.median).toFixed(2) }) : ''}</span>
+                <span class="hint">${t('ui.used_by_n', { n: c.count })}${medianInline(c, ap, a.attribute)}</span>
             </span>
         </button>`;
     }).join('') + (moreCount > 0 && !a.presetMore ? `
@@ -961,14 +969,18 @@ function ratioAgainst(dist, score) {
         ? score / dist.median : null;
 }
 function medianRatioOf(r) { return ratioAgainst(r.dist, r.score); }
+// しりすこ値 (ユニオン集計後の基準があるときだけ)。カード・総合・シェア文が使う
+function ssOf(r) { return shirisukoValue(r.score, shirisukoRef(base, viewSeason ?? season, r.attribute)); }
+// %もしりすこ値も無い間の代わりの数字 = 実ダメージ (B)。巨大な「—」だけを出さない
+const dmgBOf = (r) => Number.isFinite(r.damage) ? (r.damage / 1e9).toFixed(2) : null;
 
 function renderResults() {
     const area = $('resultsArea');
     const multi = results.length > 1;
     let html = results.map((r, i) => resultCardHTML(r, i, multi)).join('');
     if (multi) {
-        // 総合 = 各凸の中央値比の平均。ふるり値は属性ごとに基準ボスが違うため、
-        // 属性をまたいだ「ふるり値の合算」はしない (運営判断 2026-07-30)。
+        // 総合 = 各凸の中央値比の平均。スコアは属性ごとに相手ボスが違うため、
+        // 属性をまたいだ「スコアの合算」はしない (運営判断 2026-07-30)。
         // 締め凸はダメージが打ち切られていて中央値比が構造的に低い → 総合から除外
         // (分布からも除外済み)。全「対象凸」の分布が解禁されているときだけ出せる
         const scored = results.filter(r => !r.isFinish);
@@ -994,7 +1006,7 @@ function renderResults() {
             <div class="hist-axis"><span>${Math.round(td.lo * 100)}%</span><span>${t('ui.axis_median_pct', { pct: Math.round(td.median * 100) })}</span><span>${Math.round(td.hi * 100)}%</span></div>
             <p class="dist-note">${t('ui.total_dist_note', { n: td.n, myNote, users: td.users })}</p>`;
         } else if (td) {
-            totalHist = `<p class="dist-note">${t('ui.total_dist_locked', { need: td.need ?? 50, n: td.n ?? 0, users: td.users ?? 0 })}</p>`;
+            totalHist = `<p class="dist-note">${t('ui.total_dist_locked', { need: td.need ?? THRESHOLDS.dist, n: td.n ?? 0, users: td.users ?? 0 })}</p>`;
         }
         html += `
         <section class="card set-card">
@@ -1004,7 +1016,8 @@ function renderResults() {
                 <span class="pill">${t('ui.total_pill')}</span>
                 ${results.map((r, ri) => r.isFinish
                     ? `<span class="pill" style="color:var(--faint);">${t('ui.finish_pill_attr', { code: attrName(r.attribute) })}</span>`
-                    : `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${attrName(r.attribute)} ${medianRatioOf(r) != null ? `${Math.round(medianRatioOf(r) * 100)}%` : r.score.toFixed(2)}</span>`).join('')}
+                    : `<span class="pill" style="color:${ATTR_INFO[r.attribute].color};">${attrName(r.attribute)} ${medianRatioOf(r) != null ? `${Math.round(medianRatioOf(r) * 100)}%`
+                        : ssOf(r) != null ? t('ui.ss_val', { v: ssOf(r).toFixed(2) }) : t('ui.pct_pending')}</span>`).join('')}
             </div>
             ${totalHist}
             <p class="dist-note">${totalPct != null
@@ -1131,17 +1144,22 @@ function resultCardHTML(r, i, multi) {
     }
 
     // フィードバックは順位ではなく「中央値=100%としたときの%」(運営方針 2026-07-30)。
-    // シェアカードと同じ構図に統一: 主役 = 中央値比% / サブ = ふるり値 (導入のまき餌)。
-    // 分布未解禁の導入期だけは中央値比が無いので、ふるり値が主役のまま
+    // シェアカードと同じ構図に統一: 主役 = 中央値比% / サブ = しりすこ値 (ユニオン集計後の基準があれば)。
+    // 分布未解禁のうちは しりすこ値 → それも無ければ実ダメージを主役にする
+    // (2026-11 にふるり値=導入のまき餌をやめた — しきい値を 20 人に下げたので未解禁の期間は短い)
     const ratio = medianRatioOf(r);
     const medianPct = ratio != null ? Math.round(ratio * 100) : null;
-    const pill = medianPct != null
-        ? `<span class="rank-pill">${t('ui.fururi_val', { v: r.score.toFixed(2) })}</span>` : '';
-    const big = medianPct != null
-        ? `${medianPct}<span style="font-size:26px;">%</span>`
-        : r.score.toFixed(2);
+    const ss = ssOf(r);
+    const pill = (medianPct != null && ss != null)
+        ? `<span class="rank-pill">${t('ui.ss_val', { v: ss.toFixed(2) })}</span>` : '';
+    const bigIsDmg = medianPct == null && ss == null && dmgBOf(r) != null;
+    const big = medianPct != null ? `${medianPct}<span style="font-size:26px;">%</span>`
+        : ss != null ? ss.toFixed(2)
+        : bigIsDmg ? `${dmgBOf(r)}<span style="font-size:26px;"> B</span>`
+        : '—';
     const mainPill = medianPct != null
-        ? `<span class="pill">${t('ui.median_100_of_n', { n: r.dist.n })}</span>` : '';
+        ? `<span class="pill">${t('ui.median_100_of_n', { n: r.dist.n })}</span>`
+        : ss != null ? `<span class="pill">${t('ui.ss_name')}</span>` : '';
 
     // 使った編成 (5人・順不同保存なのでバースト順で表示)。編成未入力の提出では出さない
     const compRow = (r.characters?.length && compReady())
@@ -1171,7 +1189,7 @@ function resultCardHTML(r, i, multi) {
         <div class="pill-row">
             ${mainPill}
             <span class="pill">SLv ${r.slv}</span>
-            <span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>
+            ${bigIsDmg ? '' : `<span class="pill">${(r.damage / 1e9).toFixed(3)} B</span>`}
         </div>
         ${finishNote}
         ${compRow}
@@ -1215,10 +1233,14 @@ function distSectionHTML(r, info) {
         // 自分のビンは色が変わるだけ (バッジ・高さ盛りは無し — スタイリッシュ優先の運営判断)
         const bars = d.bins.map((v, bi) =>
             `<div class="bar${bi === d.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
+        const team = t('ui.team_of', { code: attrName(r.attribute) });
+        const medSs = shirisukoValue(d.median, shirisukoRef(base, viewSeason ?? season, r.attribute));
         html += `
         <div class="hist">${bars}</div>
-        <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>${t('ui.axis_median', { v: d.median.toFixed(2) })}</span><span>${d.hi.toFixed(2)}</span></div>
-        <p class="dist-note">${t('ui.attr_dist_note', { team: t('ui.team_of', { code: attrName(r.attribute) }), n: d.n, v: d.median.toFixed(2) })}</p>`;
+        <div class="hist-axis"><span>${Math.round((d.lo / d.median) * 100)}%</span><span>${t('ui.axis_median_pct', { pct: 100 })}</span><span>${Math.round((d.hi / d.median) * 100)}%</span></div>
+        <p class="dist-note">${medSs != null
+            ? t('ui.attr_dist_note_ss', { team, n: d.n, v: medSs.toFixed(2) })
+            : t('ui.attr_dist_note', { team, n: d.n })}</p>`;
     }
     return html;
 }
@@ -1269,7 +1291,7 @@ async function showShareCardPreview() {
     if (hint) hint.style.display = 'none';
     try {
         await document.fonts.ready;
-        const blob = await buildShareCard(results, $('shareCanvas'), { infoOf, totalDist });
+        const blob = await buildShareCard(results, $('shareCanvas'), { infoOf, totalDist, ssOf });
         if (gen !== previewGen) return;   // その間に新しい測定が始まった → この結果は破棄
         if (!blob) throw new Error('toBlob が null を返しました');
         shareBlob = blob;
@@ -1287,7 +1309,7 @@ async function showShareCardPreview() {
     }
 }
 
-// シェア文もカードと同じ主従: 中央値比%が主役、ふるり値はサブ (未解禁時のみふるり値が主役)。
+// シェア文もカードと同じ主従: 中央値比%が主役、しりすこ値はサブ (未解禁時は しりすこ値 → 実ダメージ)。
 // 総合は締め凸を除いて平均 (画面・カードと同じ数字になること — Codex指摘)
 function shareText() {
     const tags = t('ui.tags');
@@ -1296,21 +1318,29 @@ function shareText() {
         const ratios = scored.map(medianRatioOf);
         const partOf = (r) => r.isFinish
             ? t('ui.share_part_finish', { code: attrName(r.attribute) })
-            : (medianRatioOf(r) != null ? `${attrName(r.attribute)}${Math.round(medianRatioOf(r) * 100)}%`
-                                        : `${attrName(r.attribute)}${r.score.toFixed(2)}`);
+            : medianRatioOf(r) != null ? `${attrName(r.attribute)}${Math.round(medianRatioOf(r) * 100)}%`
+            : ssOf(r) != null ? `${attrName(r.attribute)}${ssOf(r).toFixed(2)}`
+            : `${attrName(r.attribute)}${dmgBOf(r) ?? ''}B`;
         if (scored.length > 0 && ratios.every(x => x != null)) {
             const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
             return t('ui.share_total', { pct: totalPct, parts: results.map(partOf).join('/'), tags });
         }
-        return t('ui.share_scores', { parts: results.map(partOf).join('/'), tags });
+        // %が揃っていない: しりすこ値が全部あれば しりすこ値、無ければ実ダメージの並び
+        const allSs = results.every(r => r.isFinish || ssOf(r) != null);
+        return t(allSs ? 'ui.share_scores' : 'ui.share_dmgs', { parts: results.map(partOf).join('/'), tags });
     }
     const r = results[0];
     const ratio = medianRatioOf(r);
+    const ss = ssOf(r);
+    const team = t('ui.team_of', { code: attrName(r.attribute) });
     const finishTag = r.isFinish ? t('ui.share_finish_tag') : '';
     if (ratio != null) {
-        return t('ui.share_one_dist', { pct: Math.round(ratio * 100), team: t('ui.team_of', { code: attrName(r.attribute) }), finishTag, v: r.score.toFixed(2), tags });
+        return ss != null
+            ? t('ui.share_one_dist_ss', { pct: Math.round(ratio * 100), team, finishTag, v: ss.toFixed(2), tags })
+            : t('ui.share_one_dist', { pct: Math.round(ratio * 100), team, finishTag, tags });
     }
-    return t('ui.share_one', { v: r.score.toFixed(2), team: t('ui.team_of', { code: attrName(r.attribute) }), finishTag, tags });
+    if (ss != null) return t('ui.share_one', { v: ss.toFixed(2), team, finishTag, tags });
+    return t('ui.share_one_dmg', { v: dmgBOf(r) ?? '', team, finishTag, tags });
 }
 
 // ⚠ navigator.share() は「ユーザー操作中」でないと呼べない (transient user activation)。
@@ -1331,7 +1361,7 @@ function onShare() {
 function shareWithFile(blob, opts = {}) {
     if (!blob || typeof File !== 'function' || !navigator.canShare || !navigator.share) return false;
     let file = null;
-    try { file = new File([blob], 'fururi-score.png', { type: 'image/png' }); } catch { return false; }
+    try { file = new File([blob], 'shirisuko-score.png', { type: 'image/png' }); } catch { return false; }
     try {
         if (!navigator.canShare({ files: [file] })) return false;
         shareBusy = true;   // 連打で2つ目の share を投げない (2つ目が拒否されて誤ってXに飛ぶのを防ぐ)
@@ -1392,7 +1422,7 @@ function saveByDownload(blob) {
         const a = document.createElement('a');
         const url = URL.createObjectURL(blob);
         a.href = url;
-        a.download = `fururi-score.png`;
+        a.download = `shirisuko-score.png`;
         a.click();
         // ⚠ 同じターンで revoke するとダウンロードが始まる前にURLが無効になり得る (Codex指摘) — 後で捨てる
         setTimeout(() => URL.revokeObjectURL(url), 60000);

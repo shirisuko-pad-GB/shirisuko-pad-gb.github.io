@@ -1,11 +1,19 @@
-# しりすこPAD GB — ふるり値チェッカー
+# しりすこPAD GB — しりすこ値チェッカー
 
-NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふるり値」を測定する公開サイト。
+NIKKE ユニオンレイドのダメージを SLv 補正し、みんなの中での位置 (中央値比 %) と
+実力指標「しりすこ値」を測定する公開サイト (2026-10 までの名前は「ふるり値チェッカー」)。
 [shirisu-pad](https://github.com/Furu1018/shirisu-pad) 内のシミュレータの独立サイト版
 (ROADMAP 機能候補2)。PAD の Supabase には依存しない。
 
 - 公開URL: https://shirisuko-pad-gb.github.io/
-- 計算式: `ふるり値 = ダメージ ÷ (基準ダメージ × slvRatio[自分のSLv] ÷ slvRatio[基準SLv])`
+- サーバーの score = `ダメージ × slvRatio[600] ÷ slvRatio[自分のSLv] ÷ 1B` (= SLv 600 換算のダメージ B)。
+  画面には出さない内部の単位で、見せるのは次の2つ (どちらも単位に依存しない比):
+  - **中央値比** = score ÷ 今シーズンのみんなの中央値 (属性ごと)。属性ごと 20 人で解禁
+  - **しりすこ値** = score ÷ しりすこ基準 (ユニオン「推しりをすこれ部」メンバーの真ん中・同じボス)。
+    レイド後にユニオンの集計がそろってから `scripts/shirisuko-base.mjs` で足す
+- **2026-11 (第46回) の変更**: 基準者「ふるり」の値 (模擬/実凸) で割る「ふるり値」を廃止。
+  ふるり値は分布が解禁されるまでの導入期の「まき餌」だったが、常連が増えて分布がすぐ埋まるようになったため、
+  かわりに解禁しきい値を下げた (属性 50→20 / 同一編成 15→10 / 3凸総合 50→20 — `14_lower_thresholds.sql`)
 - 1〜3凸をまとめて「送信して測定」→ 専用 Supabase に匿名蓄積し、しきい値を超えた属性から
   「みんなの分布 (上位◯%・ヒストグラム)」が解禁される
 - **シーズン制**: レイド毎に分布をリセット (新キャラ・ボスの regime が変わるため)。
@@ -19,8 +27,8 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふ
 | 段階 | 解禁条件 (シーズン内) | 内容 | 状態 |
 |---|---|---|---|
 | 0. 土台 | — | 1端末1票(ベスト)・サーバー側スコア再計算(改ざん対策)・外れ値トリム | ✅ |
-| 1. 属性別分布 | 属性ごと n≥50 | 上位◯%・ヒストグラム・中央値 (平均でなく中央値=外れ値に頑健) | ✅ |
-| 2. 同一編成分布 | 編成ごと n≥15 | 同じ5体編成の中での位置 | ✅ |
+| 1. 属性別分布 | 属性ごと n≥20 (〜2026-10 は 50) | 上位◯%・ヒストグラム・中央値 (平均でなく中央値=外れ値に頑健) | ✅ |
+| 2. 同一編成分布 | 編成ごと n≥10 (〜2026-10 は 15) | 同じ5体編成の中での位置 | ✅ |
 | 3. 編成補正 | 属性ごと データ増加後 | キャラ寄与の回帰モデルで「編成の期待値との差=腕前」 | 未着手 |
 | 4. 3凸総合指標 | Stage1が5属性で成立 | 各凸を集団中央値で割って平均 → ボスの通りやすさを自動補正 | 入力体験のみ |
 
@@ -28,10 +36,10 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふ
 
 - **シーズン = 1つの regime (同じボス集合・キャラ顔ぶれ)**。regime が変わると母集団が変わるため、
   分布・採用率・編成ランキングは **season で区切る** (RPC が `season = p_season` で絞る)。
-- **順位づけは norm_damage (= damage ÷ slvRatio[slv])**。ふるり値は表示用の換算値。
+- **順位づけは norm_damage (= damage ÷ slvRatio[slv])**。score は表示用の換算値 (単位はシーズンの base.json)。
 - 集計はサーバー側 RPC (`get_distribution` / `get_comp_insights`、**最終定義は 08_shadow_stats.sql**):
   シーズン絞り・1端末(client_id)につき属性ごとベスト1件・ヒストグラムは p1〜p99 域にクリップ。
-  返り値はふるり値単位。**時間窓は撤去** (シーズンで区切るため)。
+  返り値は score の単位 (2026-11〜 SLv 600 換算 B / 〜2026-10 ふるり値)。画面は中央値比かしりすこ値に直して見せる。**時間窓は撤去** (シーズンで区切るため)。
 - **シャドウ集計 (08)**: 荒らしの極端値は送信を拒否せず受理する (突っぱねるとエスカレートするため)。
   シーズン別の妥当スコア範囲 (`score_bounds`、既定 [0.01, 5.0]・anon 読み取り不可) の外の票は
   **公開集計から黙って除外** (per-client ベスト選抜の前に落とす)。本人の画面には自分のスコアが
@@ -39,7 +47,7 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、実力指標「ふ
 - **利用者へのフィードバックは順位ではなく「中央値=100%としたときの%」** (中央値比)。
 - score / norm_damage は BEFORE INSERT トリガがサーバー側で再計算 (クライアント申告値は無視)。
 - **しきい値はサーバーが強制** (n<閾値なら分布本体を返さず `{n,gated,need}`)。
-  クライアントの `js/shared.js` `THRESHOLDS` (dist=50 / comp=15 / insights=10) は表示用で、
+  クライアントの `js/shared.js` `THRESHOLDS` (dist=20 / comp=10 / insights=10 — 2026-11 に引き下げ) は表示用で、
   ゲート表示はサーバーの `need` を優先。個別編成の median は **採用5人未満だと伏せる** (プライバシー)。
   編成の「最高」(生max) は公開しない (境界内の1票で乗っ取れるため 08 で廃止 —
   かわりに中央値TOP3 と並び順の内訳を返す)。
@@ -75,7 +83,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 
 - **リポジトリにも サイトにも Supabaseの公開範囲にも 置かない**。存在してよいのは
   Supabase の `slv_ratio` テーブル (RLSで外部SELECT不可) と、手元のローカルファイルだけ
-- ふるり値の計算はサーバー側のみ: 送信 (INSERT) のトリガが計算し、返事で score を返す。
+- スコアの計算はサーバー側のみ: 送信 (INSERT) のトリガが計算し、返事で score を返す。
   クライアントは計算式のテーブル部分を一切持たない
 - 秘匿データの投入は **`node scripts/gen-seed.mjs`** (../しりすこPAD の slv-ratio.json を読む) が生成する
   `supabase/seed.local.sql` — **gitignore 済み。コミット禁止**。
@@ -101,7 +109,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `js/messages.js` | 表示文言の辞書 (ja / en)。データだけを置く — 仕組みは i18n.js |
 | `data/name-en.json` | キャラ英語名の手動補助表 (blabla-map.json の `en` に無いキャラを補う) |
 | `js/backend.js` | 専用 Supabase への RPC 送信 (submit で score 受領) / 分布・集計取得 |
-| `data/base.json` | 基準値 (基準者ふるり の属性別ダメージ @ 基準SLv) — new-season.mjs が生成 |
+| `data/base.json` | スコアの単位 (`unit: slv-b` = SLv 600 換算 B・属性ごと 1B) — new-season.mjs が生成。`shirisuko` = しりすこ基準 (属性ごとの ref/人数) — shirisuko-base.mjs がレイド後に書く |
 | `data/raid.json` | シーズンのボス名・属性パネルの表示順 (order) — new-season.mjs が生成 |
 | `data/boss-catalog.json` | 本家の全実シーズンのボス名履歴 (生成物・raid.json の typo 検証用) |
 | `data/presets.json` | 属性別キャラ使用率 + 使用率TOP編成 (生成物) |
@@ -114,7 +122,8 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `data/site.json` | 運用設定: 連絡先X・ユニオン募集カード (tools/ops.html で編集支援) |
 | `stats.html` + `js/stats.js` | みんなのデータページ (分布・キャラ採用率・編成ランキング) |
 | `tools/ops.html` | 運営用サイト設定パネル (閲覧専用ワークベンチ — site.json を生成して GitHub で commit) |
-| `scripts/new-season.mjs` | **シーズン切替の1コマンド** (本家からボス+ふるり基準を取得 → raid/base/seed 生成) |
+| `scripts/new-season.mjs` | **シーズン切替の1コマンド** (本家からボス5体を取得 → raid/base/seed 生成。基準者は使わない) |
+| `scripts/shirisuko-base.mjs` | **しりすこ基準**: 本家の月次JSON (レイド後) から、メンバーの締め凸を除くベスト凸を SLv 補正した中央値をボスごとに出して base.json に書く |
 | `scripts/update-roster.mjs` | 新キャラ取り込みの1コマンド (build-characters → build-data) |
 | `scripts/build-characters.mjs` | characters.json 再生成 (本家 nikke_characters の名前・バースト × element-map) |
 | `scripts/build-data.mjs` | presets.json 再生成 (旧アイコンIDは aliases で代表IDに正規化して集計) |
@@ -127,7 +136,8 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `supabase/05_seasons.sql` | **シーズン制への移行 (集計RPCの最終定義)**: season統合・site_state・p_season RPC (submit の最終は 07) |
 | `supabase/06_input_bounds.sql` | damage のサニティ上限CHECK (REVIEW-aggregation.md 対処2) |
 | `supabase/07_sanitize_errors.sql` | **submit_measurements の最終定義**: エラーDETAILの行内容漏洩 (norm_damage→slv_ratio逆算) を遮断 |
-| `supabase/08_shadow_stats.sql` | **集計RPCの最終定義**: シャドウ除外 (score_bounds)・「最高」廃止・中央値TOP・並び順内訳 |
+| `supabase/08_shadow_stats.sql` | 集計RPC: シャドウ除外 (score_bounds)・「最高」廃止・中央値TOP・並び順内訳 (09 が引き継ぐ) |
+| `supabase/14_lower_thresholds.sql` | **get_distribution / get_total_distribution の最終定義**: 解禁しきい値の引き下げ (20/10・総合20)。中身は 09 / 11 と同一 (get_comp_insights の最終は 09) |
 | `supabase/99_check_applied.sql` | マイグレーション適用状況チェッカー (新環境で必須・読み取り専用) |
 
 ### 🎨 権利方針: キャラ画像は **takedown 方式で掲載中** (2026-08-31 改定)
@@ -269,7 +279,7 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
 
 ボスには属性ごとに「ダメージの通りやすさ/通りにくさ」の差があるため、3凸の生合計では公平に比べられない。
 
-- **現在の「平均ふるり値」は既に補正済み**: 各凸を基準者ふるりの**同じボスへの**ダメージで
+- **(〜2026-10) 「平均ふるり値」は補正済みだった**: 各凸を基準者ふるりの**同じボスへの**ダメージで
   割っているので、通りやすいボスは分母も大きくなり相殺される。
   弱点は「基準者自身のボスごとの得意不得意」が混入すること
 - **データが貯まったら (シーズン内・属性ごと)**: 各凸のスコアを
@@ -280,7 +290,7 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
 
 ## シーズン切替の運用ランブック (レイド毎)
 
-**新シーズンは「ふるり基準が揃って初めて開く」。基準が未投入の隙間は between で蓋をする。**
+**新シーズンは「seed (単位) を入れてから開く」。2026-11 から基準者の値は要らないので、レイド前でも開ける。**
 
 ```
 [前シーズンN 開催中]  site_state: status=open, active_season=N
@@ -289,30 +299,34 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
     update public.site_state set status='between', active_season=null, display_season='N',
         message='次シーズン準備中です', updated_at=now();
     → 送信停止・stats は N を read-only 表示 (最終結果)
-      ↓ 本家PADでふるり基準が確定 (模擬タブ登録 / 本家 attacks の実凸 (開催中に読める) / 月次JSON)
+      ↓ 本家に次シーズン (ボス5体) が登録されたら
 [新シーズンN+1 開始]  ★切替オペレーション (VSCode・PC必須)★
   (0) 前シーズンを凍結:  node scripts/export-season.mjs   ← **(a) より前・new-season より前** に
       (base.json がまだ N のうちに実行。data/export/N.json + index.json を commit。
        次シーズン序盤の「前回 (N) の人気編成」はこのファイルから出る — js/calc.js pickPrevSeason)
   (a) 旧データ削除:   delete from public.measurements;
-  (b) node scripts/new-season.mjs        ← ボス5体・ふるり基準 (模擬優先)・roster を全自動生成
-        (月次JSONがまだ無ければ --slv <ふるりの現在SLv> を付ける。
-         基準が揃っていなければエラーで止まる = そのまま open しないこと)
-  (c) SQL Editor で supabase/seed.local.sql を実行 (fururi_bases に N+1 を投入)
-  (d) スコアの受理範囲を入れる (**忘れると既定 0.01〜5.0 で緩くなる**):
+  (b) node scripts/new-season.mjs        ← ボス5体・スコアの単位・roster を全自動生成
+  (c) SQL Editor で supabase/seed.local.sql を実行 (fururi_bases に N+1 の単位 = 1B @ SLv 600 を投入)
+  (d) スコアの受理範囲を入れる (**忘れると既定 0.01〜5.0 = 0.01B〜5B で、ほぼ全員が除外される**):
         insert into public.score_bounds (season, min_score, max_score)
-          values ('N+1', 0.1, 2.5) on conflict do nothing;
-        (第43回・第44回とも 0.1〜2.5 で運用)
+          values ('N+1', 1.0, 80.0) on conflict do nothing;
+        (単位は SLv 600 換算 B。過去3シーズンの p1〜p99 は 6〜38B。〜第45回はふるり値単位の 0.1〜2.5)
   (e) node tests/run-tests.mjs → commit & push
   (f) 開く:  update public.site_state set status='open', active_season='N+1',
                  display_season=null, updated_at=now();
-    → N+1 が 0 から開始。
+    → N+1 が 0 から開始 (属性ごと 20 人で中央値比が解禁)。
+      ↓ レイド後 (全員の凸が終わり、本家に月次JSON data/<N+1>.json が入ったら)
+  (g) しりすこ基準:  node scripts/shirisuko-base.mjs            ← 確かめるだけ
+                     node scripts/shirisuko-base.mjs --apply    ← base.json に書く
+      → node tests/run-tests.mjs → commit & push で画面に「しりすこ値」が出る (DB 作業なし)。
+        単位はシーズン中に変えないので、先に送った人の結果にもあとから付く
 ```
 - **順序厳守**: 基準 (seed) を入れてから open。逆だとトリガが `unknown season/attribute` で送信を弾く
   (between が蓋なので実害はないが、open は基準投入後に)。
 - `base.json` の `version` / `raid.json` の `season` / site_state の `active_season` が
   揃って初めて送信が通る (テストが version 一致とボス名 typo を検証する)。
 - 現行シーズンの再生成・検証は `node scripts/new-season.mjs --season-id <本家ID>`。
+  ⚠ 開催中に再生成すると base.json の `shirisuko` が null に戻る — (g) をやり直すこと。
 
 ### 結果発表カード (シーズン終了後・SNS投稿用)
 
@@ -459,15 +473,12 @@ node scripts/update-roster.mjs        # ../しりすこPAD を読む (パス指�
   (未分類のままでも動く — タイルがグレーの「属性？」表示になるだけ)
 - 警告が消えたら commit → push
 
-base.json の基準ダメージの出所 (new-season.mjs が自動で解決する):
-- 基準者ふるりの実凸ダメージと編成 → 本家 Supabase の `attacks` (該当 season_id・ハード日の凸のみ・
-  ふるりが締め凸担当 (finish_claims) のボスは除外・**開催中でも読める**)。
-  `syncLevel` と実凸の再確認 → 最新月JSON (`../しりすこPAD/data/YYYY-MM.json`、レイド終了後)。
-  月次JSONは編成を持たないので、月次JSONの方が大きい凸は編成を `player_damages` (模擬タブ) に委ねる
-- 模擬スコア (実凸が無い/締め凸だった属性の差し替え) → 本家 Supabase
-  `fururi_simulation_scores` (該当 season_id)。**模擬登録がある属性は模擬値を優先**。
-  ただし模擬の値が実凸と同額なら (実凸の結果を模擬タブに転記しただけ) `source: actual` として
-  実凸の編成を開示する。開催中に「実凸3属性 + 模擬2属性」で基準を組めるのはこのため
+しりすこ基準の出所 (shirisuko-base.mjs):
+- 本家の月次JSON (`../しりすこPAD/data/YYYY-MM.json`、レイド終了後) の各メンバーの `attacks` と `syncLevel`。
+  締め凸 (`isKill`)・ハード以外は除き、メンバーごとのベストを SLv 補正 (`../しりすこPAD/data/slv-ratio.json`) して
+  ボスごとの中央値。5 人未満のボスは基準を作らない (その属性は中央値比だけ)
+- base.json に書くのはボスごとの中央値 (SLv 600 換算 B) と人数だけ (補正表・個人の値は出さない)
+- (〜2026-10 の「ふるり基準」は本家の `fururi_simulation_scores` (模擬) と `attacks` (実凸) から作っていた)
 
 ## Supabase セットアップ (初回のみ)
 

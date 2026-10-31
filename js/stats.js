@@ -3,6 +3,7 @@ import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured
 import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO, enablePullToRefresh, attrName } from './shared.js';
 import { makeCharResolver, tileHTML, sortForDisplay } from './tiles.js';
 import { t, initLang, applyStaticI18n, mountLangToggle } from './i18n.js';
+import { shirisukoRef, shirisukoValue } from './calc.js';
 
 let infoOf = () => null;
 
@@ -78,12 +79,13 @@ async function renderEase() {
         const meds = attrs.map((a, i) => ({
             attr: a,
             median: (dists[i] && !dists[i].gated && Number.isFinite(dists[i].median)) ? dists[i].median : null,
+            n: count(dists[i]?.n),
         }));
         const avail = meds.filter(m => m.median != null).map(m => m.median).sort((x, y) => x - y);
         if (avail.length < 3) return;
         const center = avail[Math.floor(avail.length / 2)];   // 真ん中の属性 = ×1.00
         if (!(center > 0)) return;
-        $('easeArea').innerHTML = meds.map(({ attr, median }) => {
+        $('easeArea').innerHTML = meds.map(({ attr, median, n }) => {
             const info = ATTR_INFO[attr];
             if (median == null) return `
             <div class="ease-cell">
@@ -96,7 +98,7 @@ async function renderEase() {
             <div class="ease-cell${Math.abs(v - 1) < 1e-9 ? ' center' : ''}">
                 <span class="e-name" style="color:${info.color};">${attrName(attr)}</span>
                 <span class="e-val">×${v.toFixed(2)}</span>
-                <span class="e-med">${t('ui.axis_median', { v: median.toFixed(2) })}</span>
+                <span class="e-med">${t('stats.ease_n', { n })}</span>
             </div>`;
         }).join('');
         $('easeCard').style.display = 'block';
@@ -144,7 +146,7 @@ async function load() {
         ]);
         if (gen !== loadGen) return;   // その間に別タブへ切り替わった → この応答は捨てる
         renderDist(dist, attr);
-        renderInsights(ins, attr);
+        renderInsights(ins, attr, dist);
     } catch (e) {
         console.warn(e);
         if (gen !== loadGen) return;
@@ -172,16 +174,29 @@ function renderDist(d, attr) {
         return;
     }
     const maxBin = Math.max(...d.bins, 1);
+    const team = t('ui.team_of', { code: attrName(attr) });
+    const medSs = shirisukoValue(d.median, shirisukoRef(base, viewSeason, attr));
     $('distArea').innerHTML = `
     <div class="hist">${d.bins.map(v =>
         `<div class="bar" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('')}</div>
-    <div class="hist-axis"><span>${d.lo.toFixed(2)}</span><span>${t('ui.axis_median', { v: d.median.toFixed(2) })}</span><span>${d.hi.toFixed(2)}</span></div>
-    <p class="dist-note">${t('stats.dist_note', {
-        team: t('ui.team_of', { code: attrName(attr) }), n: count(d.n), v: d.median.toFixed(2),
-    })}</p>`;
+    <div class="hist-axis"><span>${pctOfMedian(d.lo, d)}</span><span>${t('ui.axis_median_pct', { pct: 100 })}</span><span>${pctOfMedian(d.hi, d)}</span></div>
+    <p class="dist-note">${medSs != null
+        ? t('stats.dist_note_ss', { team, n: count(d.n), v: medSs.toFixed(2) })
+        : t('stats.dist_note', { team, n: count(d.n) })}</p>`;
 }
 
-function renderInsights(ins, attr) {
+// スコアの単位 (SLv 換算 B / 2026-10 まではふるり値) は表に出さない。中央値比 (%) か しりすこ値 で見せる
+function pctOfMedian(v, d) {
+    return (Number.isFinite(v) && d?.median > 0) ? `${Math.round((v / d.median) * 100)}%` : '—';
+}
+function compMedianLabel(median, attr, dist) {
+    const ss = shirisukoValue(Number(median), shirisukoRef(base, viewSeason, attr));
+    if (ss != null) return t('stats.median_strong_ss', { v: ss.toFixed(2) });
+    const distReady = dist && !dist.gated && Array.isArray(dist.bins) && dist.median > 0;
+    return distReady ? t('stats.median_strong', { pct: Math.round((Number(median) / dist.median) * 100) }) : null;
+}
+
+function renderInsights(ins, attr, dist) {
     const n = count(ins?.n);
     if (!ins || ins.gated || !ins.chars) {   // サーバー閾値未満は本体なし
         $('charsArea').innerHTML = gateHTML(n, ins?.need ?? THRESHOLDS.insights,
@@ -202,7 +217,7 @@ function renderInsights(ins, attr) {
     <div class="comp-row strong-comp">
         <span class="rank">${i + 1}</span>
         <span class="comp-meta">
-            <span>${t('stats.median_strong', { v: Number(cp.median).toFixed(2) })}</span>
+            ${(() => { const l = compMedianLabel(cp.median, attr, dist); return l ? `<span>${l}</span>` : ''; })()}
             <span>${t('stats.used_strong', { n: count(cp.n) })}</span>
         </span>
         <span class="comp-faces">${sortForDisplay(Array.isArray(cp.chars) ? cp.chars : [], infoOf).map(img => charTileTag(img)).join('')}</span>
@@ -214,8 +229,9 @@ function renderInsights(ins, attr) {
     // 編成ランキング (使用率順)。median は採用5人未満だと null (プライバシー下限)。
     // 編成は「同じ5人」で1つ (並び順は評価に無関係なので内訳は出さない — 2026-08-01 運営判断)
     const compRows = (ins.comps || []).map((cp, i) => {
-        const stats = Number.isFinite(cp.median)
-            ? `<span>${t('stats.median_strong', { v: Number(cp.median).toFixed(2) })}</span>`
+        const label = Number.isFinite(cp.median) ? compMedianLabel(cp.median, attr, dist) : null;
+        const stats = label ? `<span>${label}</span>`
+            : Number.isFinite(cp.median) ? ''
             : `<span style="color:var(--faint);">${t('stats.score_needs_5')}</span>`;
 
         const row = `

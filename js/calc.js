@@ -1,7 +1,7 @@
 // クライアント側の計算ユーティリティ (純関数)。
 //
-// ふるり値の計算式そのもの (SLv補正テーブル・基準値を使う部分) は
-// **サーバー側にしかない** (supabase/02_stats.sql の measurements_compute トリガ)。
+// スコアの計算式そのもの (SLv補正テーブル・単位を使う部分) は
+// **サーバー側にしかない** (supabase/05_seasons.sql の measurements_compute トリガ)。
 // SLv補正テーブルは未公開の検証データのため、クライアントには一切持たせない設計。
 // クライアントは送信の返事から score を受け取り、分布も RPC の集計結果を表示するだけ。
 
@@ -12,6 +12,21 @@ export const ATTRS = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
 export function topPercentFromCounts(above, n) {
     if (!Number.isFinite(above) || !Number.isFinite(n) || n <= 0) return null;
     return Math.max(1, Math.round(((above + 1) / n) * 100));
+}
+
+// ---------- しりすこ値 (2026-11〜) ----------
+// サーバーの score は「SLv baseSlv 換算のダメージ (B)」(base.json の unit='slv-b' — 基準者は置かない)。
+// それを しりすこ基準 (ユニオンの真ん中のメンバー・同じ単位) で割ったものが しりすこ値 (1.00 = 真ん中)。
+// 基準はレイド後に足される (scripts/shirisuko-base.mjs) ので、無いうちは null = 画面に出さない。
+// 表示中のシーズンと base.json のシーズンが違う (between 中は base.json が次シーズン) ときも null。
+export function shirisukoRef(base, season, attribute) {
+    if (!base || base.unit !== 'slv-b' || base.version !== season) return null;
+    const v = Number(base.shirisuko?.attrs?.[attribute]?.ref);
+    return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+export function shirisukoValue(score, ref) {
+    return (Number.isFinite(ref) && ref > 0 && Number.isFinite(score)) ? score / ref : null;
 }
 
 // ダメージ入力のパース → 生ダメージ (実数) or null。
@@ -130,7 +145,8 @@ export function pickPrevSeason(seasons, current) {
 
 // export JSON の1属性ぶんを、画面が使う insights 互換の形 ({topChars, topComps}) に変換する。
 // canon は別名ID → 代表ID の解決 (export 時点の ID が古い可能性があるため)。
-// 中央値は「その編成のふるり値中央値」で、今シーズンの RPC が返す median と同じ意味。
+// 中央値は export 時の単位 (methodology.unit — 2026-10 まではふるり値) のままで、並べ替えにだけ使う。
+// 今シーズンとは単位が違うことがあるので、画面には数字として出さない (app.js の候補一覧)。
 export function prevCompsFromExport(exp, attribute, canon = (id) => id) {
     const a = exp?.attributes?.[attribute];
     const comps = Array.isArray(a?.comps) ? a.comps : [];

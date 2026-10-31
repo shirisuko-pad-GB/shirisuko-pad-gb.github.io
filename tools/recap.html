@@ -494,7 +494,7 @@ window.build = async (kind) => {
             ctx.fillStyle = '#8A9097'; ctx.font = `700 15px ${F}`;
             ctx.fillText(usage ? `編成つき ${d.cohort}件` : `${d.n}件`, 70, cy + 20);
             // 中央値比 = その編成の中央値 ÷ その属性の中央値 (=100%)。
-            // ふるり値の絶対値は外部に伝わらないので、カードでは常に「中央値=100%」で見せる
+            // スコアの絶対値 (内部の単位) は外部に伝わらないので、カードでは常に「中央値=100%」で見せる
             const relPct = (comp && Number.isFinite(comp.median) && d.median > 0)
                 ? Math.round(comp.median / d.median * 100) : null;
             // 主役の数値 (中央値比は属性色 — 実機FB 2026-08-10)

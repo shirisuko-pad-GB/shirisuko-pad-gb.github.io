@@ -115,5 +115,14 @@ SELECT * FROM (
                      WHERE n.nspname = 'public' AND p.proname = 'submit_measurements'
                        AND pg_get_functiondef(p.oid) LIKE '%then ''ocr'' else ''manual''%')),
         '提出経路の記録 (スクショ読み取り / 手入力) — 編成つき提出率の切り分け用'
+
+    UNION ALL SELECT '14_lower_thresholds',
+        (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                 WHERE n.nspname = 'public' AND p.proname = 'get_distribution'
+                   AND p.prosrc LIKE '%then 20 else 10 end%')
+         AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                     WHERE n.nspname = 'public' AND p.proname = 'get_total_distribution'
+                       AND p.prosrc LIKE '%v_thresh int := 20;%')),
+        '分布の解禁しきい値 (属性20 / 同一編成10 / 3凸総合20)'
 ) t
 ORDER BY migration;

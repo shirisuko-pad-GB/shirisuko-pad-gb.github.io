@@ -81,7 +81,10 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
         check('基準パネルが隠れている (次シーズン分の先出し防止)', fold?.style.display === 'none' && !fd.querySelector('#baseTeams .base-row'));
         check('基準ラベルに次シーズンの値が出ない', !label.includes(String(baseJson.baseSlv)) && /準備中/.test(label));
       } else {
-        check('基準パネルは表示中シーズンと一致', fold?.style.display !== 'none' && !!fd.querySelector('#baseTeams .base-row'));
+        // しりすこ基準 (レイド後に足す) があれば属性行、無ければ「集計後に追加」の案内
+        const hasSs = !!baseJson.shirisuko?.attrs && Object.keys(baseJson.shirisuko.attrs).length > 0;
+        check('基準パネルは表示中シーズンと一致', fold?.style.display !== 'none'
+          && (hasSs ? !!fd.querySelector('#baseTeams .base-row') : !!fd.querySelector('#baseTeams .hint')));
       }
       R.steps.push({ name: '(closed mode: 測定・分布系は skip)', skip: true });
     } else {
@@ -89,14 +92,17 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       // SLv入力ゲート: 未入力の間は凸カードが出ず、ガイドカードが出る
       check('SLv未入力ゲート表示', !!fd.querySelector('.slv-gate') && fd.querySelectorAll('.atk-card').length === 0);
       const set = (el, v) => { el.value = v; el.dispatchEvent(new fw.Event('input', { bubbles: true })); };
-      // 基準値はシーズンで変わるので base.json から取る (ハードコードすると切替のたびに落ちる)
+      // 2026-11〜 基準者は居ない。スコアの単位 (SLv baseSlv 換算の B) の基準SLv で、ふつうの値 20B を送る
+      // (この端末の1票は本番の分布に入るので、外れ値にならない値にする)
       const baseJson = await (await fetch('/data/base.json')).json();
-      const baseFire = baseJson.bases.FIRE.damage / 1e9;
+      const E2E_DMG_B = 20;
+      const ssRef = Number(baseJson.shirisuko?.attrs?.FIRE?.ref) > 0 ? Number(baseJson.shirisuko.attrs.FIRE.ref) : null;
+      const ssExpected = ssRef ? (E2E_DMG_B / ssRef).toFixed(2) : null;   // しりすこ値 (基準があるときだけ)
       set(fd.getElementById('slv'), baseJson.baseSlv);
       check('属性ボタン5個 (SLv入力後に出現)', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
       fd.querySelectorAll('.atk-card')[0].querySelector('[data-attr="FIRE"]').click();
       await wait(250);
-      set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), String(baseFire));
+      set(fd.querySelectorAll('.atk-card')[0].querySelector('.atk-damage'), String(E2E_DMG_B));
       await wait(150);
       check('送信ボタン有効化', fd.getElementById('submitBtn').disabled === false);
       fd.getElementById('submitBtn').click();
@@ -105,16 +111,16 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       const errored = [...fd.querySelectorAll('.card h2')].some(h => h.textContent.includes('測定できません'));
       R.backendUp = !errored && !!scoreEl;   // シーズンが open で基準投入済みなら成功
       if (R.backendUp) {
-        // 主従統一 (2026-07-30): 分布解禁時は 中央値比% が主役でふるり値はサブpill、
-        // 未解禁時は ふるり値が主役。基準ダメージ入力なのでふるり値は必ず 1.00
+        // 主従 (2026-11〜): 分布解禁時は 中央値比% が主役で しりすこ値 はサブpill (基準があるときだけ)、
+        // 未解禁時は しりすこ値 → それも無ければ実ダメージが主役。どのモードでも空振りしない整合検査
         const pillTxt = fd.querySelector('.result-card .rank-pill')?.textContent || '';
-        const scoreOk = pillTxt.includes('ふるり値 1.00') || scoreEl.textContent === '1.00';
-        check('スコア 1.00 (基準ダメージ入力・主役orサブ表示)', scoreOk);
-        // どちらのモードでも空振りしない整合検査:
-        //   解禁 = ふるり値サブpillあり かつ 主役が% / 未解禁 = pillなし かつ 主役がふるり値
-        const pctMain = /%$/.test(scoreEl.textContent.trim());
-        check('主従の整合 (解禁=%主役 / 未解禁=ふるり値主役)',
-          (pillTxt.includes('ふるり値') && pctMain) || (!pillTxt && !pctMain && scoreEl.textContent === '1.00'));
+        const bigTxt = scoreEl.textContent.trim();
+        const pctMain = /%$/.test(bigTxt);
+        const mainOk = pctMain
+          ? (ssExpected ? pillTxt.includes('しりすこ値 ' + ssExpected) : !pillTxt)
+          : (!pillTxt && bigTxt === (ssExpected ?? (E2E_DMG_B.toFixed(2) + ' B')));
+        check('主従の整合 (解禁=%主役+しりすこ値サブ / 未解禁=しりすこ値 or 実ダメージが主役)', mainOk);
+        check('画面に「ふるり値」が出ない', !(fd.querySelector('.result-card')?.textContent || '').includes('ふるり値'));
         // 分布セクション: 未解禁なら「◯人で解禁」ゲート、解禁済みなら中央値の分布が出る (どちらかで合格)
         check('分布セクション表示 (ゲート or 解禁後の中央値)', /で解禁|中央値/.test(fd.querySelector('.result-card')?.textContent || ''));
         check('前回結果を localStorage 保存', !!fw.localStorage.getItem('spg_last_result'));
@@ -125,8 +131,8 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
         check('再確認ボタンあり', !!rbtn);
         if (rbtn) { rbtn.click(); await wait(4500);
           const rp = fd.querySelector('.result-card .rank-pill')?.textContent || '';
-          check('再確認で結果を再表示 (新規送信なし)',
-            rp.includes('ふるり値 1.00') || fd.querySelector('.result-card .score-big')?.textContent === '1.00'); }
+          const rb = fd.querySelector('.result-card .score-big')?.textContent.trim() || '';
+          check('再確認で結果を再表示 (新規送信なし)', rp === pillTxt && (pctMain ? /%$/.test(rb) : rb === bigTxt)); }
       } else {
         R.steps.push({ name: '(送信不可 = シーズン未 open/基準未投入: 送信系 skip)', skip: true });
       }

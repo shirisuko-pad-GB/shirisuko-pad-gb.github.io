@@ -266,7 +266,7 @@ try {
             + 'avgSlv は measurements 直読みの SQL 由来で母集団が少し広く、取得日も別 (avgSlvCapturedAt)。'
             + 'シーズンが open の間は提出が増え続けるため、各値は capturedAt 時点のスナップショット'
             + ' (属性ごとのRPCは逐次取得なので厳密には同時刻ではない)。'
-            + 'median はふるり値スケールの生値 — カードは属性中央値=100%の相対表示で、用途が違う。',
+            + 'median は score の生値 (単位は base.json の unit — 〜2026-10 ふるり値 / 2026-11〜 SLv 600 換算 B) — カードは属性中央値=100%の相対表示で、用途が違う。',
     };
     if (inheritedSlv) console.warn(`  ⚠ 平均SLv は前回値 ${prev.avgSlv} を引き継ぎました (--avgslv 未指定・取得日 ${prev.avgSlvCapturedAt ?? '不明'})`);
     await writeFile(statsPath, JSON.stringify({ ...prev, ...out }, null, 2) + '\n', 'utf8');

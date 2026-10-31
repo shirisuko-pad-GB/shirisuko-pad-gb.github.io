@@ -62,18 +62,21 @@ const out = {
     season: SEASON,
     generatedAt: new Date().toISOString(),
     methodology: {
-        unit: 'fururi',
+        // スコアの単位: 'fururi' (〜2026-10・基準者ふるりの値との比) / 'slv-b' (2026-11〜・SLv baseSlv 換算の B)。
+        // medianFururi などのフィールド名は互換のためそのまま (中身の単位はここで判断する)
+        unit: base.unit ?? 'fururi',
         attackBenchmark: 'per-client best per attribute (シーズン内・1端末1票)',
         compBenchmark: '編成つき提出のみの per-client best',
         excluded: ['finish (締め凸)', 'shadow-range (score_bounds 外)'],
-        attributeMedianFloor: 50,
+        attributeMedianFloor: base.unit === 'slv-b' ? 20 : 50,   // 14_lower_thresholds で 50→20 (2026-11〜)
         compCohortFloor: 10,
         compMedianFloor: 5,
     },
     base: {
         version: base.version,
-        basePlayer: base.basePlayer,
+        basePlayer: base.basePlayer ?? null,   // 2026-11〜 は基準者なし
         baseSlv: base.baseSlv,
+        shirisuko: base.shirisuko ?? null,     // しりすこ基準 (属性ごとの ref/n — 同じ単位)
         attributes: Object.fromEntries(ATTRS.map(a => [a, {
             bossCode: base.bases[a]?.bossCode ?? null,
             bossName: raid.bosses?.[a] ?? null,

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // クライアント側テスト:  node tests/run-tests.mjs
-// ふるり値の計算式はサーバー側 (supabase/02_stats.sql) にしかないため、
+// スコアの計算式はサーバー側 (supabase/05_seasons.sql のトリガ) にしかないため、
 // ここでは クライアントユーティリティ と 秘匿データの混入ガード を検証する。
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport } from '../js/calc.js';
+import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport, shirisukoRef, shirisukoValue } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 import { classifyHue, ptOfBossAttr, parseDamageWord, isLevelWord, pairAnchorsWithDamages, PAIR_MAX_GAP_W, probeImageDims } from '../js/ocr.js';
 import { ocrTipsSvg } from '../js/ocr-tips.js';
@@ -325,10 +325,10 @@ test('しきい値が3種そろっていて正の整数', () => {
     for (const k of ['dist', 'comp', 'insights']) {
         assert(Number.isInteger(THRESHOLDS[k]) && THRESHOLDS[k] > 0, `THRESHOLDS.${k} が不正`);
     }
-    // per-season 向けに引き下げた値。SQL (05_seasons.sql) の get_distribution=50/15・
-    // get_comp_insights=10 と一致させること。
-    assertEq(THRESHOLDS.dist, 50);
-    assertEq(THRESHOLDS.comp, 15);
+    // 2026-11 に引き下げた値 (常連が増えてふるり値=導入のまき餌をやめた代わり)。
+    // SQL の get_distribution=20/10・get_total_distribution=20 (14) / get_comp_insights=10 (09) と一致させること。
+    assertEq(THRESHOLDS.dist, 20);
+    assertEq(THRESHOLDS.comp, 10);
     assertEq(THRESHOLDS.insights, 10);
 });
 
@@ -556,6 +556,51 @@ test('data/export/index.json: 一覧がファイルと一致し、各ファイ�
     assert(valid.length > 0, '凍結版が1つも無い (export-season.mjs を実行していない)');
 });
 
+console.log('しりすこ値 (2026-11〜):');
+
+test('shirisukoRef: 単位が slv-b・表示中シーズンと一致・ref が正のときだけ基準を返す', () => {
+    const b = { version: '2026-11', unit: 'slv-b', shirisuko: { attrs: { FIRE: { ref: 20, n: 14 }, WIND: { ref: 0, n: 9 } } } };
+    assertEq(shirisukoRef(b, '2026-11', 'FIRE'), 20, '基準あり');
+    assertEq(shirisukoRef(b, '2026-11', 'WATER'), null, 'その属性の基準なし');
+    assertEq(shirisukoRef(b, '2026-11', 'WIND'), null, 'ref が 0 は使わない');
+    assertEq(shirisukoRef(b, '2026-10', 'FIRE'), null, 'between 中 (表示は前シーズン) は出さない');
+    assertEq(shirisukoRef({ ...b, unit: undefined }, '2026-11', 'FIRE'), null, '旧形式 (ふるり基準) の base.json では出さない');
+    assertEq(shirisukoRef({ ...b, shirisuko: null }, '2026-11', 'FIRE'), null, 'ユニオン集計前');
+    assertEq(shirisukoRef(null, '2026-11', 'FIRE'), null, 'base なし');
+    assertEq(shirisukoRef({ ...b, shirisuko: { attrs: { FIRE: { ref: '20' } } } }, '2026-11', 'FIRE'), 20, '数値文字列も数として読む');
+    assertEq(shirisukoRef({ ...b, shirisuko: { attrs: { FIRE: { ref: 'x' } } } }, '2026-11', 'FIRE'), null, '壊れた値は null');
+});
+
+test('shirisukoValue: score ÷ 基準 (基準・score が無ければ null)', () => {
+    assertEq(shirisukoValue(21, 20), 1.05);
+    assertEq(shirisukoValue(21, null), null, '基準なし');
+    assertEq(shirisukoValue(NaN, 20), null, 'score なし');
+    assertEq(shirisukoValue(21, -1), null, '負の基準');
+});
+
+test('base.json: 2026-11 からの形 (単位 slv-b・基準者なし・しりすこ基準は null か属性ごとの ref/n)', () => {
+    const base = JSON.parse(readFileSync(join(ROOT, 'data', 'base.json'), 'utf8'));
+    assertEq(base.unit, 'slv-b', 'unit');
+    assert(Number.isInteger(base.baseSlv) && base.baseSlv >= 1 && base.baseSlv <= 1183, 'baseSlv は補正テーブルの範囲の整数');
+    assert(!('basePlayer' in base), '基準者 (basePlayer) は置かない');
+    assertEq(Object.keys(base.bases).sort().join(), [...ATTRS].sort().join(), '5属性そろっている');
+    for (const [a, b] of Object.entries(base.bases)) {
+        assertEq(b.damage, 1e9, `${a}: 単位は 1B (サーバーの score = SLv baseSlv 換算の B)`);
+        assert(typeof b.bossCode === 'string' && b.bossCode.length > 0, `${a}: bossCode`);
+        assert(!('team' in b) && !('source' in b), `${a}: 基準者の編成・出所は置かない`);
+    }
+    if (base.shirisuko != null) {
+        const at = base.shirisuko.attrs ?? {};
+        assert(Object.keys(at).length > 0, 'shirisuko を置くなら属性が1つ以上');
+        for (const [a, v] of Object.entries(at)) {
+            assert(ATTRS.includes(a) && base.bases[a], `${a}: 今シーズンの属性`);
+            assert(Number.isFinite(v.ref) && v.ref > 0, `${a}: ref は正の数`);
+            assert(Number.isInteger(v.n) && v.n >= (base.shirisuko.minMembers ?? 5), `${a}: 人数が下限以上`);
+            assertEq(Object.keys(v).sort().join(), 'n,ref', `${a}: 書くのは ref と人数だけ (個人の値を出さない)`);
+        }
+    }
+});
+
 console.log('シーズン設定の整合性:');
 
 test('raid.json: order は5属性・重複なし / bosses が order を網羅 / season は YYYY-MM で base.version と一致', () => {
@@ -643,15 +688,40 @@ test('キャラ画像アセットの整合ガード (hasImg ↔ character-images
     }
 });
 
-test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 09)', () => {
-    // 集計RPCの最終定義は 09_finish_flag.sql (05/08 は歴史)。全てに同じ閾値があることを確認
-    for (const file of ['05_seasons.sql', '08_shadow_stats.sql', '09_finish_flag.sql']) {
+test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 14 / 09)', () => {
+    // get_distribution・get_total_distribution の最終定義は 14_lower_thresholds.sql、
+    // get_comp_insights は 09_finish_flag.sql (05/08/11 は歴史)
+    const def = (sql, name) => {
+        const a = sql.indexOf(`create or replace function public.${name}(`);
+        assert(a >= 0, `${name} の定義がありません`);
+        const b = sql.indexOf('end; $$;', a);
+        return sql.slice(a, b);
+    };
+    const s14 = readFileSync(join(ROOT, 'supabase', '14_lower_thresholds.sql'), 'utf8');
+    assert(new RegExp(`then\\s+${THRESHOLDS.dist}\\s+else\\s+${THRESHOLDS.comp}\\b`).test(def(s14, 'get_distribution')),
+        `14 の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
+    assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.dist}\\b`).test(def(s14, 'get_total_distribution')),
+        `14 の総合の閾値が THRESHOLDS.dist(${THRESHOLDS.dist}) と一致しない`);
+    assert(!/get_comp_insights/.test(s14.replace(/^--.*$/gm, '')), '14 は get_comp_insights を再定義しない (09 が最終定義)');
+    const s09 = readFileSync(join(ROOT, 'supabase', '09_finish_flag.sql'), 'utf8');
+    assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(def(s09, 'get_comp_insights')),
+        `09 の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
+});
+
+test('14_lower_thresholds: しきい値以外は 09 / 11 の最終定義と同一 (集計の中身を変えない)', () => {
+    const body = (file, name) => {
         const sql = readFileSync(join(ROOT, 'supabase', file), 'utf8');
-        assert(new RegExp(`then\\s+${THRESHOLDS.dist}\\s+else\\s+${THRESHOLDS.comp}`).test(sql),
-            `${file} の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
-        assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(sql),
-            `${file} の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
-    }
+        const a = sql.indexOf(`create or replace function public.${name}(`);
+        const b = sql.indexOf('end; $$;', a);
+        return sql.slice(a, b).split('\n').filter(l => !/v_thresh int :=/.test(l)).join('\n');
+    };
+    assertEq(body('14_lower_thresholds.sql', 'get_distribution'), body('09_finish_flag.sql', 'get_distribution'), 'get_distribution');
+    assertEq(body('14_lower_thresholds.sql', 'get_total_distribution'), body('11_total_distribution.sql', 'get_total_distribution'), 'get_total_distribution');
+    const sql = readFileSync(join(ROOT, 'supabase', '14_lower_thresholds.sql'), 'utf8');
+    assert(!/\b(alter table|drop |truncate|insert into|delete from|update public)\b/i.test(sql.replace(/^--.*$/gm, '')), '14 にデータ・スキーマ変更が含まれている');
+    assert(/grant execute on function public\.get_distribution\(text, text, numeric, text, int\) to anon/.test(sql), 'get_distribution の grant');
+    assert(/revoke all on function public\.get_total_distribution.* from public/.test(sql) &&
+           /grant execute on function public\.get_total_distribution.* to anon/.test(sql), 'get_total_distribution の revoke/grant');
 });
 
 // シャドウ除外の構造検査 (08 で導入・09 が最終定義 — 両方が同じ構造を保つこと)
@@ -808,12 +878,16 @@ test('サイト名の整合 (manifest ↔ title ↔ apple-title ↔ h1)', () => 
         const title = h.match(/<title>([^<]+)<\/title>/)?.[1] ?? '';
         assert(title.includes('しりすこPAD'), `${page} の <title> にサイト名がありません: ${title}`);
     }
-    // トップの主役はサイト名・「ふるり値チェッカー」はサブ (h1 に入れない)
+    // トップの主役はサイト名・「しりすこ値チェッカー」はサブ (h1 に入れない)
     const idx = readFileSync(join(ROOT, 'index.html'), 'utf8');
     // h1 は英語対応で data-i18n-html 属性を持つので、タグの属性は問わない
     const h1 = idx.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1]?.replace(/<[^>]+>/g, '') ?? '';
     assert(h1.includes('しりすこPAD'), `h1 がサイト名になっていません: ${h1}`);
-    assert(!h1.includes('ふるり値'), `h1 に「ふるり値」が入っています (サブタイトルに置くこと): ${h1}`);
+    assert(!h1.includes('しりすこ値'), `h1 に「しりすこ値」が入っています (サブタイトルに置くこと): ${h1}`);
+    // 2026-11 に廃止した「ふるり値」が画面・説明・メタ情報に残っていない
+    for (const page of ['index.html', 'stats.html', 'manifest.webmanifest']) {
+        assert(!readFileSync(join(ROOT, page), 'utf8').includes('ふるり値'), `${page} に「ふるり値」が残っています`);
+    }
 });
 
 console.log('\n表示言語 (英語対応):');
@@ -837,7 +911,7 @@ test('言語の決め方: URL > 保存値 > 端末 > 既定', () => {
 test('t(): 訳・差し込み・単複・未訳のフォールバック', () => {
     _setLangForTest('en');
     assertEq(t('card.overall'), 'Overall', '英訳');
-    assertEq(t('card.fururi_val', { v: '1.23' }), 'Fururi 1.23', '差し込み');
+    assertEq(t('card.ss_val', { v: '1.23' }), 'Shirisuko 1.23', '差し込み');
     assertEq(t('card.users_n', { n: 1 }), '1 user', '単数');
     assertEq(t('card.users_n', { n: 5 }), '5 users', '複数');
     // 鍵ごと無ければ鍵をそのまま返す (未訳が画面で目立ち、気づける)
