@@ -5,6 +5,8 @@
 //
 //   使い方: node scripts/shirisuko-base.mjs [shirisu-padのパス]           # 確かめるだけ (何も書かない)
 //           node scripts/shirisuko-base.mjs [shirisu-padのパス] --apply   # base.json に書く
+//           ... --skip-no-slv   # SLv が無い・補正表の範囲外のメンバーを、名前を出したうえで数えずに進める
+//                               # (既定は止まる。本家の月次JSONは GB から直さないので、除外は明示したときだけ)
 //   (パス省略時 ../しりすこPAD。本家は読むだけ)
 //
 // 計算: ボス (= GB の属性) ごとに、メンバーそれぞれの「締め凸を除いたベスト凸」を SLv 補正し、
@@ -21,9 +23,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIN_MEMBERS = 5;
 
 const args = process.argv.slice(2);
-let padDirArg = null, apply = false;
+let padDirArg = null, apply = false, skipNoSlv = false;
 for (const a of args) {
     if (a === '--apply') apply = true;
+    else if (a === '--skip-no-slv') skipNoSlv = true;
     else if (a.startsWith('--')) { console.error(`不明なオプション: ${a}`); process.exit(1); }
     else if (padDirArg === null) padDirArg = a;
 }
@@ -63,13 +66,15 @@ const median = (xs) => {
 // (黙って飛ばすと、壊れた行が中央値に混ざったり人数の下限を満たしたりする — Codex指摘)
 const MAX_DAMAGE = 1e12;   // DB の damage 上限 (06_input_bounds: 1000B 未満) と同じ
 const problems = [];
+const noSlv = [];   // --skip-no-slv のときだけ使う (数えないメンバー)
 const seenPlayers = new Set();
 for (const [i, p] of players.entries()) {
     const who = typeof p?.player === 'string' ? p.player.trim() : '';
     if (!who) { problems.push(`players[${i}]: 名前がない`); continue; }
     if (seenPlayers.has(who)) problems.push(`${who}: 同じ名前が2回ある`);
     seenPlayers.add(who);
-    if (p.syncLevel != null && !Number.isInteger(p.syncLevel)) problems.push(`${who}: syncLevel が整数でない (${p.syncLevel})`);
+    // SLv が無い・範囲外も壊れた行として止める (黙って除くと、残りの人数だけで基準ができてしまう — Codex指摘)
+    if (!ratioOf(p.syncLevel)) (skipNoSlv ? noSlv : problems).push(skipNoSlv ? who : `${who}: SLv が無いか補正表の範囲外 (${p.syncLevel}) — 除いて進めるなら --skip-no-slv`);
     if (p.attacks != null && !Array.isArray(p.attacks)) { problems.push(`${who}: attacks が配列でない`); continue; }
     for (const [j, a] of (p.attacks ?? []).entries()) {
         const at = `${who} attacks[${j}]`;
@@ -87,11 +92,10 @@ if (problems.length) {
 
 // ボスコード → (メンバー名 → SLv補正後のベスト)
 const bestByBoss = new Map();
-const noSlv = [];
 for (const p of players) {
     const who = p.player.trim();
     const r = ratioOf(p.syncLevel);
-    if (!r) { noSlv.push(who); continue; }
+    if (!r) continue;   // --skip-no-slv で除くと決めたメンバー (上で名前を出す)
     for (const a of p.attacks ?? []) {
         if (!(a.damage > 0)) continue;                            // 0 = 記録だけ (ダメージ未入力) の凸
         if (a.isKill) continue;                                   // 締め凸 = ボスを倒した凸は削りの値なので除く
@@ -102,7 +106,7 @@ for (const p of players) {
         bestByBoss.set(a.bossCode, m);
     }
 }
-if (noSlv.length) console.warn(`⚠ SLv が分からない (または補正テーブル外の) メンバーは数えていません: ${noSlv.join(', ')}`);
+if (noSlv.length) console.warn(`⚠ --skip-no-slv: SLv が無い (または補正表の範囲外の) メンバーを数えていません: ${noSlv.join(', ')}`);
 
 const attrs = {};
 const lines = [];

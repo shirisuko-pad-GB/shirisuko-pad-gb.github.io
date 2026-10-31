@@ -89,8 +89,9 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 - 秘匿データの投入は **`node scripts/gen-seed.mjs`** (../しりすこPAD の slv-ratio.json を読む) が生成する
   `supabase/seed.local.sql` — **gitignore 済み。コミット禁止**。
   ※ seed は **データのみ (slv_ratio + fururi_bases)**。関数定義は含めない
-  (含めると月次再実行で 04/05/07 のRPC強化を上書きしてしまうため。集計RPCの正は 05_seasons.sql、
-  submit_measurements の正は 07_sanitize_errors.sql)。
+  (含めると月次再実行で RPC の強化を上書きしてしまうため。最終定義は submit_measurements = 13_input_source.sql、
+  get_distribution / get_total_distribution = 14_lower_thresholds.sql、get_comp_insights = 09_finish_flag.sql、
+  トリガ measurements_compute = 05_seasons.sql — 古い番号のファイルを再適用しないこと)。
 - tests/run-tests.mjs に混入ガードあり (slv-ratio がリポジトリに現れたら CI が落ちる)
 - 限界の認識: 「SLvを1ずつ変えて送信し返ってくるスコアを記録する」方式での逆算は
   原理的に防げない (許容済み)。守っているのは「ファイルとして持ち出される」ことまで
@@ -321,6 +322,8 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
                      node scripts/shirisuko-base.mjs --apply    ← base.json に書く
       → node tests/run-tests.mjs → commit & push で画面に「しりすこ値」が出る (DB 作業なし)。
         単位はシーズン中に変えないので、先に送った人の結果にもあとから付く
+        月次JSONに形のおかしい行や SLv の無いメンバーがいると何も書かずに止まる。
+        SLv の無いメンバーだけなら --skip-no-slv で名前を出して除外して進められる
 ```
 - **順序厳守**: 基準 (seed) を入れてから open。逆だとトリガが `unknown season/attribute` で送信を弾く
   (between が蓋なので実害はないが、open は基準投入後に)。

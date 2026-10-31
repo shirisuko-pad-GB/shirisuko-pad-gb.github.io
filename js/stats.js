@@ -78,7 +78,7 @@ async function renderEase() {
             fetchDistribution({ attribute: a, season: viewSeason, score: 0 }).catch(() => null)));
         const meds = attrs.map((a, i) => ({
             attr: a,
-            median: (dists[i] && !dists[i].gated && Number.isFinite(dists[i].median)) ? dists[i].median : null,
+            median: (dists[i] && !dists[i].gated && Number.isFinite(dists[i].median) && dists[i].median > 0) ? dists[i].median : null,
             n: count(dists[i]?.n),
         }));
         const avail = meds.filter(m => m.median != null).map(m => m.median).sort((x, y) => x - y);
