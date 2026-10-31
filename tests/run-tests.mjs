@@ -325,7 +325,7 @@ test('しきい値が3種そろっていて正の整数', () => {
     for (const k of ['dist', 'comp', 'insights']) {
         assert(Number.isInteger(THRESHOLDS[k]) && THRESHOLDS[k] > 0, `THRESHOLDS.${k} が不正`);
     }
-    // 2026-11 に引き下げた値 (常連が増えてふるり値=導入のまき餌をやめた代わり)。
+    // 2026-11 に引き下げた値 (常連が増えて分布がすぐ埋まるようになったため)。
     // SQL の get_distribution=20/10・get_total_distribution=20 (14) / get_comp_insights=10 (09) と一致させること。
     assertEq(THRESHOLDS.dist, 20);
     assertEq(THRESHOLDS.comp, 10);
