@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport, shirisukoRef, shirisukoValue } from '../js/calc.js';
+import { topPercentFromCounts, ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport, sukoreRef, sukoreValue } from '../js/calc.js';
 import { escapeHtml, sanitizeCharacters, CHAR_IMG_RE, THRESHOLDS } from '../js/shared.js';
 import { classifyHue, ptOfBossAttr, parseDamageWord, isLevelWord, pairAnchorsWithDamages, PAIR_MAX_GAP_W, probeImageDims } from '../js/ocr.js';
 import { ocrTipsSvg } from '../js/ocr-tips.js';
@@ -556,29 +556,29 @@ test('data/export/index.json: 一覧がファイルと一致し、各ファイ�
     assert(valid.length > 0, '凍結版が1つも無い (export-season.mjs を実行していない)');
 });
 
-console.log('しりすこ値 (2026-11〜):');
+console.log('すこれ値 (2026-11〜):');
 
-test('shirisukoRef: 単位が slv-b・表示中シーズンと一致・ref が正のときだけ基準を返す', () => {
-    const b = { version: '2026-11', unit: 'slv-b', shirisuko: { attrs: { FIRE: { ref: 20, n: 14 }, WIND: { ref: 0, n: 9 } } } };
-    assertEq(shirisukoRef(b, '2026-11', 'FIRE'), 20, '基準あり');
-    assertEq(shirisukoRef(b, '2026-11', 'WATER'), null, 'その属性の基準なし');
-    assertEq(shirisukoRef(b, '2026-11', 'WIND'), null, 'ref が 0 は使わない');
-    assertEq(shirisukoRef(b, '2026-10', 'FIRE'), null, 'between 中 (表示は前シーズン) は出さない');
-    assertEq(shirisukoRef({ ...b, unit: undefined }, '2026-11', 'FIRE'), null, '旧形式 (ふるり基準) の base.json では出さない');
-    assertEq(shirisukoRef({ ...b, shirisuko: null }, '2026-11', 'FIRE'), null, 'ユニオン集計前');
-    assertEq(shirisukoRef(null, '2026-11', 'FIRE'), null, 'base なし');
-    assertEq(shirisukoRef({ ...b, shirisuko: { attrs: { FIRE: { ref: '20' } } } }, '2026-11', 'FIRE'), 20, '数値文字列も数として読む');
-    assertEq(shirisukoRef({ ...b, shirisuko: { attrs: { FIRE: { ref: 'x' } } } }, '2026-11', 'FIRE'), null, '壊れた値は null');
+test('sukoreRef: 単位が slv-b・表示中シーズンと一致・ref が正のときだけ基準を返す', () => {
+    const b = { version: '2026-11', unit: 'slv-b', sukore: { attrs: { FIRE: { ref: 20, n: 14 }, WIND: { ref: 0, n: 9 } } } };
+    assertEq(sukoreRef(b, '2026-11', 'FIRE'), 20, '基準あり');
+    assertEq(sukoreRef(b, '2026-11', 'WATER'), null, 'その属性の基準なし');
+    assertEq(sukoreRef(b, '2026-11', 'WIND'), null, 'ref が 0 は使わない');
+    assertEq(sukoreRef(b, '2026-10', 'FIRE'), null, 'between 中 (表示は前シーズン) は出さない');
+    assertEq(sukoreRef({ ...b, unit: undefined }, '2026-11', 'FIRE'), null, '旧形式 (ふるり基準) の base.json では出さない');
+    assertEq(sukoreRef({ ...b, sukore: null }, '2026-11', 'FIRE'), null, 'ユニオン集計前');
+    assertEq(sukoreRef(null, '2026-11', 'FIRE'), null, 'base なし');
+    assertEq(sukoreRef({ ...b, sukore: { attrs: { FIRE: { ref: '20' } } } }, '2026-11', 'FIRE'), 20, '数値文字列も数として読む');
+    assertEq(sukoreRef({ ...b, sukore: { attrs: { FIRE: { ref: 'x' } } } }, '2026-11', 'FIRE'), null, '壊れた値は null');
 });
 
-test('shirisukoValue: score ÷ 基準 (基準・score が無ければ null)', () => {
-    assertEq(shirisukoValue(21, 20), 1.05);
-    assertEq(shirisukoValue(21, null), null, '基準なし');
-    assertEq(shirisukoValue(NaN, 20), null, 'score なし');
-    assertEq(shirisukoValue(21, -1), null, '負の基準');
+test('sukoreValue: score ÷ 基準 (基準・score が無ければ null)', () => {
+    assertEq(sukoreValue(21, 20), 1.05);
+    assertEq(sukoreValue(21, null), null, '基準なし');
+    assertEq(sukoreValue(NaN, 20), null, 'score なし');
+    assertEq(sukoreValue(21, -1), null, '負の基準');
 });
 
-test('base.json: 2026-11 からの形 (単位 slv-b・基準者なし・しりすこ基準は null か属性ごとの ref/n)', () => {
+test('base.json: 2026-11 からの形 (単位 slv-b・基準者なし・すこれ基準は null か属性ごとの ref/n)', () => {
     const base = JSON.parse(readFileSync(join(ROOT, 'data', 'base.json'), 'utf8'));
     assertEq(base.unit, 'slv-b', 'unit');
     assert(Number.isInteger(base.baseSlv) && base.baseSlv >= 1 && base.baseSlv <= 1183, 'baseSlv は補正テーブルの範囲の整数');
@@ -589,13 +589,13 @@ test('base.json: 2026-11 からの形 (単位 slv-b・基準者なし・しり�
         assert(typeof b.bossCode === 'string' && b.bossCode.length > 0, `${a}: bossCode`);
         assert(!('team' in b) && !('source' in b), `${a}: 基準者の編成・出所は置かない`);
     }
-    if (base.shirisuko != null) {
-        const at = base.shirisuko.attrs ?? {};
-        assert(Object.keys(at).length > 0, 'shirisuko を置くなら属性が1つ以上');
+    if (base.sukore != null) {
+        const at = base.sukore.attrs ?? {};
+        assert(Object.keys(at).length > 0, 'sukore を置くなら属性が1つ以上');
         for (const [a, v] of Object.entries(at)) {
             assert(ATTRS.includes(a) && base.bases[a], `${a}: 今シーズンの属性`);
             assert(Number.isFinite(v.ref) && v.ref > 0, `${a}: ref は正の数`);
-            assert(Number.isInteger(v.n) && v.n >= (base.shirisuko.minMembers ?? 5), `${a}: 人数が下限以上`);
+            assert(Number.isInteger(v.n) && v.n >= (base.sukore.minMembers ?? 5), `${a}: 人数が下限以上`);
             assertEq(Object.keys(v).sort().join(), 'n,ref', `${a}: 書くのは ref と人数だけ (個人の値を出さない)`);
         }
     }
@@ -878,15 +878,16 @@ test('サイト名の整合 (manifest ↔ title ↔ apple-title ↔ h1)', () => 
         const title = h.match(/<title>([^<]+)<\/title>/)?.[1] ?? '';
         assert(title.includes('しりすこPAD'), `${page} の <title> にサイト名がありません: ${title}`);
     }
-    // トップの主役はサイト名・「しりすこ値チェッカー」はサブ (h1 に入れない)
+    // トップの主役はサイト名・「すこれ値チェッカー」はサブ (h1 に入れない)
     const idx = readFileSync(join(ROOT, 'index.html'), 'utf8');
     // h1 は英語対応で data-i18n-html 属性を持つので、タグの属性は問わない
     const h1 = idx.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1]?.replace(/<[^>]+>/g, '') ?? '';
     assert(h1.includes('しりすこPAD'), `h1 がサイト名になっていません: ${h1}`);
-    assert(!h1.includes('しりすこ値'), `h1 に「しりすこ値」が入っています (サブタイトルに置くこと): ${h1}`);
-    // 2026-11 に廃止した「ふるり値」が画面・説明・メタ情報に残っていない
-    for (const page of ['index.html', 'stats.html', 'manifest.webmanifest']) {
-        assert(!readFileSync(join(ROOT, page), 'utf8').includes('ふるり値'), `${page} に「ふるり値」が残っています`);
+    assert(!h1.includes('すこれ値'), `h1 に「すこれ値」が入っています (サブタイトルに置くこと): ${h1}`);
+    // 2026-11 に廃止した「ふるり値」と、半日だけ使った旧名「しりすこ値」(→ すこれ値) が画面・説明・メタ情報・辞書に残っていない
+    for (const page of ['index.html', 'stats.html', 'manifest.webmanifest', 'js/messages.js']) {
+        const src = readFileSync(join(ROOT, page), 'utf8').replace(/^\s*\/\/.*$/gm, '');   // 辞書の説明コメントは除く
+        for (const old of ['ふるり値', 'しりすこ値']) assert(!src.includes(old), `${page} に「${old}」が残っています`);
     }
 });
 
@@ -911,7 +912,7 @@ test('言語の決め方: URL > 保存値 > 端末 > 既定', () => {
 test('t(): 訳・差し込み・単複・未訳のフォールバック', () => {
     _setLangForTest('en');
     assertEq(t('card.overall'), 'Overall', '英訳');
-    assertEq(t('card.ss_val', { v: '1.23' }), 'Shirisuko 1.23', '差し込み');
+    assertEq(t('card.ss_val', { v: '1.23' }), 'Sukore 1.23', '差し込み');
     assertEq(t('card.users_n', { n: 1 }), '1 user', '単数');
     assertEq(t('card.users_n', { n: 5 }), '5 users', '複数');
     // 鍵ごと無ければ鍵をそのまま返す (未訳が画面で目立ち、気づける)

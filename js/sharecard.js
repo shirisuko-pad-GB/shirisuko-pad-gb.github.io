@@ -1,6 +1,6 @@
 // シェアカードの Canvas 描画 (自己完結・状態を持たない純処理)。
 // v6 (2026-07-31): v5 + 各列に「使った編成 (5人タイル)」と「編成内% (同一編成の中央値比)」。
-//   - 主役 = 中央値比% / サブ = しりすこ値 (2026-11〜。基準が無い・未解禁のうちは しりすこ値 → 実ダメージが主役)
+//   - 主役 = 中央値比% / サブ = すこれ値 (2026-11〜。基準が無い・未解禁のうちは すこれ値 → 実ダメージが主役)
 //   - 凸した数だけ属性列が並び、複数凸なら「総合」列 (各凸の中央値比の平均) を最後に足す
 //   - 各列にミニ分布 + 「あなた」マーカー ("だいたいこの辺" が分かる)
 //   - 編成内%は同一編成の提出がしきい値未満なら解禁待ちの案内に劣化
@@ -68,7 +68,7 @@ function drawMini(ctx, { x, y, w, h, bins, myBin, color }) {
 }
 
 // 大きい数字 (単位は小さく添える)。桁が多いときは列幅に収まるまで縮小 (荒らし自認スコア対策)。
-// unit を渡すと「123 %」のように単位付き、null なら数字だけ (しりすこ値の主役表示)
+// unit を渡すと「123 %」のように単位付き、null なら数字だけ (すこれ値の主役表示)
 function drawBigNum(ctx, x, y, text, size, color, maxW, unit = '%') {
     const t = String(text);
     let px = size;
@@ -142,7 +142,7 @@ function drawFinishMark(ctx, { fx, fy, fw, fh }) {
 export async function buildShareCard(results, canvas, opts = {}) {
     if (!Array.isArray(results) || results.length === 0) return null;
     const infoOf = typeof opts.infoOf === 'function' ? opts.infoOf : null;
-    // しりすこ値 (ユニオン集計後の基準があるときだけ数字・無ければ null)
+    // すこれ値 (ユニオン集計後の基準があるときだけ数字・無ければ null)
     const ssOf = typeof opts.ssOf === 'function' ? opts.ssOf : () => null;
     const dmgB = (r) => Number.isFinite(r.damage) ? (r.damage / 1e9).toFixed(2) : null;
     const ctx = canvas.getContext('2d');
@@ -223,7 +223,7 @@ export async function buildShareCard(results, canvas, opts = {}) {
         ctx.stroke();
     }
 
-    // % がSNSでの主役。行 (しりすこ値・実ダメージ・編成タイル) を詰めた分だけ数字を大きく取る
+    // % がSNSでの主役。行 (すこれ値・実ダメージ・編成タイル) を詰めた分だけ数字を大きく取る
     const bigSize = multi ? (cols.length >= 4 ? 84 : 96) : 128;
     cols.forEach((c, i) => {
         const x0 = left + i * cw + (i > 0 ? pad : 0);
@@ -234,9 +234,9 @@ export async function buildShareCard(results, canvas, opts = {}) {
             ctx.fillStyle = CREAM;
             ctx.font = `800 26px ${F}`;
             ctx.fillText(t('card.overall'), x0, 252);
-            // 未解禁 (分布が しきい値未満) の間は % が出せないので、平均しりすこ値を主役にする
+            // 未解禁 (分布が しきい値未満) の間は % が出せないので、平均すこれ値を主役にする
             // (結果カードと同じ主従ルール。SNSに「—」だけの巨大ダッシュを流さない)。
-            // しりすこ値も無い (ユニオン集計前) なら実ダメージの合計。
+            // すこれ値も無い (ユニオン集計前) なら実ダメージの合計。
             // 全凸締め凸のときも平均だが「参考」を明示 (Codex指摘 — 総合を装わない)
             const allFinish = scored.length === 0;
             const avgBase = allFinish ? results : scored;
@@ -292,18 +292,18 @@ export async function buildShareCard(results, canvas, opts = {}) {
         // damage/slv は localStorage 復元の古い保存に無いことがある → 欠けは静かに省く (NaN対策)
         const ss = ssOf(r);
         const dmgText = dmgB(r) != null ? `${dmgB(r)} B` : null;
-        // 解禁前は % が無いので しりすこ値 → 実ダメージを主役に (結果カードと同じ主従)
+        // 解禁前は % が無いので すこれ値 → 実ダメージを主役に (結果カードと同じ主従)
         const bigIsDmg = mp == null && ss == null && dmgText != null;
         if (mp != null) drawBigNum(ctx, x0, bigY, mp, bigSize, info.color, iw);
         else if (ss != null) drawBigNum(ctx, x0, bigY, ss.toFixed(2), bigSize, info.color, iw, null);
         else drawBigNum(ctx, x0, bigY, dmgB(r) ?? '—', bigSize, info.color, iw, bigIsDmg ? 'B' : null);
-        // 主役の下の小さい行: %が主役なら しりすこ値、しりすこ値が主役ならその名前、実ダメージが主役なら「%は集計中」
+        // 主役の下の小さい行: %が主役なら すこれ値、すこれ値が主役ならその名前、実ダメージが主役なら「%は集計中」
         const head = mp != null ? (ss != null ? t('card.ss_val', { v: ss.toFixed(2) }) : null)
             : ss != null ? t('card.ss') : t('card.pct_pending');
         ctx.fillStyle = '#8A9097';
         ctx.font = `700 ${multi ? 19 : 24}px ${F}`;
         if (multi) {
-            // しりすこ値・実ダメージを1行に (空いた分を % の拡大に回す)。
+            // すこれ値・実ダメージを1行に (空いた分を % の拡大に回す)。
             // 列幅 iw を超えると隣列に食い込むので、縮小 → それでも無理なら実ダメージを落とす
             const full = [head, bigIsDmg ? null : dmgText].filter(Boolean).join(' · ');
             ctx.font = `700 13px ${F}`;
@@ -341,7 +341,7 @@ export async function buildShareCard(results, canvas, opts = {}) {
                 bins: r.dist.bins, myBin: r.dist.my_bin, color: info.color,
             });
             ctx.fillStyle = '#8A9097';
-            // 中央値の しりすこ値 (基準があるとき) — 無ければ人数だけ
+            // 中央値の すこれ値 (基準があるとき) — 無ければ人数だけ
             const medSs = ssOf({ ...r, score: r.dist.median });
             fitText(ctx, medSs != null ? t('card.median_n_ss', { v: medSs.toFixed(2), n: r.dist.n }) : t('card.median_n', { n: r.dist.n }),
                 x0, histY + histH + 30, iw, 17);

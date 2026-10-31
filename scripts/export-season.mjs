@@ -76,7 +76,7 @@ const out = {
         version: base.version,
         basePlayer: base.basePlayer ?? null,   // 2026-11〜 は基準者なし
         baseSlv: base.baseSlv,
-        shirisuko: base.shirisuko ?? null,     // しりすこ基準 (属性ごとの ref/n — 同じ単位)
+        sukore: base.sukore ?? null,     // すこれ基準 (属性ごとの ref/n — 同じ単位)
         attributes: Object.fromEntries(ATTRS.map(a => [a, {
             bossCode: base.bases[a]?.bossCode ?? null,
             bossName: raid.bosses?.[a] ?? null,

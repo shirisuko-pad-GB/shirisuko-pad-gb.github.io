@@ -1,6 +1,6 @@
 {
   "version": "2026-11",
-  "description": "スコアの単位 (scripts/new-season.mjs の生成物)。score = SLv 600 換算のダメージ (B)。基準者は置かない。shirisuko = しりすこ基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/shirisuko-base.mjs が書く。無いうちは null",
+  "description": "スコアの単位 (scripts/new-season.mjs の生成物)。score = SLv 600 換算のダメージ (B)。基準者は置かない。sukore = すこれ基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/sukore-base.mjs が書く。無いうちは null",
   "unit": "slv-b",
   "baseSlv": 600,
   "bases": {
@@ -25,5 +25,31 @@
       "damage": 1000000000
     }
   },
-  "shirisuko": null
+  "sukore": {
+    "source": "しりすこPAD data/2026-11.json (締め凸を除く各メンバーのベスト凸の中央値)",
+    "builtAt": "2026-11-01",
+    "minMembers": 5,
+    "attrs": {
+      "IRON": {
+        "ref": 24.6018,
+        "n": 10
+      },
+      "ELECTRIC": {
+        "ref": 17.6096,
+        "n": 6
+      },
+      "FIRE": {
+        "ref": 23.0603,
+        "n": 14
+      },
+      "WIND": {
+        "ref": 20.2785,
+        "n": 12
+      },
+      "WATER": {
+        "ref": 20.1898,
+        "n": 11
+      }
+    }
+  }
 }

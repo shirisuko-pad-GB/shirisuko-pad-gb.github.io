@@ -1,6 +1,6 @@
 # しりすこPAD GB プロジェクトガイド
 
-NIKKE ユニオンレイドの実力を「中央値比 %」と「しりすこ値」で測る**公開サイト**
+NIKKE ユニオンレイドの実力を「中央値比 %」と「すこれ値」で測る**公開サイト**
 (2026-10 までは基準者ふるりとの比「ふるり値」。2026-11 に廃止 — README 冒頭)。
 [shirisu-pad](https://github.com/Furu1018/shirisu-pad) (内輪運用の本家PAD) の姉妹プロジェクトで、
 **本家のリポジトリ・DBには一切書き込まない** (ビルド時に読むだけ)。
@@ -48,7 +48,7 @@ NIKKE ユニオンレイドの実力を「中央値比 %」と「しりすこ値
 - `data/element-map.json` — キャラ名→属性 (手動メンテ)。未登録はグレー「属性?」表示に劣化
 - `data/site.json` — 運用設定 (ユニオン募集・Xアカウント)。`tools/ops.html` で編集支援
 - `data/raid.json` + `data/base.json` — シーズンのボスとスコアの単位 (SLv 600 換算 B)。`scripts/new-season.mjs` が自動生成。
-  `base.json` の `shirisuko` (しりすこ基準) はレイド後に `scripts/shirisuko-base.mjs` が書く
+  `base.json` の `sukore` (すこれ基準) はレイド後に `scripts/sukore-base.mjs` が書く
 
 ## シーズン切替 (毎レイド・PC必須)
 
@@ -57,8 +57,8 @@ node scripts/new-season.mjs        # 本家からボス5体を取得して
                                    # raid.json / base.json / roster を更新し seed を生成
 # → 表示された残り手順: SQL Editor で seed 実行 → commit&push → site_state を open
 ```
-順序厳守 (seed 投入前に open しない)。レイド後に `node scripts/shirisuko-base.mjs --apply` → push で
-しりすこ値が出る。詳細ランブック: README「シーズン切替の運用ランブック」
+順序厳守 (seed 投入前に open しない)。レイド後に `node scripts/sukore-base.mjs --apply` → push で
+すこれ値が出る。詳細ランブック: README「シーズン切替の運用ランブック」
 
 ## テスト・検証
 

@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// しりすこ基準 (= しりすこ値の 1.00) を本家PADの月次JSONから作って data/base.json に書く。
+// すこれ基準 (= すこれ値の 1.00) を本家PADの月次JSONから作って data/base.json に書く。
 // レイド後 (本家に data/<シーズン>.json が入ってから) に実行 → テスト → commit & push で、
-// 測定画面・統計に「しりすこ値」が出る (それまでは中央値比 % だけ)。DB は触らない。
+// 測定画面・統計に「すこれ値」が出る (それまでは中央値比 % だけ)。DB は触らない。
 //
-//   使い方: node scripts/shirisuko-base.mjs [shirisu-padのパス]           # 確かめるだけ (何も書かない)
-//           node scripts/shirisuko-base.mjs [shirisu-padのパス] --apply   # base.json に書く
+//   使い方: node scripts/sukore-base.mjs [shirisu-padのパス]           # 確かめるだけ (何も書かない)
+//           node scripts/sukore-base.mjs [shirisu-padのパス] --apply   # base.json に書く
 //           ... --skip-no-slv   # SLv が無い・補正表の範囲外のメンバーを、名前を出したうえで数えずに進める
 //                               # (既定は止まる。本家の月次JSONは GB から直さないので、除外は明示したときだけ)
 //   (パス省略時 ../しりすこPAD。本家は読むだけ)
 //
 // 計算: ボス (= GB の属性) ごとに、メンバーそれぞれの「締め凸を除いたベスト凸」を SLv 補正し、
 //   その真ん中 (中央値) をとる。サーバーの score と同じ単位 (SLv baseSlv 換算の B) で持つので
-//   しりすこ値 = score ÷ ref。単位は変えないので、先に送った人の結果にもあとから しりすこ値 が付く。
+//   すこれ値 = score ÷ ref。単位は変えないので、先に送った人の結果にもあとから すこれ値 が付く。
 //   メンバーが MIN_MEMBERS 人未満のボスは基準を作らない (その属性は中央値比だけ)。
 // ⚠ SLv補正テーブル (slv-ratio) は本家の手元ファイルから読むだけ。base.json に書くのは
 //   ボスごとの中央値 1 つと人数だけ (表そのもの・個人の値は出さない)。
@@ -121,25 +121,25 @@ for (const [attr, b] of Object.entries(base.bases)) {
 const unknownBoss = [...bestByBoss.keys()].filter(code => !Object.values(base.bases).some(b => b.bossCode === code));
 if (unknownBoss.length) console.warn(`⚠ 今シーズンのボスに無いボスコードの凸があります (数えていません): ${unknownBoss.join(', ')}`);
 
-console.log(`しりすこ基準 (${season} / 月次JSON ${players.length}人):`);
+console.log(`すこれ基準 (${season} / 月次JSON ${players.length}人):`);
 console.log(lines.join('\n'));
 if (!Object.keys(attrs).length) { console.error('基準を作れる属性がありません'); process.exit(1); }
 
-const shirisuko = {
+const sukore = {
     source: `しりすこPAD data/${season}.json (締め凸を除く各メンバーのベスト凸の中央値)`,
     builtAt: new Date().toLocaleDateString('sv-SE'),   // 手元の日付 (YYYY-MM-DD)。toISOString は UTC なので日本の朝は前日になる
     minMembers: MIN_MEMBERS,
     attrs,
 };
-if (base.shirisuko?.attrs) {
-    const diff = Object.keys({ ...base.shirisuko.attrs, ...attrs })
-        .filter(a => base.shirisuko.attrs[a]?.ref !== attrs[a]?.ref)
-        .map(a => `${a}: ${base.shirisuko.attrs[a]?.ref ?? 'なし'} → ${attrs[a]?.ref ?? 'なし'}`);
+if (base.sukore?.attrs) {
+    const diff = Object.keys({ ...base.sukore.attrs, ...attrs })
+        .filter(a => base.sukore.attrs[a]?.ref !== attrs[a]?.ref)
+        .map(a => `${a}: ${base.sukore.attrs[a]?.ref ?? 'なし'} → ${attrs[a]?.ref ?? 'なし'}`);
     console.log(diff.length ? `前回からの変化: ${diff.join(' / ')}` : '前回と同じです');
 }
 if (!apply) {
     console.log('(確かめただけ。書き込むときは --apply)');
     process.exit(0);
 }
-writeFileSync(basePath, JSON.stringify({ ...base, shirisuko }, null, 2) + '\n', 'utf8');
+writeFileSync(basePath, JSON.stringify({ ...base, sukore }, null, 2) + '\n', 'utf8');
 console.log('→ data/base.json に書きました。node tests/run-tests.mjs → commit & push で画面に出ます');

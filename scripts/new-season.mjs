@@ -8,7 +8,7 @@
 // データの出所:
 //   - ボス5体: 本家 Supabase bosses (アクティブな実シーズン)
 //   - スコアの単位: 固定 (SLv 600 換算の B)。2026-11 から基準者ふるりの値は使わない (下の 3) 参照)。
-//     しりすこ値の基準はレイド後に scripts/shirisuko-base.mjs で足す
+//     すこれ値の基準はレイド後に scripts/sukore-base.mjs で足す
 //
 // ⚠ これを実行しても DB はまだ変わらない。残りの手順 (実行後に表示):
 //   1) supabase/seed.local.sql を SQL Editor で実行  2) commit & push  3) site_state を open
@@ -75,7 +75,7 @@ const raid = {
 
 // ---- 3) スコアの単位 → base.json ----
 // 2026-11 (第46回) から基準者ふるりの値 (模擬/実凸) は使わない — 常連が増えて分布がすぐ埋まるため、
-// 画面は「中央値比 %」と、ユニオン集計後の「しりすこ値」(scripts/shirisuko-base.mjs) だけで見せる。
+// 画面は「中央値比 %」と、ユニオン集計後の「すこれ値」(scripts/sukore-base.mjs) だけで見せる。
 // サーバーのスコアは「SLv 600 換算のダメージ (B)」という中立の単位にする
 // (fururi_bases に 1B @ SLv REF_SLV を入れる。トリガ・集計RPCは今までどおり base で割るだけ)。
 // 単位はシーズン中に変えない — 端末に残った score と RPC の中央値の比 (= 中央値比) がずれないように。
@@ -85,11 +85,11 @@ const bases = Object.fromEntries(bosses.map(b => [String(b.weakness).toUpperCase
 const base = {
     version: seasonKey,
     description: `スコアの単位 (scripts/new-season.mjs の生成物)。score = SLv ${REF_SLV} 換算のダメージ (B)。基準者は置かない。` +
-        'shirisuko = しりすこ基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/shirisuko-base.mjs が書く。無いうちは null',
+        'sukore = すこれ基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/sukore-base.mjs が書く。無いうちは null',
     unit: 'slv-b',
     baseSlv: REF_SLV,
     bases,
-    shirisuko: null,
+    sukore: null,
 };
 
 // ---- 4) ボスカタログ (全実シーズンの登場履歴 — raid.json の typo 検証・参考用) ----
@@ -116,7 +116,7 @@ try {
     writeFileSync(outFiles[1], JSON.stringify(base, null, 2) + '\n', 'utf8');
     writeFileSync(outFiles[2], JSON.stringify(bossCatalog, null, 1) + '\n', 'utf8');
     console.log(`raid.json:  ${order.map(a => `${a}→${raid.bosses[a]}`).join(' / ')}`);
-    console.log(`base.json:  単位 = SLv ${REF_SLV} 換算 B (基準者なし・しりすこ基準はレイド後に shirisuko-base.mjs)`);
+    console.log(`base.json:  単位 = SLv ${REF_SLV} 換算 B (基準者なし・すこれ基準はレイド後に sukore-base.mjs)`);
     console.log(`boss-catalog.json: ${Object.keys(bossCatalog.bosses).length}ボス`);
 
     console.log('--- gen-seed (seed.local.sql 生成) ---');

@@ -81,8 +81,8 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
         check('基準パネルが隠れている (次シーズン分の先出し防止)', fold?.style.display === 'none' && !fd.querySelector('#baseTeams .base-row'));
         check('基準ラベルに次シーズンの値が出ない', !label.includes(String(baseJson.baseSlv)) && /準備中/.test(label));
       } else {
-        // しりすこ基準 (レイド後に足す) があれば属性行、無ければ「集計後に追加」の案内
-        const hasSs = !!baseJson.shirisuko?.attrs && Object.keys(baseJson.shirisuko.attrs).length > 0;
+        // すこれ基準 (レイド後に足す) があれば属性行、無ければ「集計後に追加」の案内
+        const hasSs = !!baseJson.sukore?.attrs && Object.keys(baseJson.sukore.attrs).length > 0;
         check('基準パネルは表示中シーズンと一致', fold?.style.display !== 'none'
           && (hasSs ? !!fd.querySelector('#baseTeams .base-row') : !!fd.querySelector('#baseTeams .hint')));
       }
@@ -96,8 +96,8 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       // (この端末の1票は本番の分布に入るので、外れ値にならない値にする)
       const baseJson = await (await fetch('/data/base.json')).json();
       const E2E_DMG_B = 20;
-      const ssRef = Number(baseJson.shirisuko?.attrs?.FIRE?.ref) > 0 ? Number(baseJson.shirisuko.attrs.FIRE.ref) : null;
-      const ssExpected = ssRef ? (E2E_DMG_B / ssRef).toFixed(2) : null;   // しりすこ値 (基準があるときだけ)
+      const ssRef = Number(baseJson.sukore?.attrs?.FIRE?.ref) > 0 ? Number(baseJson.sukore.attrs.FIRE.ref) : null;
+      const ssExpected = ssRef ? (E2E_DMG_B / ssRef).toFixed(2) : null;   // すこれ値 (基準があるときだけ)
       set(fd.getElementById('slv'), baseJson.baseSlv);
       check('属性ボタン5個 (SLv入力後に出現)', fd.querySelectorAll('.atk-card [data-attr]').length === 5);
       fd.querySelectorAll('.atk-card')[0].querySelector('[data-attr="FIRE"]').click();
@@ -111,15 +111,15 @@ const check = (name, cond) => R.steps.push({ name, pass: !!cond });
       const errored = [...fd.querySelectorAll('.card h2')].some(h => h.textContent.includes('測定できません'));
       R.backendUp = !errored && !!scoreEl;   // シーズンが open で基準投入済みなら成功
       if (R.backendUp) {
-        // 主従 (2026-11〜): 分布解禁時は 中央値比% が主役で しりすこ値 はサブpill (基準があるときだけ)、
-        // 未解禁時は しりすこ値 → それも無ければ実ダメージが主役。どのモードでも空振りしない整合検査
+        // 主従 (2026-11〜): 分布解禁時は 中央値比% が主役で すこれ値 はサブpill (基準があるときだけ)、
+        // 未解禁時は すこれ値 → それも無ければ実ダメージが主役。どのモードでも空振りしない整合検査
         const pillTxt = fd.querySelector('.result-card .rank-pill')?.textContent || '';
         const bigTxt = scoreEl.textContent.trim();
         const pctMain = /%$/.test(bigTxt);
         const mainOk = pctMain
-          ? (ssExpected ? pillTxt.includes('しりすこ値 ' + ssExpected) : !pillTxt)
+          ? (ssExpected ? pillTxt.includes('すこれ値 ' + ssExpected) : !pillTxt)
           : (!pillTxt && bigTxt === (ssExpected ?? (E2E_DMG_B.toFixed(2) + ' B')));
-        check('主従の整合 (解禁=%主役+しりすこ値サブ / 未解禁=しりすこ値 or 実ダメージが主役)', mainOk);
+        check('主従の整合 (解禁=%主役+すこれ値サブ / 未解禁=すこれ値 or 実ダメージが主役)', mainOk);
         check('画面に「ふるり値」が出ない', !(fd.querySelector('.result-card')?.textContent || '').includes('ふるり値'));
         // 分布セクション: 未解禁なら「◯人で解禁」ゲート、解禁済みなら中央値の分布が出る (どちらかで合格)
         check('分布セクション表示 (ゲート or 解禁後の中央値)', /で解禁|中央値/.test(fd.querySelector('.result-card')?.textContent || ''));

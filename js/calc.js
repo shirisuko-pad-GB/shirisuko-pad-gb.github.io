@@ -14,18 +14,18 @@ export function topPercentFromCounts(above, n) {
     return Math.max(1, Math.round(((above + 1) / n) * 100));
 }
 
-// ---------- しりすこ値 (2026-11〜) ----------
+// ---------- すこれ値 (2026-11〜) ----------
 // サーバーの score は「SLv baseSlv 換算のダメージ (B)」(base.json の unit='slv-b' — 基準者は置かない)。
-// それを しりすこ基準 (ユニオンの真ん中のメンバー・同じ単位) で割ったものが しりすこ値 (1.00 = 真ん中)。
-// 基準はレイド後に足される (scripts/shirisuko-base.mjs) ので、無いうちは null = 画面に出さない。
+// それを すこれ基準 (ユニオンの真ん中のメンバー・同じ単位) で割ったものが すこれ値 (1.00 = 真ん中)。
+// 基準はレイド後に足される (scripts/sukore-base.mjs) ので、無いうちは null = 画面に出さない。
 // 表示中のシーズンと base.json のシーズンが違う (between 中は base.json が次シーズン) ときも null。
-export function shirisukoRef(base, season, attribute) {
+export function sukoreRef(base, season, attribute) {
     if (!base || base.unit !== 'slv-b' || base.version !== season) return null;
-    const v = Number(base.shirisuko?.attrs?.[attribute]?.ref);
+    const v = Number(base.sukore?.attrs?.[attribute]?.ref);
     return Number.isFinite(v) && v > 0 ? v : null;
 }
 
-export function shirisukoValue(score, ref) {
+export function sukoreValue(score, ref) {
     return (Number.isFinite(ref) && ref > 0 && Number.isFinite(score)) ? score / ref : null;
 }
 
