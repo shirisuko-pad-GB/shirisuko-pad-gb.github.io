@@ -589,6 +589,8 @@ test('base.json: 2026-11 からの形 (単位 slv-b・基準者なし・すこ�
         assert(typeof b.bossCode === 'string' && b.bossCode.length > 0, `${a}: bossCode`);
         assert(!('team' in b) && !('source' in b), `${a}: 基準者の編成・出所は置かない`);
     }
+    // キーは sukore (旧名 shirisuko は画面が読まない = 黙って すこれ値 が消える)
+    assert('sukore' in base && !('shirisuko' in base), 'base.json のすこれ基準のキーは sukore (null か属性ごとの ref/n)');
     if (base.sukore != null) {
         const at = base.sukore.attrs ?? {};
         assert(Object.keys(at).length > 0, 'sukore を置くなら属性が1つ以上');
