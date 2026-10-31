@@ -1,7 +1,7 @@
 {
   "name": "しりすこPAD GB",
   "short_name": "しりすこPAD GB",
-  "description": "NIKKEユニオンレイドの「すこれ値チェッカー」。ダメージをSLv補正して、みんなの分布の中での自分の位置がわかる。",
+  "description": "NIKKEユニオンレイドの「ふるり値チェッカー」。ダメージをSLv補正して、みんなの分布の中での自分の位置がわかる。",
   "id": "/",
   "start_url": "./",
   "scope": "./",

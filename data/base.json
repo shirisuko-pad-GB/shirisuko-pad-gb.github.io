@@ -1,6 +1,6 @@
 {
   "version": "2026-11",
-  "description": "スコアの単位 (scripts/new-season.mjs の生成物)。score = SLv 600 換算のダメージ (B)。基準者は置かない。sukore = すこれ基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/sukore-base.mjs が書く。無いうちは null",
+  "description": "スコアの単位 (scripts/new-season.mjs の生成物)。score = SLv 600 換算のダメージ (B)。基準者は置かない。union = ユニオン基準 (ユニオンの真ん中のメンバー・同じ単位) — レイド後に scripts/union-base.mjs が書く。無いうちは null",
   "unit": "slv-b",
   "baseSlv": 600,
   "bases": {
@@ -25,7 +25,7 @@
       "damage": 1000000000
     }
   },
-  "sukore": {
+  "union": {
     "source": "しりすこPAD data/2026-11.json (締め凸を除く各メンバーのベスト凸の中央値)",
     "builtAt": "2026-11-01",
     "minMembers": 5,

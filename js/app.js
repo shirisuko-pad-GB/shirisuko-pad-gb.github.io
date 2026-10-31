@@ -1,7 +1,7 @@
-// しりすこPAD GB — すこれ値チェッカー UIロジック
+// しりすこPAD GB — ふるり値チェッカー UIロジック
 // 3凸まとめ入力 + サーバー集計の分布表示 (しきい値ゲート付き)
 // スコアの計算はサーバー側のみ (SLv補正テーブル秘匿のため) — 送信の返事で score を受け取る
-import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport, sukoreRef, sukoreValue } from './calc.js';
+import { ATTRS, BURST_TEMPLATES, templateById, burstMatchesSlot, reslotChars, detectTemplate, parseDamageInput, damageToBString, pickPrevSeason, prevCompsFromExport, unionRef, unionValue } from './calc.js';
 import { readRaidScreenshot } from './ocr.js';
 import { ocrTipsSvg } from './ocr-tips.js';
 import { backendConfigured, submitSet, fetchDistribution, fetchSiteState, fetchCompInsights, markOwnFinish, correctOwnMeasurement, fetchTotalDistribution } from './backend.js';
@@ -95,9 +95,9 @@ async function init() {
     // 先に次シーズンへ差し替わる (シーズン切替ランブックの順序: seed → push → open) ので、
     // 分布は前シーズンなのに基準だけ次シーズン、というチグハグを出さない。
     const baseMatchesView = base.version === viewSeason;
-    const ssReady = baseMatchesView && ATTRS.some(a => sukoreRef(base, viewSeason, a) != null);
+    const ssReady = baseMatchesView && ATTRS.some(a => unionRef(base, viewSeason, a) != null);
     $('baseVersionLabel').textContent = baseMatchesView
-        ? (ssReady ? t('ui.base_version_ss', { v: base.version, date: base.sukore?.builtAt ?? '' })
+        ? (ssReady ? t('ui.base_version_ss', { v: base.version, date: base.union?.builtAt ?? '' })
                    : t('ui.base_version_wait', { v: base.version }))
         : (viewSeason ? t('ui.season_prep_view', { season: viewSeason }) : t('ui.season_prep'));
     const fold = $('baseFold');
@@ -105,7 +105,7 @@ async function init() {
         fold.open = false;
         fold.style.display = baseMatchesView ? '' : 'none';
     }
-    if (baseMatchesView) renderSukoreBase();
+    if (baseMatchesView) renderUnionBase();
     $('thresholdAllLabel').textContent = THRESHOLDS.dist;
     $('thresholdCompLabel').textContent = THRESHOLDS.comp;
     $('slvMinus').addEventListener('click', () => stepSlv(-1));
@@ -262,17 +262,17 @@ function insightsOf(attribute) {
     };
 }
 
-// すこれ基準の開示: 属性ごとに「ユニオンの真ん中のダメージ (SLv 換算) + 数えた人数」。
-// 「何を 1.00 にしているか」を隠さないための説明パネル (data/base.json の sukore — レイド後に追加)
-function renderSukoreBase() {
+// ユニオン基準の開示: 属性ごとに「ユニオンの真ん中のダメージ (SLv 換算) + 数えた人数」。
+// 「何を 1.00 にしているか」を隠さないための説明パネル (data/base.json の union — レイド後に追加)
+function renderUnionBase() {
     const host = $('baseTeams');
     if (!host || !base?.bases) return;
     const rows = orderedAttrs().map(attr => {
-        const ref = sukoreRef(base, viewSeason, attr);
+        const ref = unionRef(base, viewSeason, attr);
         if (ref == null) return '';
         const info = ATTR_INFO[attr];
         const boss = raid?.bosses?.[attr];
-        const n = Number(base.sukore?.attrs?.[attr]?.n);
+        const n = Number(base.union?.attrs?.[attr]?.n);
         return `
         <div class="base-row" style="--ac:${info.color};">
             <span class="base-attr">${t('ui.team_of', { code: attrName(attr) })}</span>
@@ -497,10 +497,10 @@ function attackCardHTML(a, i) {
     </section>`;
 }
 
-// 候補編成の中央値 (すこれ値)。基準が無い・前シーズンの凍結版 (単位が違う) なら出さない
+// 候補編成の中央値 (ふるり値)。基準が無い・前シーズンの凍結版 (単位が違う) なら出さない
 function medianInline(c, ap, attribute) {
     if (ap.fromPrev) return '';
-    const v = sukoreValue(Number(c.median), sukoreRef(base, viewSeason ?? season, attribute));
+    const v = unionValue(Number(c.median), unionRef(base, viewSeason ?? season, attribute));
     return v != null ? t('ui.median_inline', { v: v.toFixed(2) }) : '';
 }
 
@@ -969,9 +969,9 @@ function ratioAgainst(dist, score) {
         ? score / dist.median : null;
 }
 function medianRatioOf(r) { return ratioAgainst(r.dist, r.score); }
-// すこれ値 (ユニオン集計後の基準があるときだけ)。カード・総合・シェア文が使う
-function ssOf(r) { return sukoreValue(r.score, sukoreRef(base, viewSeason ?? season, r.attribute)); }
-// %もすこれ値も無い間の代わりの数字 = 実ダメージ (B)。巨大な「—」だけを出さない
+// ふるり値 (ユニオン集計後の基準があるときだけ)。カード・総合・シェア文が使う
+function ssOf(r) { return unionValue(r.score, unionRef(base, viewSeason ?? season, r.attribute)); }
+// %もふるり値も無い間の代わりの数字 = 実ダメージ (B)。巨大な「—」だけを出さない
 const dmgBOf = (r) => Number.isFinite(r.damage) ? (r.damage / 1e9).toFixed(2) : null;
 
 function renderResults() {
@@ -1144,8 +1144,8 @@ function resultCardHTML(r, i, multi) {
     }
 
     // フィードバックは順位ではなく「中央値=100%としたときの%」(運営方針 2026-07-30)。
-    // シェアカードと同じ構図に統一: 主役 = 中央値比% / サブ = すこれ値 (ユニオン集計後の基準があれば)。
-    // 分布未解禁のうちは すこれ値 → それも無ければ実ダメージを主役にする
+    // シェアカードと同じ構図に統一: 主役 = 中央値比% / サブ = ふるり値 (ユニオン集計後の基準があれば)。
+    // 分布未解禁のうちは ふるり値 → それも無ければ実ダメージを主役にする
     // (2026-11 にふるり値=導入のまき餌をやめた — しきい値を 20 人に下げたので未解禁の期間は短い)
     const ratio = medianRatioOf(r);
     const medianPct = ratio != null ? Math.round(ratio * 100) : null;
@@ -1235,7 +1235,7 @@ function distSectionHTML(r, info) {
         const bars = d.bins.map((v, bi) =>
             `<div class="bar${bi === d.my_bin - 1 ? ' me' : ''}" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('');
         const team = t('ui.team_of', { code: attrName(r.attribute) });
-        const medSs = sukoreValue(d.median, sukoreRef(base, viewSeason ?? season, r.attribute));
+        const medSs = unionValue(d.median, unionRef(base, viewSeason ?? season, r.attribute));
         html += `
         <div class="hist">${bars}</div>
         <div class="hist-axis"><span>${Math.round((d.lo / d.median) * 100)}%</span><span>${t('ui.axis_median_pct', { pct: 100 })}</span><span>${Math.round((d.hi / d.median) * 100)}%</span></div>
@@ -1310,7 +1310,7 @@ async function showShareCardPreview() {
     }
 }
 
-// シェア文もカードと同じ主従: 中央値比%が主役、すこれ値はサブ (未解禁時は すこれ値 → 実ダメージ)。
+// シェア文もカードと同じ主従: 中央値比%が主役、ふるり値はサブ (未解禁時は ふるり値 → 実ダメージ)。
 // 総合は締め凸を除いて平均 (画面・カードと同じ数字になること — Codex指摘)
 function shareText() {
     const tags = t('ui.tags');
@@ -1326,7 +1326,7 @@ function shareText() {
             const totalPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100);
             return t('ui.share_total', { pct: totalPct, parts: results.map(partOf).join('/'), tags });
         }
-        // %が揃っていない: すこれ値が全部あれば すこれ値、無ければ実ダメージの並び
+        // %が揃っていない: ふるり値が全部あれば ふるり値、無ければ実ダメージの並び
         const allSs = results.every(r => r.isFinish || ssOf(r) != null);
         return t(allSs ? 'ui.share_scores' : 'ui.share_dmgs', { parts: results.map(partOf).join('/'), tags });
     }
@@ -1362,7 +1362,7 @@ function onShare() {
 function shareWithFile(blob, opts = {}) {
     if (!blob || typeof File !== 'function' || !navigator.canShare || !navigator.share) return false;
     let file = null;
-    try { file = new File([blob], 'sukore-score.png', { type: 'image/png' }); } catch { return false; }
+    try { file = new File([blob], 'fururi-score.png', { type: 'image/png' }); } catch { return false; }
     try {
         if (!navigator.canShare({ files: [file] })) return false;
         shareBusy = true;   // 連打で2つ目の share を投げない (2つ目が拒否されて誤ってXに飛ぶのを防ぐ)
@@ -1423,7 +1423,7 @@ function saveByDownload(blob) {
         const a = document.createElement('a');
         const url = URL.createObjectURL(blob);
         a.href = url;
-        a.download = `sukore-score.png`;
+        a.download = `fururi-score.png`;
         a.click();
         // ⚠ 同じターンで revoke するとダウンロードが始まる前にURLが無効になり得る (Codex指摘) — 後で捨てる
         setTimeout(() => URL.revokeObjectURL(url), 60000);

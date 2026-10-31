@@ -3,7 +3,7 @@ import { fetchDistribution, fetchCompInsights, fetchSiteState, backendConfigured
 import { escapeHtml, CHAR_IMG_RE, THRESHOLDS, ATTR_INFO, enablePullToRefresh, attrName } from './shared.js';
 import { makeCharResolver, tileHTML, sortForDisplay } from './tiles.js';
 import { t, initLang, applyStaticI18n, mountLangToggle } from './i18n.js';
-import { sukoreRef, sukoreValue } from './calc.js';
+import { unionRef, unionValue } from './calc.js';
 
 let infoOf = () => null;
 
@@ -175,7 +175,7 @@ function renderDist(d, attr) {
     }
     const maxBin = Math.max(...d.bins, 1);
     const team = t('ui.team_of', { code: attrName(attr) });
-    const medSs = sukoreValue(d.median, sukoreRef(base, viewSeason, attr));
+    const medSs = unionValue(d.median, unionRef(base, viewSeason, attr));
     $('distArea').innerHTML = `
     <div class="hist">${d.bins.map(v =>
         `<div class="bar" style="height:${Math.max(3, (v / maxBin) * 100)}%"></div>`).join('')}</div>
@@ -185,12 +185,12 @@ function renderDist(d, attr) {
         : t('stats.dist_note', { team, n: count(d.n) })}</p>`;
 }
 
-// スコアの単位 (SLv 換算 B / 2026-10 まではふるり値) は表に出さない。中央値比 (%) か すこれ値 で見せる
+// スコアの単位 (SLv 換算 B / 2026-10 まではふるり値) は表に出さない。中央値比 (%) か ふるり値 で見せる
 function pctOfMedian(v, d) {
     return (Number.isFinite(v) && d?.median > 0) ? `${Math.round((v / d.median) * 100)}%` : '—';
 }
 function compMedianLabel(median, attr, dist) {
-    const ss = sukoreValue(Number(median), sukoreRef(base, viewSeason, attr));
+    const ss = unionValue(Number(median), unionRef(base, viewSeason, attr));
     if (ss != null) return t('stats.median_strong_ss', { v: ss.toFixed(2) });
     const distReady = dist && !dist.gated && Array.isArray(dist.bins) && dist.median > 0;
     return distReady ? t('stats.median_strong', { pct: Math.round((Number(median) / dist.median) * 100) }) : null;
