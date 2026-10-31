@@ -15,7 +15,8 @@
    "burst": "B3",
    "burstAlt": null,
    "element": "FIRE",
-   "en": "A2"
+   "en": "A2",
+   "hasImg": true
   },
   "f623e75af30e62bbd73d6df5b50bb7b5.webp": {
    "name": "D",
@@ -294,7 +295,8 @@
    "burst": "B3",
    "burstAlt": null,
    "element": "WATER",
-   "en": "Emilia"
+   "en": "Emilia",
+   "hasImg": true
   },
   "f6f11832e197be520f5db886a9f4dc2f.webp": {
    "name": "エレグ",
@@ -340,7 +342,8 @@
    "name": "ギルティ：マイティバニー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "30329f02a14ebb70e4c47171d9fc7b49.webp": {
    "name": "キロ",
@@ -534,7 +537,8 @@
    "burst": "B3",
    "burstAlt": null,
    "element": "ELECTRIC",
-   "en": "Jill Valentine"
+   "en": "Jill Valentine",
+   "hasImg": true
   },
   "fe68cec5faf22d58ce6a1d00f8f09b84.webp": {
    "name": "シン",
@@ -548,7 +552,8 @@
    "name": "シン：スウィフトバニー",
    "burst": "B3",
    "burstAlt": null,
-   "element": "WATER"
+   "element": "WATER",
+   "hasImg": true
   },
   "59035ecc65d2e661f612d9eea23dbe07.webp": {
    "name": "シンデレラ",
@@ -755,7 +760,8 @@
    "burst": "B3",
    "burstAlt": null,
    "element": "WIND",
-   "en": "Drake - Great Villain"
+   "en": "Drake - Great Villain",
+   "hasImg": true
   },
   "b57ce6b6a2b2cc30472c6cf7179b18ec.webp": {
    "name": "ドロシー",
@@ -834,7 +840,8 @@
    "burst": "B3",
    "burstAlt": null,
    "element": "WATER",
-   "en": "Neon - Blue Ocean"
+   "en": "Neon - Blue Ocean",
+   "hasImg": true
   },
   "fa653d9bb2d0123183f21339a71c9205.webp": {
    "name": "ネロ",
@@ -991,7 +998,8 @@
    "name": "プリム",
    "burst": "B1",
    "burstAlt": null,
-   "element": "IRON"
+   "element": "IRON",
+   "hasImg": true
   },
   "13fd287ebecbb457c1a22f1c63b1f41c.webp": {
    "name": "ブレッディ",
@@ -1133,7 +1141,8 @@
    "burst": "B2",
    "burstAlt": null,
    "element": "WIND",
-   "en": "Maxwell - Ordinary Mechanic"
+   "en": "Maxwell - Ordinary Mechanic",
+   "hasImg": true
   },
   "99737a30cba00f176d679d76cf6a43f1.webp": {
    "name": "マスト",
@@ -1167,6 +1176,13 @@
    "en": "Mari",
    "hasImg": true
   },
+  "08554fef09458dfa8a2f4164dcf2a1ee.webp": {
+   "name": "マリアン：クイーン",
+   "burst": "B3",
+   "burstAlt": null,
+   "element": "FIRE",
+   "hasImg": true
+  },
   "77e1a03a56a0fd32e4a3f6613eb6c849.webp": {
    "name": "マルチャーナ",
    "burst": "B2",
@@ -1196,7 +1212,8 @@
    "burst": "B1",
    "burstAlt": null,
    "element": "IRON",
-   "en": "Mica - Snow Buddy"
+   "en": "Mica - Snow Buddy",
+   "hasImg": true
   },
   "0084c4eafb651c0dba3734f050dd63bb.webp": {
    "name": "ミサト",
@@ -1371,7 +1388,8 @@
    "burst": "B3",
    "burstAlt": null,
    "element": "WIND",
-   "en": "Laplace - Ultimate Hero"
+   "en": "Laplace - Ultimate Hero",
+   "hasImg": true
   },
   "c605774f3cea4f1638b88a73b73ab575.webp": {
    "name": "ラプンツェル",
@@ -1394,7 +1412,8 @@
    "burst": "B1",
    "burstAlt": null,
    "element": "WIND",
-   "en": "Ram"
+   "en": "Ram",
+   "hasImg": true
   },
   "1535016705a53ae769ac8b37c6b2dd51.webp": {
    "name": "リター",
@@ -1465,7 +1484,8 @@
    "burst": "B1",
    "burstAlt": null,
    "element": "ELECTRIC",
-   "en": "Rupee - Winter Shopper"
+   "en": "Rupee - Winter Shopper",
+   "hasImg": true
   },
   "8a0b948967a7675717e8801b4cc3ac5c.webp": {
    "name": "ルマニ",
@@ -1552,7 +1572,8 @@
    "burst": "B2",
    "burstAlt": null,
    "element": "WIND",
-   "en": "Himeno"
+   "en": "Himeno",
+   "hasImg": true
   },
   "cdb92e5e9f92780dda2fcba1f02744f4.webp": {
    "name": "式波・アスカ・ラングレー",

@@ -2,7 +2,8 @@
  "_readme": [
   "BlablaLINK 図鑑アイコン (assets/blabla-icons/<resource_id>.webp) と GB キャラマスタ (日本語名) の対応表。",
   "resource_id はゲームアセット由来の安定ID (si_c{id})。jp は文字列 or 配列 (本家DBの名寄せ揺れで同一キャラが複数行ある場合)。",
-  "新キャラ追加時: 画像を assets/blabla-icons に置き、ここに resource_id → 日本語名 を追記 → build-characters 再実行。"
+  "新キャラ追加時: 画像を assets/blabla-icons に置き、ここに resource_id → 日本語名 を追記 → build-characters 再実行。",
+  "キーが \"cdn-<8桁>\" の行は BlaBlaLINK のキャラ一覧の立ち絵から切り抜いた顔アイコン (src: portrait・resource_id が分からないキャラ用)。作り方は scripts/import-blabla-portraits.py。en が無いので英語名は data/name-en.json で補う。"
  ],
  "icons": {
   "43": {
@@ -714,6 +715,70 @@
   "550": {
    "en": "Bay",
    "jp": "ベイ"
+  },
+  "cdn-a447f201": {
+   "jp": "マリアン：クイーン",
+   "src": "portrait"
+  },
+  "cdn-0fd22335": {
+   "jp": "ギルティ：マイティバニー",
+   "src": "portrait"
+  },
+  "cdn-352fc04b": {
+   "jp": "ラプンツェル：サンクチュアリ",
+   "src": "portrait"
+  },
+  "cdn-713c5e1f": {
+   "jp": "プリム",
+   "src": "portrait"
+  },
+  "cdn-6d06debd": {
+   "jp": "ドレイク：グレイトヴィラン",
+   "src": "portrait"
+  },
+  "cdn-50a4b43e": {
+   "jp": "ルピー：ウィンターショッパー",
+   "src": "portrait"
+  },
+  "cdn-21a5a27c": {
+   "jp": "ネオン：ブルーオーシャン",
+   "src": "portrait"
+  },
+  "cdn-50f94e79": {
+   "jp": "ラプラス：アルティメットヒーロー",
+   "src": "portrait"
+  },
+  "cdn-f04fd6b9": {
+   "jp": "マクスウェル：オーディナリーメカニック",
+   "src": "portrait"
+  },
+  "cdn-de31517a": {
+   "jp": "シン：スウィフトバニー",
+   "src": "portrait"
+  },
+  "cdn-fc5e0de4": {
+   "jp": "ミカ：スノーバディ",
+   "src": "portrait"
+  },
+  "cdn-63aabaa7": {
+   "jp": "A2",
+   "src": "portrait"
+  },
+  "cdn-f87b895e": {
+   "jp": "エミリア",
+   "src": "portrait"
+  },
+  "cdn-c8321017": {
+   "jp": "ジル・バレンタイン",
+   "src": "portrait"
+  },
+  "cdn-9087bc88": {
+   "jp": "姫野",
+   "src": "portrait"
+  },
+  "cdn-17fc64b7": {
+   "jp": "ラム",
+   "src": "portrait"
   }
  }
 }

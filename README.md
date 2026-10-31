@@ -171,7 +171,11 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
   (`assets/blabla-icons/<resource_id>.webp` × `data/blabla-map.json` — 透過128px統一) →
   ② 本家PADのOCR由来アイコン。`scripts/build-characters.mjs` が代表IDごとに1枚コピーし
   `characters.json` に hasImg を付与 (手動で character-images/ を触らない)。
-  新キャラは「図鑑アイコンを assets/blabla-icons へ + blabla-map.json に resource_id→日本語名を追記」
+  新キャラは「図鑑アイコンを assets/blabla-icons へ + blabla-map.json に resource_id→日本語名を追記」。
+  **resource_id が分からない新キャラは、BlaBlaLINK のキャラ一覧 (ブックマークレットの list.json) の立ち絵から作る**:
+  `python3 scripts/import-blabla-portraits.py <list.json> [--also <本家に未登録の名前>]` で確かめ → `--apply` →
+  `node scripts/build-characters.mjs ../しりすこPAD`。立ち絵 (256×512) の (4, 78)〜(252, 326) を 128px に縮めると
+  図鑑アイコンとほぼ同じ絵になる (2026-11-01 に既存 170 組で実測)。キーは `cdn-<8桁>`・画像がまだ無いキャラだけを対象にする
 - **著作権表記**: サイト footer とシェアカード最下部に
   「キャラクター画像・名称: 勝利の女神：NIKKE © SHIFT UP CORP. / 非公式ファンコンテンツ」を明記
 - 属性アイコン等のUI用ゲームアセットは引き続き同梱しない (絵文字/自作のまま)。
