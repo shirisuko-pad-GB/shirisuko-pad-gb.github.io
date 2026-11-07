@@ -1,0 +1,35 @@
+{
+  "_readme": "結果発表カードの集計値スナップショット (scripts/recap-export.mjs の生成物)。シーズン切替で measurements は全削除されるため、次シーズンとの比較はこのファイルが唯一の記録。",
+  "season": "2026-11",
+  "raidNo": 46,
+  "capturedAt": "2026-11-07",
+  "avgSlv": 740,
+  "avgSlvUsers": 1072,
+  "avgSlvCapturedAt": "2026-11-07",
+  "attributes": {
+    "FIRE": {
+      "n": 604,
+      "median": 23.6648937687288
+    },
+    "WATER": {
+      "n": 776,
+      "median": 22.7475276746486
+    },
+    "ELECTRIC": {
+      "n": 350,
+      "median": 21.8070980992193
+    },
+    "IRON": {
+      "n": 468,
+      "median": 25.1509630462109
+    },
+    "WIND": {
+      "n": 423,
+      "median": 24.4181800948623
+    }
+  },
+  "users": 1054,
+  "finishers": 595,
+  "totalMedian": 0.986021821393945,
+  "note": "users/finishers は締め凸と score_bounds 外を除いた有効提出ベース (get_total_distribution)。avgSlv は measurements 直読みの SQL 由来で母集団が少し広く、取得日も別 (avgSlvCapturedAt)。シーズンが open の間は提出が増え続けるため、各値は capturedAt 時点のスナップショット (属性ごとのRPCは逐次取得なので厳密には同時刻ではない)。median は score の生値 (単位は base.json の unit — 〜2026-10 ふるり値 / 2026-11〜 SLv 600 換算 B) — カードは属性中央値=100%の相対表示で、用途が違う。"
+}

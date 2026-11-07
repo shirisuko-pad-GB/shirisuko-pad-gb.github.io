@@ -26,6 +26,9 @@ const charData = JSON.parse(readFileSync(join(ROOT, 'data', 'characters.json'), 
 
 const SEASON = process.argv[2] ?? base.version;
 const ATTRS = ['FIRE', 'WATER', 'ELECTRIC', 'IRON', 'WIND'];
+// get_comp_insights に頼む編成数 = サーバー側のクランプ (15_comp_insights_cap.sql) と同じ値。
+// 2026-11 の水冷で n>=5 の編成が旧上限 20 を超えたので 50 に (tests/run-tests.mjs が SQL と突き合わせる)
+const TOP_COMPS = 50;
 
 // base/raid はローカルファイル = 現行シーズンの値しか持っていない。過去シーズンを
 // 指定すると「過去の集計 × 現行の基準ダメージ/ボス名」の混在ファイルができてしまうため
@@ -95,13 +98,19 @@ for (const attr of ATTRS) {
         console.error(`⚠ ${attr}: 分布未解禁 (n=${dist.n}) — 属性中央値なしで出力します`);
         warned = true;
     }
-    // 編成 (上限20 — 実測で全属性とも n>=5 の編成は20位以内に収まる。収まらなくなったら
-    // 20位の n が 5 以上になるので下の検査で落ちる)
-    const ins = await rpc('get_comp_insights', { p_attribute: attr, p_season: SEASON, p_top_comps: 20 });
-    const comps = (ins.comps ?? []).filter(c => Number.isFinite(c.median));   // median有 = n>=5
-    const tail = (ins.comps ?? [])[ins.comps?.length - 1];
-    if (ins.comps?.length === 20 && tail?.n >= 5) {
-        throw new Error(`${attr}: n>=5 の編成が20件を超えている可能性 — p_top_comps の上限拡張が必要`);
+    // 編成: 採用 n>=5 の編成を全部 (返却は n の降順)。
+    // 末尾がまだ n>=5 なら、その先にも n>=5 の編成が残っているかもしれない = 全部取れた保証がない
+    // (末尾が n<5 なら、それより後ろは全部 n<5 なので取りこぼしは無い)。
+    // 15 未適用だとサーバーが 20 件で切るので、件数が TOP_COMPS 未満でも旧上限 20 以上なら疑う
+    const ins = await rpc('get_comp_insights', { p_attribute: attr, p_season: SEASON, p_top_comps: TOP_COMPS });
+    const list = Array.isArray(ins.comps) ? ins.comps : [];
+    const comps = list.filter(c => Number.isFinite(c.median));   // median有 = n>=5
+    const tail = list[list.length - 1];
+    if (tail?.n >= 5 && list.length >= 20) {
+        const why = list.length < TOP_COMPS
+            ? `${list.length} 件で切れている = サーバーの上限がまだ 20 の可能性 (supabase/15_comp_insights_cap.sql を SQL Editor で適用)`
+            : `p_top_comps の上限 ${TOP_COMPS} を超えている (15 のクランプと TOP_COMPS を一緒に広げる)`;
+        throw new Error(`${attr}: n>=5 の編成を全部取れていない可能性 — ${why}`);
     }
     out.attributes[attr] = {
         attackBenchmark: {

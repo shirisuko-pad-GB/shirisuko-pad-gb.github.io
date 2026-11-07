@@ -124,5 +124,11 @@ SELECT * FROM (
                      WHERE n.nspname = 'public' AND p.proname = 'get_total_distribution'
                        AND p.prosrc LIKE '%v_thresh int := 20;%')),
         '分布の解禁しきい値 (属性20 / 同一編成10 / 3凸総合20)'
+
+    UNION ALL SELECT '15_comp_insights_cap',
+        (EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                 WHERE n.nspname = 'public' AND p.proname = 'get_comp_insights'
+                   AND p.prosrc LIKE '%least(greatest(p_top_comps, 1), 50)%')),
+        'get_comp_insights の返す編成数の上限 20→50 (凍結エクスポートが n>=5 の編成を全部取るため)'
 ) t
 ORDER BY migration;

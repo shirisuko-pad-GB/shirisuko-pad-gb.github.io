@@ -690,9 +690,9 @@ test('キャラ画像アセットの整合ガード (hasImg ↔ character-images
     }
 });
 
-test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 14 / 09)', () => {
+test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 集計RPCの最終定義 = 14 / 15)', () => {
     // get_distribution・get_total_distribution の最終定義は 14_lower_thresholds.sql、
-    // get_comp_insights は 09_finish_flag.sql (05/08/11 は歴史)
+    // get_comp_insights は 15_comp_insights_cap.sql (05/08/09/11 は歴史)
     const def = (sql, name) => {
         const a = sql.indexOf(`create or replace function public.${name}(`);
         assert(a >= 0, `${name} の定義がありません`);
@@ -704,10 +704,10 @@ test('クライアントとサーバーのしきい値が一致 (THRESHOLDS ↔ 
         `14 の分布閾値が THRESHOLDS.dist(${THRESHOLDS.dist})/comp(${THRESHOLDS.comp}) と一致しない`);
     assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.dist}\\b`).test(def(s14, 'get_total_distribution')),
         `14 の総合の閾値が THRESHOLDS.dist(${THRESHOLDS.dist}) と一致しない`);
-    assert(!/get_comp_insights/.test(s14.replace(/^--.*$/gm, '')), '14 は get_comp_insights を再定義しない (09 が最終定義)');
-    const s09 = readFileSync(join(ROOT, 'supabase', '09_finish_flag.sql'), 'utf8');
-    assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(def(s09, 'get_comp_insights')),
-        `09 の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
+    assert(!/get_comp_insights/.test(s14.replace(/^--.*$/gm, '')), '14 は get_comp_insights を再定義しない (15 が最終定義)');
+    const s15 = readFileSync(join(ROOT, 'supabase', '15_comp_insights_cap.sql'), 'utf8');
+    assert(new RegExp(`v_thresh\\s+int\\s*:=\\s*${THRESHOLDS.insights}\\b`).test(def(s15, 'get_comp_insights')),
+        `15 の編成閾値が THRESHOLDS.insights(${THRESHOLDS.insights}) と一致しない`);
 });
 
 test('14_lower_thresholds: しきい値以外は 09 / 11 の最終定義と同一 (集計の中身を変えない)', () => {
@@ -724,6 +724,38 @@ test('14_lower_thresholds: しきい値以外は 09 / 11 の最終定義と同�
     assert(/grant execute on function public\.get_distribution\(text, text, numeric, text, int\) to anon/.test(sql), 'get_distribution の grant');
     assert(/revoke all on function public\.get_total_distribution.* from public/.test(sql) &&
            /grant execute on function public\.get_total_distribution.* to anon/.test(sql), 'get_total_distribution の revoke/grant');
+});
+
+test('15_comp_insights_cap: 上限以外は 09 の get_comp_insights と同一 + export-season.mjs の TOP_COMPS と一致', () => {
+    const body = (file, name) => {
+        const sql = readFileSync(join(ROOT, 'supabase', file), 'utf8');
+        const a = sql.indexOf(`create or replace function public.${name}(`);
+        assert(a >= 0, `${file}: ${name} の定義がありません`);
+        const b = sql.indexOf('end; $$;', a);
+        return sql.slice(a, b).split('\n').filter(l => !/p_top_comps := least\(greatest\(p_top_comps, 1\), \d+\)/.test(l)).join('\n');
+    };
+    assertEq(body('15_comp_insights_cap.sql', 'get_comp_insights'), body('09_finish_flag.sql', 'get_comp_insights'), 'get_comp_insights (上限の行以外)');
+    const sql = readFileSync(join(ROOT, 'supabase', '15_comp_insights_cap.sql'), 'utf8');
+    const code = sql.replace(/^--.*$/gm, '');
+    const cap = code.match(/p_top_comps := least\(greatest\(p_top_comps, 1\), (\d+)\);/);
+    assert(cap, '15 に p_top_comps のクランプが無い');
+    assertEq(Number(cap[1]), 50, 'p_top_comps の上限は 50');
+    assert(!/\b(alter table|drop |truncate|insert into|delete from|update public)\b/i.test(code), '15 にデータ・スキーマ変更が含まれている');
+    assert(/grant execute on function public\.get_comp_insights\(text, text, int, int\) to anon/.test(sql), 'get_comp_insights の grant');
+    assert(!/get_distribution|get_total_distribution/.test(code), '15 は分布 RPC を再定義しない (14 が最終定義)');
+    assert(/v_thresh int := 10;/.test(code) && /v_floor\s+int := 5;/.test(code), '15 は解禁しきい値 (全体 10 / 個別 5 人) を変えない');
+    // 凍結エクスポートは同じ上限を頼む (サーバーが黙って丸めると「全部取れた」の判定が狂う)
+    const es = readFileSync(join(ROOT, 'scripts', 'export-season.mjs'), 'utf8');
+    const top = es.match(/^const TOP_COMPS = (\d+);/m);
+    assert(top, 'export-season.mjs に TOP_COMPS が無い');
+    assertEq(Number(top[1]), Number(cap[1]), 'export-season.mjs の TOP_COMPS = 15 のクランプ');
+    assert(/get_comp_insights', \{[^}]*p_top_comps: TOP_COMPS/.test(es), 'get_comp_insights の呼び出しが TOP_COMPS を渡していない');
+    // 安全弁: 末尾がまだ n>=5 で件数が旧上限 20 以上なら止める (15 未適用の 20 件切りも、50 超えも拾う)
+    assert(/if \(tail\?\.n >= 5 && list\.length >= 20\) \{/.test(es), '取りこぼしの安全弁が無い・緩んでいる');
+    assert(/throw new Error\(`\$\{attr\}: n>=5 の編成を全部取れていない可能性/.test(es), '安全弁は例外で止める (警告で続けない)');
+    // 99 に判定行
+    const s99 = readFileSync(join(ROOT, 'supabase', '99_check_applied.sql'), 'utf8');
+    assert(/'15_comp_insights_cap'/.test(s99) && /least\(greatest\(p_top_comps, 1\), 50\)/.test(s99), '99 に 15 の判定行が無い');
 });
 
 // シャドウ除外の構造検査 (08 で導入・09 が最終定義 — 両方が同じ構造を保つこと)

@@ -40,7 +40,7 @@ NIKKE ユニオンレイドのダメージを SLv 補正し、みんなの中で
   分布・採用率・編成ランキングは **season で区切る** (RPC が `season = p_season` で絞る)。
 - **順位づけは norm_damage (= damage ÷ slvRatio[slv])**。score は表示用の換算値 (単位はシーズンの base.json)。
 - 集計はサーバー側 RPC (`get_distribution` / `get_total_distribution` の**最終定義は 14_lower_thresholds.sql**・
-  `get_comp_insights` は **09_finish_flag.sql** — 08 は歴史):
+  `get_comp_insights` は **15_comp_insights_cap.sql** (中身は 09 と同じ・返す編成数の上限だけ 20→50) — 08 / 09 は歴史):
   シーズン絞り・1端末(client_id)につき属性ごとベスト1件・ヒストグラムは p1〜p99 域にクリップ。
   返り値は score の単位 (2026-11〜 SLv 600 換算 B / 〜2026-10 ふるり値)。画面は中央値比かふるり値に直して見せる。**時間窓は撤去** (シーズンで区切るため)。
 - **シャドウ集計 (08)**: 荒らしの極端値は送信を拒否せず受理する (突っぱねるとエスカレートするため)。
@@ -92,7 +92,7 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
   `supabase/seed.local.sql` — **gitignore 済み。コミット禁止**。
   ※ seed は **データのみ (slv_ratio + fururi_bases)**。関数定義は含めない
   (含めると月次再実行で RPC の強化を上書きしてしまうため。最終定義は submit_measurements = 13_input_source.sql、
-  get_distribution / get_total_distribution = 14_lower_thresholds.sql、get_comp_insights = 09_finish_flag.sql、
+  get_distribution / get_total_distribution = 14_lower_thresholds.sql、get_comp_insights = 15_comp_insights_cap.sql、
   トリガ measurements_compute = 05_seasons.sql — 古い番号のファイルを再適用しないこと)。
 - tests/run-tests.mjs に混入ガードあり (slv-ratio がリポジトリに現れたら CI が落ちる)
 - 限界の認識: 「SLvを1ずつ変えて送信し返ってくるスコアを記録する」方式での逆算は
@@ -141,7 +141,8 @@ slv-ratio (SLv別攻撃力補正) は **めいでる+ふるりの未公開検証
 | `supabase/06_input_bounds.sql` | damage のサニティ上限CHECK (REVIEW-aggregation.md 対処2) |
 | `supabase/07_sanitize_errors.sql` | **submit_measurements の最終定義**: エラーDETAILの行内容漏洩 (norm_damage→slv_ratio逆算) を遮断 |
 | `supabase/08_shadow_stats.sql` | 集計RPC: シャドウ除外 (score_bounds)・「最高」廃止・中央値TOP・並び順内訳 (09 が引き継ぐ) |
-| `supabase/14_lower_thresholds.sql` | **get_distribution / get_total_distribution の最終定義**: 解禁しきい値の引き下げ (20/10・総合20)。中身は 09 / 11 と同一 (get_comp_insights の最終は 09) |
+| `supabase/14_lower_thresholds.sql` | **get_distribution / get_total_distribution の最終定義**: 解禁しきい値の引き下げ (20/10・総合20)。中身は 09 / 11 と同一 (get_comp_insights の最終は 15) |
+| `supabase/15_comp_insights_cap.sql` | **get_comp_insights の最終定義**: 返す編成数の上限 20→50 (凍結エクスポートが n>=5 の編成を全部取るため — 2026-11 の水冷で 20 件を超えた)。中身は 09 と同一・しきい値は変えない |
 | `supabase/99_check_applied.sql` | マイグレーション適用状況チェッカー (新環境で必須・読み取り専用) |
 
 ### 🎨 権利方針: キャラ画像は **takedown 方式で掲載中** (2026-08-31 改定)
@@ -308,6 +309,9 @@ UI を変えたら手元で `node tests/e2e.mjs` を回して回帰を確認す�
   (0) 前シーズンを凍結:  node scripts/export-season.mjs   ← **(a) より前・new-season より前** に
       (base.json がまだ N のうちに実行。data/export/N.json + index.json を commit。
        次シーズン序盤の「前回 (N) の人気編成」はこのファイルから出る — js/calc.js pickPrevSeason)
+      「n>=5 の編成を全部取れていない可能性」で止まったら、メッセージの件数を見る:
+       20 件で切れている = 15_comp_insights_cap.sql (上限 50) が未適用の可能性 → SQL Editor で適用して再実行。
+       50 件まで返って止まる = 本当に 50 件を超えた → 15 のクランプとスクリプトの TOP_COMPS を一緒に広げる (片方だけだとテストが落ちる)
   (a) 旧データ削除:   delete from public.measurements;
   (b) node scripts/new-season.mjs        ← ボス5体・スコアの単位・roster を全自動生成
   (c) SQL Editor で supabase/seed.local.sql を実行 (fururi_bases に N+1 の単位 = 1B @ SLv 600 を投入)
@@ -495,7 +499,7 @@ node scripts/update-roster.mjs        # ../しりすこPAD を読む (パス指�
 4. SQL Editor で `04_hardening.sql` → `05_seasons.sql` → `06_input_bounds.sql` →
    `07_sanitize_errors.sql` → `08_shadow_stats.sql` → `09_finish_flag.sql` →
    `10_own_edits.sql` → `11_total_distribution.sql` → `12_slv_1183.sql` → `13_input_source.sql` →
-   `14_lower_thresholds.sql` の**番号順に全部**実行
+   `14_lower_thresholds.sql` → `15_comp_insights_cap.sql` の**番号順に全部**実行
    (04で characters CHECK・submit RPC一本化、05で season化・site_state、06で damage上限、
    07でエラーDETAIL漏洩対策 — 07を飛ばすと slv_ratio が逆算可能なままになる。
    12はSLv上限1183 — **既存環境に後から適用する場合は 12 → seed の順**。

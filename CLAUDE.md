@@ -29,8 +29,8 @@ NIKKE ユニオンレイドの実力を「中央値比 %」と「ふるり値」
    client_id + season + attribute の3条件スコープ (他人の行に触れない)。
    テーブルへの匿名直接 INSERT/SELECT を許すポリシーを追加しない。
    最終定義: submit = `13_input_source.sql`、集計RPC = `14_lower_thresholds.sql` (get_distribution・
-   get_total_distribution) / `09_finish_flag.sql` (get_comp_insights)、後編集 = `10_own_edits.sql`
-   (05/07/08 は歴史。関数を seed で上書きしない)。
+   get_total_distribution) / `15_comp_insights_cap.sql` (get_comp_insights — 中身は 09 と同じで返す編成数の上限だけ 50)、後編集 = `10_own_edits.sql`
+   (05/07/08/09 は歴史。関数を seed で上書きしない)。
    **エラーで行内容を返さない**: INSERT は例外ハンドラで包む (DETAIL に norm_damage が入り slv_ratio が漏れる)
 4. **DB由来・ユーザー入力由来の文字列は必ず `escapeHtml` を通して DOM へ**。キャラ名も本家DB由来
    なので信頼しない (tiles.js は textContent/escape 済みの経路のみ使う)
