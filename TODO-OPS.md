@@ -12,6 +12,26 @@
   (第44回 53% → 第45回 37% → 回復)。スクショ読み取りの経路なら 7 割が編成つきなので、「強かった編成」カード (③④) は**続ける**
 - 次: 本家に第47回のボスが登録されたら README のランブック (a)〜 で切替 (export は 15 適用後に先に済ませておく)
 
+## 🌏 海外の利用者をどう見るか — **2026-11-08 に調べた。記録は足さない (ふるりの判断)**
+
+- **国・言語は記録していない**: measurements に言語・国の列は無い (時刻・属性・SLv・ダメージ・編成・端末 ID・提出経路だけ)。
+  画面の言語 (日本語 / English) は localStorage `spg_lang` に覚えるだけで送っていない。解析タグも無し。GitHub のトラフィック API はリポジトリの閲覧しか数えない (Pages の閲覧は 0 と出る)
+- **直接の指標 = Supabase の API ログ** (Dashboard → Logs → **Logs Explorer**・BigQuery 方言・保持はプランで 1 日 / 7 日。シーズン全体は残らない):
+  ```sql
+  select h.cf_ipcountry as country, count(*) as submits
+  from edge_logs
+    cross join unnest(metadata) as m
+    cross join unnest(m.request) as r
+    cross join unnest(r.headers) as h
+  where r.path like '%/rpc/submit_measurements%' and r.method = 'POST'
+  group by country order by submits desc
+  ```
+  (数えるのは人でなく通信の件数。閲覧も見るなら path を `%/rest/v1/rpc/%` に。cf_ipcountry が無いと言われたら `cross join unnest(r.cf) as cf` + `cf.country`)
+- **間接の指標 = 日本時間の提出時刻** (SQL Editor): `extract(hour from created_at at time zone 'Asia/Tokyo')` で時刻別に数える / 端末ごとに「JST 3〜8 時にしか提出していない」を数える。
+  日本の夜ふかしと区別はつかない。measurements は切替 (a) で消えるので見るなら切替の前
+- 取れるようにするなら: 提出に画面の言語 (ja / en) を 1 列足す (SQL 1 本 + js/backend.js の送信 1 行・匿名のまま)。国まで欲しければ端末のタイムゾーンだが位置に近い情報なので公開サイトとして集めるかは要判断。
+  **第47回では足さない** (2026-11-08 ふるり「現状はここまで把握できれば OK・変更不要」)
+
 ## 🔁 第46回 (2026-11) から ふるり値の基準を「ユニオンの中央値」に — **2026-11-01 公開 (open 07:08)・基準も反映**
 
 - ふるり値の 1.00 を「基準者ふるり 1 人の値」→「推しりをすこれ部のメンバーの中央値 (同じボス・SLv 補正)」に変更。
